@@ -3,9 +3,6 @@
   "functions": {
     "api/datacrazy/*.js": {
       "maxDuration": 60
-    },
-    "api/admin/*.js": {
-      "maxDuration": 30
     }
   },
   "headers": [
