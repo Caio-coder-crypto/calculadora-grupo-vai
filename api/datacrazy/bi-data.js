@@ -37,8 +37,10 @@ module.exports = async function handler(req, res) {
     }
 
     // ---- Busca paralela ----
+    // Limite de 15 páginas (3.000 deals) pra evitar timeout em CRMs grandes.
+    // Pipelines/atendentes/motivos são listas pequenas, mantemos baixo limite.
     const [businessesRes, pipelinesRes, attendantsRes, lossReasonsRes] = await Promise.all([
-      dcGetAll(apiKey, '/businesses', {}, 200, 25),       // até 5000 deals
+      dcGetAll(apiKey, '/businesses', {}, 200, 15),       // ~3.000 deals (suficiente p/ BI)
       dcGetAll(apiKey, '/pipelines', {}, 50, 5),
       dcGetAll(apiKey, '/attendants/crm', {}, 100, 5),
       dcGetAll(apiKey, '/business-loss-reasons', {}, 100, 5)

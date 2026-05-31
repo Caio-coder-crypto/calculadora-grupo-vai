@@ -126,7 +126,7 @@
         Calculadora de Custos Oficial
       </h1>
       <p class="mt-3 text-slate-600 text-base sm:text-lg max-w-2xl">
-        Simule o investimento mensal em conversas da API Oficial do WhatsApp com tarifas atualizadas da Meta para o Brasil, conversão em tempo real e relatório PDF executivo.
+        Calcule o custo mensal de conversas da API Oficial do WhatsApp Business, acompanhe seu gasto realizado × projetado e visualize o BI completo do seu CRM em tempo real.
       </p>
     </header>
 
@@ -1772,7 +1772,19 @@
           usdBrl: state.usdBrl || 5.00
         });
         const res = await dcFetch('/api/datacrazy/summary?' + params.toString());
-        const data = await res.json();
+        // Lê como texto primeiro pra evitar "Unexpected token" quando Vercel
+        // retorna HTML em caso de timeout/erro 500
+        const rawText = await res.text();
+        let data;
+        try {
+          data = JSON.parse(rawText);
+        } catch {
+          // Resposta não-JSON (provavelmente HTML de erro/timeout do Vercel)
+          if (res.status === 504 || /gateway.*time|fun.*timeout/i.test(rawText)) {
+            throw new Error('A operação demorou demais (timeout). Sua base é muito grande — vamos otimizar. Tente novamente em alguns segundos.');
+          }
+          throw new Error(`Resposta inesperada do servidor (HTTP ${res.status}). Verifique se está configurado corretamente.`);
+        }
         if (!res.ok || data.error) {
           // 403 ou KEY_NOT_FOUND → tela de bloqueio (kill switch)
           if (checkSubscriptionBlock(res, data)) {
@@ -2855,7 +2867,18 @@
       setBiView('biLoading');
       try {
         const res = await dcFetch('/api/datacrazy/bi-data' + (force ? '?force=1' : ''));
-        const data = await res.json();
+        // Lê como texto primeiro pra evitar "Unexpected token" quando Vercel
+        // retorna HTML em caso de timeout/erro 500
+        const rawText = await res.text();
+        let data;
+        try {
+          data = JSON.parse(rawText);
+        } catch {
+          if (res.status === 504 || /gateway.*time|fun.*timeout/i.test(rawText)) {
+            throw new Error('A operação demorou demais (timeout). Sua base é muito grande — tente novamente em alguns segundos.');
+          }
+          throw new Error(`Resposta inesperada do servidor (HTTP ${res.status}).`);
+        }
         if (!res.ok || data.error) {
           // 403 ou KEY_NOT_FOUND → tela de bloqueio (kill switch)
           if (checkSubscriptionBlock(res, data)) {

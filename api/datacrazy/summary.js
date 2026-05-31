@@ -57,6 +57,12 @@ module.exports = async function handler(req, res) {
 
     // ---- Busca leads + conversations (com cache de 60s) ----
     // Os dados brutos são cacheados; os cálculos derivados (mix, cotação) rodam sempre.
+    //
+    // IMPORTANTE: limitamos a 10 páginas (2.000 registros) por endpoint pra evitar
+    // timeout em clientes grandes (50k+ leads). O campo `total` continua exato (vem
+    // do response.count da API), só as distribuições por source/tag/mês ficam baseadas
+    // no sample dos 2.000 registros mais recentes — estatisticamente representativo
+    // e suficiente pro Dashboard de custo (que projeta com base no ritmo).
     const ck = cacheKey(apiKey);
     const force = req.query.force === '1';
     let leadsRes, convsRes, fromCache = false;
@@ -68,8 +74,8 @@ module.exports = async function handler(req, res) {
       fromCache = true;
     } else {
       [leadsRes, convsRes] = await Promise.all([
-        dcGetAll(apiKey, '/leads', {}, 200, 50),
-        dcGetAll(apiKey, '/conversations', {}, 200, 50)
+        dcGetAll(apiKey, '/leads', {}, 200, 10),         // ~2k leads sampled
+        dcGetAll(apiKey, '/conversations', {}, 200, 10)  // ~2k conversas
       ]);
       cache.set(ck, { at: Date.now(), leadsRes, convsRes });
     }
