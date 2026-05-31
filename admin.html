@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin · Painel BI Grupo VAI</title>
+  <meta name="description" content="Central de comando da Grupo VAI — gestão de clientes do Painel BI." />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <style>
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+    .num-input::-webkit-outer-spin-button,
+    .num-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen antialiased">
+
+  <!-- ============================================================ -->
+  <!-- TELA DE LOGIN                                                 -->
+  <!-- ============================================================ -->
+  <div id="loginScreen" class="fixed inset-0 z-50 bg-[#041227] flex items-center justify-center p-4">
+    <div class="absolute top-0 left-0 w-full h-1.5 flex">
+      <span class="flex-1 bg-[#00A859]"></span>
+      <span class="flex-1 bg-[#FFB81C]"></span>
+    </div>
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+      <div class="bg-[#041227] text-white p-6 text-center">
+        <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#FFB81C]/15 ring-4 ring-[#FFB81C]/30 mb-3">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-8 h-8 text-[#FFB81C]"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </div>
+        <h1 class="text-xl font-extrabold">Central de Comando</h1>
+        <p class="text-xs text-[#FFB81C] font-bold uppercase tracking-widest mt-1">Grupo VAI · Admin</p>
+      </div>
+      <form id="loginForm" class="p-6 space-y-3">
+        <label class="block text-[11px] font-bold uppercase tracking-widest text-slate-600">Senha admin</label>
+        <input id="loginPassword" type="password" autocomplete="current-password" autofocus
+               class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#00A859] focus:border-[#00A859]" />
+        <div id="loginError" class="hidden text-xs text-red-700 bg-red-50 border border-red-200 rounded p-2"></div>
+        <button type="submit"
+                class="w-full px-4 py-3 rounded-lg bg-[#041227] text-white font-bold text-sm hover:bg-[#0a1d3d] transition shadow-lg ring-1 ring-[#00A859]/30">
+          Entrar
+        </button>
+        <p class="text-[10px] text-slate-400 text-center pt-2">A senha é validada no servidor (env <code>ADMIN_PASSWORD</code>).</p>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- DASHBOARD ADMIN                                               -->
+  <!-- ============================================================ -->
+  <div id="adminDashboard" class="hidden">
+    <!-- Header -->
+    <header class="bg-[#041227] text-white shadow-md sticky top-0 z-30">
+      <div class="absolute top-0 left-0 w-full h-1 flex">
+        <span class="flex-1 bg-[#00A859]"></span>
+        <span class="flex-1 bg-[#FFB81C]"></span>
+      </div>
+      <div class="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
+        <div class="flex items-center gap-3">
+          <div class="rounded-lg overflow-hidden bg-[#0a1d3d] flex items-center justify-center" style="width: 120px; height: 40px;">
+            <img src="vai-icon.png" alt="Grupo VAI" class="max-h-full max-w-full object-contain" onerror="this.style.display='none'" />
+          </div>
+          <div class="leading-tight">
+            <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-[#00A859]">Grupo VAI</p>
+            <p class="text-sm font-bold">Central de Comando</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <a href="/" class="text-[11px] font-semibold text-slate-300 hover:text-white px-3 py-1.5 rounded-lg hover:bg-white/10 transition">
+            ← Voltar ao Painel
+          </a>
+          <button id="logoutBtn" type="button"
+                  class="text-[11px] font-semibold text-white bg-red-600/80 hover:bg-red-600 px-3 py-1.5 rounded-lg transition">
+            Sair
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+
+      <!-- Stats -->
+      <div class="grid grid-cols-3 gap-3">
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-slate-500">📋 Total</p>
+          <p class="text-3xl font-extrabold text-[#041227] mt-2" id="statTotal">—</p>
+        </div>
+        <div class="bg-white rounded-xl border border-[#00A859]/30 p-4 shadow-sm">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-[#00754d]">✅ Ativos</p>
+          <p class="text-3xl font-extrabold text-[#00754d] mt-2" id="statActive">—</p>
+        </div>
+        <div class="bg-white rounded-xl border border-red-200 p-4 shadow-sm">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-red-700">🔒 Bloqueados</p>
+          <p class="text-3xl font-extrabold text-red-700 mt-2" id="statInactive">—</p>
+        </div>
+      </div>
+
+      <!-- Toolbar -->
+      <div class="bg-white rounded-xl border border-slate-200 p-3 flex items-center gap-2 flex-wrap shadow-sm">
+        <input id="searchInput" type="text" placeholder="🔍 Buscar por empresa ou chave…"
+               class="flex-1 min-w-[200px] rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00A859]" />
+        <select id="filterStatus" class="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-sm">
+          <option value="all">Todos</option>
+          <option value="active">Só ativos</option>
+          <option value="inactive">Só bloqueados</option>
+        </select>
+        <button id="refreshBtn" type="button"
+                class="px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 font-semibold text-sm transition">
+          🔄 Atualizar
+        </button>
+        <button id="addClientBtn" type="button"
+                class="px-4 py-2 rounded-lg bg-[#00A859] text-white font-bold text-sm hover:bg-[#00754d] transition shadow-md">
+          + Adicionar cliente
+        </button>
+      </div>
+
+      <!-- Tabela -->
+      <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+              <tr>
+                <th class="px-4 py-3 text-left">Empresa</th>
+                <th class="px-4 py-3 text-left">Chave (final)</th>
+                <th class="px-4 py-3 text-right">Cadastro</th>
+                <th class="px-4 py-3 text-center">Status</th>
+                <th class="px-4 py-3 text-right">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="clientsTable">
+              <tr><td colspan="5" class="text-center text-slate-400 py-10 text-sm">Carregando…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Status global -->
+      <div id="statusMsg" class="hidden fixed bottom-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-semibold"></div>
+    </main>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- MODAL: Adicionar / Editar cliente                             -->
+  <!-- ============================================================ -->
+  <div id="clientModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#041227]/80 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+      <div class="bg-[#041227] text-white p-5 relative">
+        <div class="absolute top-0 left-0 w-full h-1 flex">
+          <span class="flex-1 bg-[#00A859]"></span>
+          <span class="flex-1 bg-[#FFB81C]"></span>
+        </div>
+        <button id="modalClose" class="absolute top-4 right-4 text-slate-300 hover:text-white">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-5 h-5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <h3 id="modalTitle" class="text-lg font-bold">Adicionar cliente</h3>
+        <p id="modalSubtitle" class="text-sm text-slate-300 mt-1">Cadastre uma chave DataCrazy autorizada.</p>
+      </div>
+      <form id="clientForm" class="p-5 space-y-3">
+        <div>
+          <label class="block text-[11px] font-bold uppercase tracking-widest text-slate-600 mb-1">Nome da empresa</label>
+          <input id="formEmpresa" type="text" required minlength="2" placeholder="Ex: PlayFit / Grupo VAI"
+                 class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#00A859]" />
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold uppercase tracking-widest text-slate-600 mb-1">Chave da API DataCrazy</label>
+          <textarea id="formApiKey" required rows="3" placeholder="dc_..."
+                    class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-[#00A859]"></textarea>
+          <p id="formApiKeyHint" class="text-[10px] text-slate-500 mt-1">Cola a chave JWT que começa com <code>dc_eyJ...</code></p>
+        </div>
+        <div class="flex items-center gap-2">
+          <input id="formActive" type="checkbox" checked class="w-4 h-4 accent-[#00A859]" />
+          <label for="formActive" class="text-sm font-semibold text-[#041227]">Ativo (cliente pode usar o painel agora)</label>
+        </div>
+        <div id="formError" class="hidden text-xs text-red-700 bg-red-50 border border-red-200 rounded p-2"></div>
+        <div class="flex gap-2 pt-2">
+          <button type="button" id="modalCancel"
+                  class="flex-1 px-4 py-2.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 font-medium text-sm transition">
+            Cancelar
+          </button>
+          <button type="submit" id="formSubmit"
+                  class="flex-1 px-4 py-2.5 rounded-lg bg-[#041227] text-white hover:bg-[#0a1d3d] font-bold text-sm transition shadow-lg">
+            Salvar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // ======================================================================
+    // ESTADO E AUTENTICAÇÃO
+    // ======================================================================
+    const ADMIN_TOKEN_KEY = 'admin_password';
+    let cachedClients = [];
+    let editingId = null;
+
+    function getAdminToken() {
+      try { return localStorage.getItem(ADMIN_TOKEN_KEY) || ''; } catch { return ''; }
+    }
+    function setAdminToken(token) {
+      try {
+        if (token) localStorage.setItem(ADMIN_TOKEN_KEY, token);
+        else localStorage.removeItem(ADMIN_TOKEN_KEY);
+      } catch {}
+    }
+
+    async function adminFetch(path, options = {}) {
+      const headers = { ...(options.headers || {}), 'X-Admin-Password': getAdminToken() };
+      if (options.body && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
+      return fetch(path, { ...options, headers });
+    }
+
+    // ======================================================================
+    // LOGIN
+    // ======================================================================
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const password = document.getElementById('loginPassword').value;
+      const errorEl = document.getElementById('loginError');
+      errorEl.classList.add('hidden');
+
+      // Salva temporariamente pra testar
+      setAdminToken(password);
+      try {
+        const res = await adminFetch('/api/admin/clients');
+        const data = await res.json();
+        if (res.status === 401) {
+          setAdminToken('');
+          errorEl.textContent = '✗ Senha incorreta';
+          errorEl.classList.remove('hidden');
+          return;
+        }
+        if (res.status === 503) {
+          setAdminToken('');
+          errorEl.textContent = data.message || 'Painel admin não está configurado no servidor.';
+          errorEl.classList.remove('hidden');
+          return;
+        }
+        if (!res.ok) {
+          setAdminToken('');
+          errorEl.textContent = data.message || `Erro HTTP ${res.status}`;
+          errorEl.classList.remove('hidden');
+          return;
+        }
+        // Sucesso → abre dashboard
+        showDashboard();
+        loadClients(data);
+      } catch (err) {
+        setAdminToken('');
+        errorEl.textContent = 'Erro de rede: ' + err.message;
+        errorEl.classList.remove('hidden');
+      }
+    });
+
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      setAdminToken('');
+      location.reload();
+    });
+
+    function showDashboard() {
+      document.getElementById('loginScreen').classList.add('hidden');
+      document.getElementById('adminDashboard').classList.remove('hidden');
+    }
+
+    // ======================================================================
+    // CARREGAR LISTA DE CLIENTES
+    // ======================================================================
+    async function loadClients(prefetched) {
+      const tbody = document.getElementById('clientsTable');
+      try {
+        const data = prefetched || await (await adminFetch('/api/admin/clients')).json();
+        if (data.error) throw new Error(data.message);
+        cachedClients = data.data || [];
+        document.getElementById('statTotal').textContent = data.total || 0;
+        document.getElementById('statActive').textContent = data.active || 0;
+        document.getElementById('statInactive').textContent = data.inactive || 0;
+        renderTable();
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center text-red-600 py-6 text-sm">Erro: ${escapeHTML(err.message)}</td></tr>`;
+      }
+    }
+
+    function renderTable() {
+      const query = (document.getElementById('searchInput').value || '').toLowerCase().trim();
+      const filter = document.getElementById('filterStatus').value;
+      const filtered = cachedClients.filter(c => {
+        if (filter === 'active' && !c.is_active) return false;
+        if (filter === 'inactive' && c.is_active) return false;
+        if (query) {
+          const haystack = (c.empresa + ' ' + (c.api_key_full || '') + ' ' + c.api_key_preview).toLowerCase();
+          if (!haystack.includes(query)) return false;
+        }
+        return true;
+      });
+
+      const tbody = document.getElementById('clientsTable');
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center text-slate-400 py-10 text-sm">Nenhum cliente encontrado.</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = filtered.map(c => {
+        const date = new Date(c.created_at).toLocaleDateString('pt-BR');
+        const statusBadge = c.is_active
+          ? '<span class="inline-block text-[10px] font-bold px-2.5 py-1 rounded-full bg-[#00A859]/15 text-[#00754d]">✅ ATIVO</span>'
+          : '<span class="inline-block text-[10px] font-bold px-2.5 py-1 rounded-full bg-red-100 text-red-700">🔒 BLOQUEADO</span>';
+        const toggleBtn = c.is_active
+          ? `<button data-action="toggle" data-id="${c.id}" data-active="false" class="text-[11px] font-semibold text-red-700 hover:text-red-900">🔒 Bloquear</button>`
+          : `<button data-action="toggle" data-id="${c.id}" data-active="true" class="text-[11px] font-semibold text-[#00754d] hover:text-[#005a3a]">✅ Liberar</button>`;
+        return `
+          <tr class="border-t border-slate-100 hover:bg-slate-50">
+            <td class="px-4 py-3 font-semibold text-[#041227]">${escapeHTML(c.empresa)}</td>
+            <td class="px-4 py-3 font-mono text-xs text-slate-500" title="${escapeAttr(c.api_key_full)}">${escapeHTML(c.api_key_preview)}</td>
+            <td class="px-4 py-3 text-right text-xs text-slate-500">${date}</td>
+            <td class="px-4 py-3 text-center">${statusBadge}</td>
+            <td class="px-4 py-3 text-right space-x-2">
+              ${toggleBtn}
+              <button data-action="edit" data-id="${c.id}" class="text-[11px] font-semibold text-[#041227] hover:underline">✏️ Editar</button>
+              <button data-action="delete" data-id="${c.id}" class="text-[11px] font-semibold text-red-600 hover:underline">🗑️</button>
+            </td>
+          </tr>`;
+      }).join('');
+    }
+
+    document.getElementById('searchInput').addEventListener('input', renderTable);
+    document.getElementById('filterStatus').addEventListener('change', renderTable);
+    document.getElementById('refreshBtn').addEventListener('click', () => loadClients());
+
+    // ======================================================================
+    // AÇÕES (toggle / edit / delete)
+    // ======================================================================
+    document.getElementById('clientsTable').addEventListener('click', async (e) => {
+      const btn = e.target.closest('button[data-action]');
+      if (!btn) return;
+      const action = btn.dataset.action;
+      const id = btn.dataset.id;
+      const client = cachedClients.find(c => c.id === id);
+      if (!client) return;
+
+      if (action === 'toggle') {
+        const newState = btn.dataset.active === 'true';
+        const verb = newState ? 'LIBERAR' : 'BLOQUEAR';
+        if (!confirm(`${verb} acesso de "${client.empresa}"?`)) return;
+        await patchClient(id, { is_active: newState }, `Acesso ${newState ? 'liberado' : 'bloqueado'}`);
+      } else if (action === 'edit') {
+        openModal('edit', client);
+      } else if (action === 'delete') {
+        if (!confirm(`Excluir PERMANENTEMENTE "${client.empresa}"?\n\nEsta ação não pode ser desfeita.`)) return;
+        try {
+          const res = await adminFetch(`/api/admin/clients?id=${id}`, { method: 'DELETE' });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message);
+          showStatus('success', data.message || 'Cliente removido');
+          loadClients();
+        } catch (err) {
+          showStatus('error', err.message);
+        }
+      }
+    });
+
+    async function patchClient(id, updates, successMsg) {
+      try {
+        const res = await adminFetch(`/api/admin/clients?id=${id}`, {
+          method: 'PATCH',
+          body: JSON.stringify(updates)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message);
+        showStatus('success', successMsg);
+        loadClients();
+      } catch (err) {
+        showStatus('error', err.message);
+      }
+    }
+
+    // ======================================================================
+    // MODAL (criar / editar)
+    // ======================================================================
+    function openModal(mode, client) {
+      editingId = mode === 'edit' ? client.id : null;
+      document.getElementById('modalTitle').textContent = mode === 'edit' ? 'Editar cliente' : 'Adicionar cliente';
+      document.getElementById('modalSubtitle').textContent = mode === 'edit'
+        ? 'A chave da API não pode ser alterada (apenas empresa e status).'
+        : 'Cadastre uma chave DataCrazy autorizada.';
+      document.getElementById('formEmpresa').value = client?.empresa || '';
+      document.getElementById('formApiKey').value = client?.api_key_full || '';
+      document.getElementById('formApiKey').disabled = mode === 'edit';
+      document.getElementById('formApiKeyHint').textContent = mode === 'edit'
+        ? 'Chave bloqueada na edição. Pra trocar a chave, delete e cadastre de novo.'
+        : 'Cole a chave JWT que começa com dc_eyJ...';
+      document.getElementById('formActive').checked = client?.is_active !== false;
+      document.getElementById('formError').classList.add('hidden');
+      document.getElementById('clientModal').classList.remove('hidden');
+      document.getElementById('formEmpresa').focus();
+    }
+    function closeModal() {
+      document.getElementById('clientModal').classList.add('hidden');
+      editingId = null;
+    }
+    document.getElementById('addClientBtn').addEventListener('click', () => openModal('create'));
+    document.getElementById('modalClose').addEventListener('click', closeModal);
+    document.getElementById('modalCancel').addEventListener('click', closeModal);
+    document.getElementById('clientModal').addEventListener('click', (e) => {
+      if (e.target.id === 'clientModal') closeModal();
+    });
+
+    document.getElementById('clientForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const empresa = document.getElementById('formEmpresa').value.trim();
+      const api_key = document.getElementById('formApiKey').value.trim();
+      const is_active = document.getElementById('formActive').checked;
+      const errorEl = document.getElementById('formError');
+      errorEl.classList.add('hidden');
+
+      try {
+        let res, data;
+        if (editingId) {
+          res = await adminFetch(`/api/admin/clients?id=${editingId}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ empresa, is_active })
+          });
+        } else {
+          res = await adminFetch('/api/admin/clients', {
+            method: 'POST',
+            body: JSON.stringify({ empresa, api_key, is_active })
+          });
+        }
+        data = await res.json();
+        if (!res.ok) throw new Error(data.message);
+        showStatus('success', editingId ? 'Cliente atualizado.' : 'Cliente cadastrado.');
+        closeModal();
+        loadClients();
+      } catch (err) {
+        errorEl.textContent = '✗ ' + err.message;
+        errorEl.classList.remove('hidden');
+      }
+    });
+
+    // ======================================================================
+    // TOAST DE STATUS
+    // ======================================================================
+    let statusTimer = null;
+    function showStatus(type, msg) {
+      const el = document.getElementById('statusMsg');
+      clearTimeout(statusTimer);
+      el.className = 'fixed bottom-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-semibold ' +
+        (type === 'success'
+          ? 'bg-[#00A859] text-white'
+          : type === 'error'
+            ? 'bg-red-600 text-white'
+            : 'bg-slate-700 text-white');
+      el.textContent = msg;
+      el.classList.remove('hidden');
+      statusTimer = setTimeout(() => el.classList.add('hidden'), 3500);
+    }
+
+    // ======================================================================
+    // HELPERS
+    // ======================================================================
+    function escapeHTML(s) { return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+    function escapeAttr(s) { return escapeHTML(s); }
+
+    // ======================================================================
+    // AUTO-LOGIN se já tiver token salvo
+    // ======================================================================
+    (async function init() {
+      const token = getAdminToken();
+      if (!token) return;
+      try {
+        const res = await adminFetch('/api/admin/clients');
+        if (res.ok) {
+          showDashboard();
+          const data = await res.json();
+          loadClients(data);
+        } else {
+          setAdminToken('');
+        }
+      } catch {
+        setAdminToken('');
+      }
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+# ============================================================
+# Arquivos que NÃO vão pro deploy do Vercel
+# ============================================================
+# O painel admin fica APENAS no servidor local (mais seguro).
+# Para gerenciar clientes, rode: node server.js
+# Depois acesse http://localhost:3000/admin.html
+# ============================================================
+
+# Painel admin (mantenha local)
+admin.html
+api/admin/
+
+# Servidor de dev local (Vercel usa as functions diretas)
+server.js
+
+# SQL schema (rodar manualmente no Supabase Dashboard)
+supabase-schema.sql
+
+# Docs
+DEPLOY.md
+*.md
+
+# Dev artifacts
+.claude/
+PEC*.png
+Logo*.webp

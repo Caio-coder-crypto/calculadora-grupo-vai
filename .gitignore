@@ -1,0 +1,39 @@
+# ============================================================
+# GITIGNORE — Modo WHITELIST
+# ============================================================
+# Como o projeto vive na pasta HOME (C:\Users\Administrador\),
+# usamos abordagem inversa: ignora TUDO e libera só os arquivos
+# do projeto. Assim nada pessoal vaza pro GitHub.
+# ============================================================
+
+# 1) Ignora TUDO por padrão
+/*
+
+# 2) Libera APENAS os arquivos/pastas do projeto:
+!/.gitignore
+!/.vercelignore
+!/index.html
+!/admin.html
+!/vai-icon.png
+!/package.json
+!/package-lock.json
+!/vercel.json
+!/server.js
+!/supabase-schema.sql
+!/DEPLOY.md
+
+# Libera pasta api/ inteira (e tudo dentro)
+!/api/
+!/api/**
+
+# 3) Mesmo dentro do que foi liberado, NUNCA versionar:
+.env
+.env.*
+.env.local
+node_modules/
+.vercel/
+.DS_Store
+Thumbs.db
+*.log
+*.bak
+*.tmp

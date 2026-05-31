@@ -1,0 +1,16 @@
+{
+  "name": "grupo-vai-calculadora-whatsapp",
+  "version": "1.1.0",
+  "description": "Calculadora de Custos WhatsApp Business API + Dashboard DataCrazy CRM + Kill Switch Supabase",
+  "private": true,
+  "scripts": {
+    "dev": "node server.js",
+    "deploy": "vercel --prod"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.4"
+  },
+  "engines": {
+    "node": ">=18.x"
+  }
+}
