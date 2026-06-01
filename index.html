@@ -585,7 +585,23 @@
                   <option value="365">Últimos 12 meses</option>
                   <option value="all">Todo o histórico</option>
                 </optgroup>
+                <optgroup label="🗓️ Personalizado">
+                  <option value="custom">Escolher datas específicas…</option>
+                </optgroup>
               </select>
+              <!-- Inputs de data customizada (só aparecem quando period === 'custom') -->
+              <div id="biCustomDateRange" class="hidden mt-2 grid grid-cols-2 gap-2">
+                <div>
+                  <label class="block text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-1">De</label>
+                  <input id="biFilterDateStart" type="date"
+                         class="w-full text-xs rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-[#041227] font-medium focus:outline-none focus:ring-2 focus:ring-[#00A859] focus:border-[#00A859]" />
+                </div>
+                <div>
+                  <label class="block text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-1">Até</label>
+                  <input id="biFilterDateEnd" type="date"
+                         class="w-full text-xs rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-[#041227] font-medium focus:outline-none focus:ring-2 focus:ring-[#00A859] focus:border-[#00A859]" />
+                </div>
+              </div>
             </div>
             <div>
               <label class="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Pipeline</label>
@@ -2852,7 +2868,7 @@
       filtered: null,               // deals após aplicar filtros
       activeTab: 'overview',
       charts: { funnel: null, originRevenue: null, originConversion: null },
-      filters: { period: 30, pipeline: '__all__', attendant: '__all__' }
+      filters: { period: '30', pipeline: '__all__', attendant: '__all__', customStart: null, customEnd: null }
     };
 
     function setBiView(view) {
@@ -2930,7 +2946,7 @@
       return deals;
     }
 
-    // Filtra deals por período (suporta rolling days, mês-calendário e modo comparação)
+    // Filtra deals por período (suporta rolling days, mês-calendário, comparação e range customizado)
     function filterByPeriod(deals, period) {
       if (period === 'all') return deals;
       if (period === 'this_month') {
@@ -2945,6 +2961,16 @@
         // No modo comparação, "filtered" = mês atual (banner mostra os dois)
         const r = calendarMonthRange(0);
         return deals.filter(d => { const t = new Date(d.createdAt).getTime(); return t >= r.start && t < r.end; });
+      }
+      if (period === 'custom') {
+        const { customStart, customEnd } = biState.filters;
+        if (!customStart || !customEnd) return deals;  // se ainda não escolheu datas, mostra tudo
+        const startTs = new Date(customStart + 'T00:00:00').getTime();
+        const endTs   = new Date(customEnd   + 'T23:59:59').getTime();
+        return deals.filter(d => {
+          const t = new Date(d.createdAt).getTime();
+          return t >= startTs && t <= endTs;
+        });
       }
       // Rolling days
       const days = parseInt(period, 10);
@@ -2966,6 +2992,15 @@
       if (period === 'this_month') periodLabel = ' · ' + calendarMonthRange(0).label;
       else if (period === 'last_month') periodLabel = ' · ' + calendarMonthRange(1).label;
       else if (period === 'compare') periodLabel = ' · modo comparação';
+      else if (period === 'custom') {
+        const { customStart, customEnd } = biState.filters;
+        if (customStart && customEnd) {
+          const fmtBR = (s) => new Date(s + 'T12:00:00').toLocaleDateString('pt-BR');
+          periodLabel = ` · ${fmtBR(customStart)} → ${fmtBR(customEnd)}`;
+        } else {
+          periodLabel = ' · escolha as datas ↑';
+        }
+      }
       document.getElementById('biFilterCount').textContent = `${fmtInt(deals.length)} deals${periodLabel}`;
 
       // Banner de comparação (só no modo compare)
@@ -3337,12 +3372,31 @@
     function getPreviousPeriodDeals() {
       // Pega deals do período anterior (mesma duração) pra comparação
       if (!biState.raw) return [];
-      const { period, pipeline, attendant } = biState.filters;
+      const { period, pipeline, attendant, customStart, customEnd } = biState.filters;
       if (period === 'all') return [];
-      const days = parseInt(period, 10);
-      const now = Date.now();
-      const cutoffEnd = now - days * 86400000;       // início do período atual
-      const cutoffStart = cutoffEnd - days * 86400000; // mesmo tamanho antes
+
+      let cutoffStart, cutoffEnd;
+      if (period === 'custom') {
+        if (!customStart || !customEnd) return [];
+        const startTs = new Date(customStart + 'T00:00:00').getTime();
+        const endTs   = new Date(customEnd   + 'T23:59:59').getTime();
+        const span    = endTs - startTs;
+        cutoffEnd     = startTs;          // termina onde o período atual começa
+        cutoffStart   = startTs - span;   // mesma duração antes
+      } else if (period === 'this_month' || period === 'last_month' || period === 'compare') {
+        // Mês-calendário: compara com mês anterior calendar-based
+        const base = period === 'last_month' ? 1 : 0;
+        const r    = calendarMonthRange(base);
+        const prev = calendarMonthRange(base + 1);
+        cutoffStart = prev.start;
+        cutoffEnd   = prev.end;
+      } else {
+        // Rolling days
+        const days  = parseInt(period, 10);
+        cutoffEnd   = Date.now() - days * 86400000;
+        cutoffStart = cutoffEnd - days * 86400000;
+      }
+
       let deals = biState.raw.deals.filter(d => {
         const t = new Date(d.createdAt).getTime();
         return t >= cutoffStart && t < cutoffEnd;
@@ -4045,7 +4099,35 @@
     document.getElementById('biSyncBtn').addEventListener('click', () => loadBi(true));
     document.querySelectorAll('.bi-tab').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.biTab)));
     document.getElementById('biFilterPeriod').addEventListener('change', (e) => {
-      biState.filters.period = e.target.value; applyBiFilters();
+      biState.filters.period = e.target.value;
+      // Mostra/esconde inputs de data conforme seleção
+      const customDiv = document.getElementById('biCustomDateRange');
+      if (e.target.value === 'custom') {
+        customDiv.classList.remove('hidden');
+        // Se ainda não escolheu nada, pré-preenche com últimos 30 dias
+        if (!biState.filters.customStart) {
+          const today = new Date();
+          const thirtyDaysAgo = new Date(today.getTime() - 30 * 86400000);
+          const toISODate = (d) => d.toISOString().slice(0, 10);
+          biState.filters.customStart = toISODate(thirtyDaysAgo);
+          biState.filters.customEnd   = toISODate(today);
+          document.getElementById('biFilterDateStart').value = biState.filters.customStart;
+          document.getElementById('biFilterDateEnd').value   = biState.filters.customEnd;
+        }
+      } else {
+        customDiv.classList.add('hidden');
+      }
+      applyBiFilters();
+    });
+
+    // Listeners dos inputs de data customizada
+    document.getElementById('biFilterDateStart').addEventListener('change', (e) => {
+      biState.filters.customStart = e.target.value || null;
+      if (biState.filters.period === 'custom') applyBiFilters();
+    });
+    document.getElementById('biFilterDateEnd').addEventListener('change', (e) => {
+      biState.filters.customEnd = e.target.value || null;
+      if (biState.filters.period === 'custom') applyBiFilters();
     });
     document.getElementById('biFilterPipeline').addEventListener('change', (e) => {
       biState.filters.pipeline = e.target.value; applyBiFilters();
