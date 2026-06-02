@@ -335,8 +335,22 @@
             </div>
           </button>
           <div id="globalFunnelBody" class="px-5 pb-5 pt-1">
+            <!-- Toggle de visualização por canal -->
+            <div class="flex items-center justify-between mb-3 flex-wrap gap-2 pb-2 border-b border-slate-100">
+              <p class="text-[10px] uppercase tracking-widest font-bold text-slate-500">Visualização:</p>
+              <div class="flex items-center gap-1 bg-slate-100 rounded-lg p-0.5">
+                <button data-funnel-view="standard" class="funnel-view-btn px-3 py-1 rounded-md text-[11px] font-bold transition bg-white text-[#041227] shadow-sm">
+                  📊 Etapa
+                </button>
+                <button data-funnel-view="channel" class="funnel-view-btn px-3 py-1 rounded-md text-[11px] font-bold transition text-slate-600 hover:bg-white/50">
+                  🎨 Por canal
+                </button>
+              </div>
+            </div>
             <div id="globalFunnelStages" class="space-y-1.5"></div>
-            <p class="text-[10px] text-slate-400 mt-3 text-center">Clique em qualquer etapa para ver os deals · As % indicam conversão de uma etapa para a próxima.</p>
+            <!-- Legenda dos canais (só aparece no modo channel) -->
+            <div id="globalFunnelLegend" class="hidden flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-slate-100"></div>
+            <p class="text-[10px] text-slate-400 mt-3 text-center">Clique em qualquer etapa para ver os deals.</p>
           </div>
         </div>
 
@@ -2657,6 +2671,60 @@
     }
 
     // ======================================================================
+    // PALETA DE CORES OFICIAIS POR CANAL (paleta de marcas)
+    // ======================================================================
+    const CHANNEL_BRAND_COLORS = {
+      // Canais principais (cores oficiais das marcas)
+      'Meta ADS':                 '#1877F2',  // azul Meta/Facebook
+      'Google ADS':               '#4285F4',  // azul Google
+      'TikTok ADS':               '#000000',  // preto TikTok
+      'LinkedIn ADS':             '#0A66C2',  // azul LinkedIn
+      'YouTube ADS':              '#FF0000',  // vermelho YouTube
+      'Orgânico':                 '#10B981',  // verde clássico
+      'Indicação':                '#F59E0B',  // amarelo dourado
+      'Site':                     '#6366F1',  // índigo
+      'Prospecção':               '#7c3aed',  // roxo
+      'Outbound':                 '#EC4899',  // rosa
+      'Email MKT':                '#0891B2',  // ciano
+      // Compostos (Meta + sub-origens)
+      'Meta ADS / Instagram':     '#E4405F',  // rosa Instagram
+      'Meta ADS / Facebook':      '#1877F2',
+      'Meta ADS / WhatsApp':      '#25D366',  // verde WhatsApp
+      // Google + sub-origens
+      'Google ADS / LP':          '#34A853',  // verde Google
+      'Google ADS / Landing Page':'#34A853',
+      'Google ADS / Site':        '#4285F4',
+      // Genéricos
+      'Sem canal identificado':   '#94A3B8',  // cinza
+      'Sem origem':               '#94A3B8'
+    };
+    const FALLBACK_PALETTE = ['#6366F1', '#EC4899', '#0EA5E9', '#84CC16', '#F97316', '#06B6D4', '#A855F7', '#F43F5E', '#10B981', '#FACC15'];
+
+    function getChannelColor(name, idx) {
+      // 1) Hit exato na paleta de marca
+      if (CHANNEL_BRAND_COLORS[name]) return CHANNEL_BRAND_COLORS[name];
+      // 2) Match parcial (ex: "Meta ADS / Outra Coisa" pega cor de "Meta ADS")
+      for (const [key, color] of Object.entries(CHANNEL_BRAND_COLORS)) {
+        if (name.toLowerCase().startsWith(key.toLowerCase() + ' /')) return color;
+      }
+      // 3) Fallback rotativo
+      return FALLBACK_PALETTE[(idx || 0) % FALLBACK_PALETTE.length];
+    }
+
+    // Quebra uma lista de deals por canal composto. Retorna array ordenado por count desc.
+    function breakdownByChannel(deals, overrides) {
+      overrides = overrides || getTagOverrides();
+      const counts = {};
+      for (const d of deals) {
+        const ch = composeChannel(d.leadTags || [], overrides);
+        if (!counts[ch]) counts[ch] = { name: ch, count: 0, value: 0 };
+        counts[ch].count++;
+        counts[ch].value += (d.total || 0);
+      }
+      return Object.values(counts).sort((a, b) => b.count - a.count);
+    }
+
+    // ======================================================================
     // MODAL CONFIGURAR CANAIS — UI pra ver/editar classificação de tags
     // ======================================================================
     const CATEGORY_LABELS = {
@@ -3678,28 +3746,33 @@
       //    - Se in_process: chegou até o stage atual
       //    Pra cumulativo, assumimos que se está na etapa X, passou pelas etapas 0..X (fluxo natural)
 
-      // 4) Conta cumulativo pra cada active flow stage
+      // 4) Conta cumulativo pra cada active flow stage + breakdown por canal
+      const overrides = getTagOverrides();
       const activeStages = activeFlow.map(stage => {
         let count = 0, value = 0;
+        const dealsHere = [];  // deals que contam pra essa etapa (pra fazer breakdown)
         if (wonTerminalIds.has(stage.id)) {
           // Terminal positivo: conta SÓ os deals ganhos AQUI
           for (const d of dealsToCount) {
             if (d.stageId === stage.id && d.status === 'won') {
               count++;
               value += d.total || 0;
+              dealsHere.push(d);
             }
           }
         } else {
           // Cumulativo: deals cuja etapa atual >= esta
-          // Inclui lost terminals porque "passaram por aqui antes de ir morrer"
           for (const d of dealsToCount) {
             const idx = d.stageIndex ?? -1;
             if (idx >= stage.index) {
               count++;
               value += d.total || 0;
+              dealsHere.push(d);
             }
           }
         }
+        // Breakdown por canal (com mesmas regras de composeChannel já usadas no resto do BI)
+        const byChannel = breakdownByChannel(dealsHere, overrides);
         return {
           id:    stage.id,
           name:  stage.name,
@@ -3707,6 +3780,7 @@
           index: stage.index,
           count,
           value,
+          byChannel,
           isWonTerminal: wonTerminalIds.has(stage.id)
         };
       });
@@ -3791,6 +3865,21 @@
       }
       const hasBottleneck = bottleneckIdx > 0 && lowestConv < 70;
 
+      const funnelView = getFunnelView();  // 'standard' | 'channel'
+      // Coleta TODOS os canais que aparecem no funil pra montar paleta consistente
+      const allChannels = new Map();  // name → { color, idx }
+      if (funnelView === 'channel') {
+        let idx = 0;
+        for (const s of stages) {
+          for (const ch of (s.byChannel || [])) {
+            if (!allChannels.has(ch.name)) {
+              allChannels.set(ch.name, { color: getChannelColor(ch.name, idx), idx });
+              idx++;
+            }
+          }
+        }
+      }
+
       const stagesHTML = stages.map((s, i) => {
         const widthPct = 30 + (s.count / maxCount * 70);
         let convLabel = '';
@@ -3801,19 +3890,45 @@
           if (hasBottleneck && i === bottleneckIdx) {
             convLabel = `<span class="inline-block mt-1 text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-red-100 text-red-700 ring-1 ring-red-300 animate-pulse">⚠️ Maior Gargalo (-${drop}%)</span>`;
           } else {
-            // Etiqueta limpa: "→ X% conv."
             const convClass = conv < 50 ? 'text-red-500' : conv < 80 ? 'text-[#FFB81C]' : 'text-[#00A859]';
             convLabel = `<span class="text-[10px] font-bold ${convClass} mt-0.5 block">→ ${conv.toFixed(0)}% conv.</span>`;
           }
         } else {
-          // Primeira etapa: mostra "ENTRADA"
           convLabel = '<span class="text-[9px] uppercase tracking-widest font-bold text-[#00A859]/70 mt-0.5 block">entrada</span>';
         }
         const isBottleneckStage = hasBottleneck && i === bottleneckIdx;
         const ringClass = isBottleneckStage ? 'ring-2 ring-red-400 ring-offset-1' : '';
-        const wonBadge = s.isWonTerminal
-          ? '<span class="absolute -top-2 -right-2 text-base">🏆</span>'
-          : '';
+        const wonBadge = s.isWonTerminal ? '<span class="absolute -top-2 -right-2 text-base">🏆</span>' : '';
+
+        // ===== Renderiza a BARRA da etapa =====
+        let barHTML;
+        if (funnelView === 'channel' && s.byChannel && s.byChannel.length > 0 && s.count > 0) {
+          // Stacked bar: segmentos coloridos por canal
+          const segments = s.byChannel.map(ch => {
+            const segW = (ch.count / s.count * 100).toFixed(2);
+            const color = allChannels.get(ch.name)?.color || '#94a3b8';
+            return `<div class="h-full flex items-center justify-center text-white text-[9px] font-bold overflow-hidden whitespace-nowrap" style="width: ${segW}%; background: ${color}" title="${escapeAttr(ch.name)}: ${ch.count}${ch.value > 0 ? ' · ' + fmtBRL(ch.value) : ''}">${ch.count >= 3 ? ch.count : ''}</div>`;
+          }).join('');
+          barHTML = `
+            <div class="relative rounded-md text-white text-center transition-all group-hover:opacity-85 group-hover:scale-[1.01] shadow-sm overflow-hidden ${ringClass}"
+                 style="width: ${widthPct}%; height: 36px;">
+              ${wonBadge}
+              <div class="flex h-full">${segments}</div>
+              <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <span class="text-sm font-extrabold text-white" style="text-shadow: 0 1px 2px rgba(0,0,0,0.5)">${fmtInt(s.count)}${s.value > 0 ? ' · ' + fmtBRL(s.value) : ''}</span>
+              </div>
+            </div>`;
+        } else {
+          // Barra padrão de cor única (etapa)
+          barHTML = `
+            <div class="relative rounded-md py-2 px-3 text-white text-center transition-all group-hover:opacity-85 group-hover:scale-[1.01] shadow-sm ${ringClass}"
+                 style="width: ${widthPct}%; background: linear-gradient(135deg, ${s.color}, ${s.color}cc);">
+              ${wonBadge}
+              <span class="text-sm font-bold">${fmtInt(s.count)}</span>
+              <span class="text-[10px] opacity-90 ml-1.5">${s.value > 0 ? fmtBRL(s.value) : ''}</span>
+            </div>`;
+        }
+
         return `
           <button class="w-full group cursor-pointer block" data-global-stage="${escapeAttr(s.name)}">
             <div class="flex items-center gap-3">
@@ -3821,17 +3936,38 @@
                 <span class="text-[11px] font-semibold text-[#041227] truncate block" title="${escapeAttr(s.name)}">${escapeHTML(s.name)}</span>
                 ${convLabel}
               </div>
-              <div class="flex-1 flex justify-center">
-                <div class="relative rounded-md py-2 px-3 text-white text-center transition-all group-hover:opacity-85 group-hover:scale-[1.01] shadow-sm ${ringClass}"
-                     style="width: ${widthPct}%; background: linear-gradient(135deg, ${s.color}, ${s.color}cc);">
-                  ${wonBadge}
-                  <span class="text-sm font-bold">${fmtInt(s.count)}</span>
-                  <span class="text-[10px] opacity-90 ml-1.5">${s.value > 0 ? fmtBRL(s.value) : ''}</span>
-                </div>
-              </div>
+              <div class="flex-1 flex justify-center">${barHTML}</div>
             </div>
           </button>`;
       }).join('');
+
+      // ===== Renderiza LEGENDA dos canais (só no modo channel) =====
+      const legendEl = document.getElementById('globalFunnelLegend');
+      if (funnelView === 'channel' && allChannels.size > 0) {
+        legendEl.classList.remove('hidden');
+        legendEl.classList.add('flex');
+        // Calcula totais GLOBAIS por canal (somando da primeira etapa, que é a entrada)
+        const entryStage = stages[0];
+        const totalByChannel = new Map();
+        if (entryStage?.byChannel) {
+          for (const ch of entryStage.byChannel) totalByChannel.set(ch.name, ch);
+        }
+        const legendItems = [];
+        for (const [name, info] of allChannels) {
+          const total = totalByChannel.get(name);
+          legendItems.push(`
+            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-50 border border-slate-200 text-[11px]">
+              <span class="w-2.5 h-2.5 rounded-sm" style="background: ${info.color}"></span>
+              <strong class="text-[#041227]">${escapeHTML(name)}</strong>
+              ${total ? `<span class="text-slate-500">· ${fmtInt(total.count)}${total.value > 0 ? ' · ' + fmtBRL(total.value) : ''}</span>` : ''}
+            </div>`);
+        }
+        legendEl.innerHTML = legendItems.join('');
+      } else {
+        legendEl.classList.add('hidden');
+        legendEl.classList.remove('flex');
+        legendEl.innerHTML = '';
+      }
 
       // ===== Bloco separado de Perdas (etapas terminais negativas) =====
       let lostHTML = '';
@@ -3864,13 +4000,36 @@
       });
     }
 
-    // Toggle do funil global
+    // Toggle do funil global (collapse)
     let globalFunnelCollapsed = false;
     document.getElementById('globalFunnelToggle').addEventListener('click', () => {
       globalFunnelCollapsed = !globalFunnelCollapsed;
       document.getElementById('globalFunnelBody').style.display = globalFunnelCollapsed ? 'none' : 'block';
       document.getElementById('globalFunnelChevron').style.transform = globalFunnelCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)';
     });
+
+    // Toggle visualização (Etapa cor única × Por canal stacked)
+    const FUNNEL_VIEW_STORAGE = 'dc_funnel_view_v1';
+    function getFunnelView() {
+      try { return localStorage.getItem(FUNNEL_VIEW_STORAGE) || 'standard'; }
+      catch { return 'standard'; }
+    }
+    function setFunnelView(view) {
+      try { localStorage.setItem(FUNNEL_VIEW_STORAGE, view); } catch {}
+      // Atualiza visual dos botões
+      document.querySelectorAll('.funnel-view-btn').forEach(b => {
+        const active = b.dataset.funnelView === view;
+        b.className = active
+          ? 'funnel-view-btn px-3 py-1 rounded-md text-[11px] font-bold transition bg-white text-[#041227] shadow-sm'
+          : 'funnel-view-btn px-3 py-1 rounded-md text-[11px] font-bold transition text-slate-600 hover:bg-white/50';
+      });
+      // Re-renderiza o funil
+      if (typeof renderGlobalFunnel === 'function' && biState.raw) renderGlobalFunnel();
+    }
+    document.querySelectorAll('.funnel-view-btn').forEach(btn => {
+      btn.addEventListener('click', () => setFunnelView(btn.dataset.funnelView));
+    });
+    setTimeout(() => setFunnelView(getFunnelView()), 100);
 
     // ---------- BANNER DE COMPARAÇÃO MENSAL ----------
     let lastComparison = null; // guarda pra exportar
