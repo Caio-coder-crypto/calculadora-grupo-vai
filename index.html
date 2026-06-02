@@ -587,6 +587,7 @@
                       <th class="px-4 py-2 text-right">Receita</th>
                       <th class="px-4 py-2 text-right">Ticket Médio</th>
                       <th class="px-4 py-2 text-right">Conv. %</th>
+                      <th class="px-4 py-2 text-right" title="Comissão calculada no período (inclui crédito via tag pra SDR)">💰 Comissão</th>
                       <th class="px-4 py-2 text-center" style="min-width: 160px">🎯 Meta</th>
                     </tr>
                   </thead>
@@ -3089,16 +3090,35 @@
       both:   { label: 'Ambos',  color: '#FFB81C', emoji: '⚡' }
     };
 
+    // Formato salvo: { attendantId: { role, commissionPct, creditTags[] } }
+    // Migração: valores string antigos viram { role: <string>, commissionPct: 0, creditTags: [] }
     function getRoles() {
-      try { return JSON.parse(localStorage.getItem(ROLES_STORAGE) || '{}'); }
-      catch { return {}; }
+      try {
+        const raw = JSON.parse(localStorage.getItem(ROLES_STORAGE) || '{}');
+        const migrated = {};
+        for (const [id, val] of Object.entries(raw)) {
+          if (typeof val === 'string') {
+            migrated[id] = { role: val, commissionPct: 0, creditTags: [] };
+          } else if (val && typeof val === 'object') {
+            migrated[id] = {
+              role:          val.role || null,
+              commissionPct: parseFloat(val.commissionPct) || 0,
+              creditTags:    Array.isArray(val.creditTags) ? val.creditTags : []
+            };
+          }
+        }
+        return migrated;
+      } catch { return {}; }
     }
     function setRoles(map) {
       try { localStorage.setItem(ROLES_STORAGE, JSON.stringify(map)); } catch {}
       updateRolesStatus();
     }
     function getRoleFor(attendantId) {
-      return getRoles()[attendantId] || null;  // 'sdr' | 'closer' | 'both' | null
+      return getRoles()[attendantId]?.role || null;  // 'sdr' | 'closer' | 'both' | null
+    }
+    function getRoleConfigFor(attendantId) {
+      return getRoles()[attendantId] || { role: null, commissionPct: 0, creditTags: [] };
     }
     function isInRole(attendantId, filter) {
       const role = getRoleFor(attendantId);
@@ -3109,10 +3129,27 @@
       return true;
     }
 
+    // ===== Atribui o crédito de SDR a um deal baseado em tag =====
+    // Retorna o attendantId do SDR que deve receber o crédito do deal, OU null.
+    // Olha as creditTags configuradas pra cada SDR e cruza com as tags do lead.
+    function getSdrCreditFor(dealLeadTags) {
+      const roles = getRoles();
+      const tagsLower = (dealLeadTags || []).map(t => (typeof t === 'string' ? t : t?.name || '').toLowerCase().trim()).filter(Boolean);
+      if (tagsLower.length === 0) return null;
+      for (const [id, cfg] of Object.entries(roles)) {
+        if (cfg.role !== 'sdr' && cfg.role !== 'both') continue;
+        const credit = (cfg.creditTags || []).map(t => String(t).toLowerCase().trim());
+        if (credit.some(c => c && tagsLower.includes(c))) return id;
+      }
+      return null;
+    }
+
     function updateRolesStatus() {
       const r = getRoles();
       const counts = { sdr: 0, closer: 0, both: 0 };
-      Object.values(r).forEach(v => { if (counts[v] !== undefined) counts[v]++; });
+      Object.values(r).forEach(cfg => {
+        if (cfg && counts[cfg.role] !== undefined) counts[cfg.role]++;
+      });
       const total = counts.sdr + counts.closer + counts.both;
       const el = document.getElementById('rolesConfigStatus');
       if (!el) return;
@@ -3131,39 +3168,69 @@
       const roles = getRoles();
 
       document.getElementById('rolesList').innerHTML = useful.map(a => {
-        const current = roles[a.id] || '';
-        const mkRadio = (val, label, color) => `
-          <label class="flex items-center gap-1.5 cursor-pointer px-2.5 py-1 rounded border ${current === val ? 'bg-' + color + '/15 ring-1 ring-' + color + '/40' : 'border-slate-200 hover:bg-slate-50'}">
-            <input type="radio" name="role-${a.id}" value="${val}" ${current === val ? 'checked' : ''} class="role-radio" data-attendant-id="${a.id}" />
-            <span class="text-xs font-semibold">${label}</span>
-          </label>`;
+        const cfg = roles[a.id] || { role: null, commissionPct: 0, creditTags: [] };
+        const current = cfg.role || '';
+        const pct = cfg.commissionPct || 0;
+        const tags = (cfg.creditTags || []).join(', ');
+        const showSdrFields = current === 'sdr' || current === 'both';
         return `
-          <div class="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50">
-            <div class="flex-1 min-w-0">
-              <p class="text-sm font-semibold text-[#041227] truncate">${escapeHTML(a.name)}</p>
-              <p class="text-[10px] text-slate-500 truncate">${escapeHTML(a.email || '')}</p>
+          <div class="border border-slate-200 rounded-lg p-3 hover:border-slate-300 transition" data-row-id="${a.id}">
+            <div class="flex items-center gap-3 mb-2">
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-semibold text-[#041227] truncate">${escapeHTML(a.name)}</p>
+                <p class="text-[10px] text-slate-500 truncate">${escapeHTML(a.email || '')}</p>
+              </div>
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <label class="flex items-center gap-1 cursor-pointer text-xs">
+                  <input type="radio" name="role-${a.id}" value="" ${!current ? 'checked' : ''} class="role-radio" data-attendant-id="${a.id}" />
+                  <span class="text-slate-500">—</span>
+                </label>
+                <label class="flex items-center gap-1 cursor-pointer text-xs font-semibold px-2 py-1 rounded ${current === 'sdr' ? 'bg-[#7c3aed]/15 ring-1 ring-[#7c3aed]/40' : 'hover:bg-slate-100'}">
+                  <input type="radio" name="role-${a.id}" value="sdr" ${current === 'sdr' ? 'checked' : ''} class="role-radio" data-attendant-id="${a.id}" />
+                  <span class="text-[#7c3aed]">🎯 SDR</span>
+                </label>
+                <label class="flex items-center gap-1 cursor-pointer text-xs font-semibold px-2 py-1 rounded ${current === 'closer' ? 'bg-[#00A859]/15 ring-1 ring-[#00A859]/40' : 'hover:bg-slate-100'}">
+                  <input type="radio" name="role-${a.id}" value="closer" ${current === 'closer' ? 'checked' : ''} class="role-radio" data-attendant-id="${a.id}" />
+                  <span class="text-[#00754d]">💼 Closer</span>
+                </label>
+                <label class="flex items-center gap-1 cursor-pointer text-xs font-semibold px-2 py-1 rounded ${current === 'both' ? 'bg-[#FFB81C]/15 ring-1 ring-[#FFB81C]/40' : 'hover:bg-slate-100'}">
+                  <input type="radio" name="role-${a.id}" value="both" ${current === 'both' ? 'checked' : ''} class="role-radio" data-attendant-id="${a.id}" />
+                  <span class="text-[#7a5400]">⚡ Ambos</span>
+                </label>
+              </div>
             </div>
-            <div class="flex items-center gap-1.5 flex-wrap">
-              <label class="flex items-center gap-1 cursor-pointer text-xs">
-                <input type="radio" name="role-${a.id}" value="" ${!current ? 'checked' : ''} class="role-radio" data-attendant-id="${a.id}" />
-                <span class="text-slate-500">—</span>
-              </label>
-              <label class="flex items-center gap-1 cursor-pointer text-xs font-semibold px-2 py-1 rounded ${current === 'sdr' ? 'bg-[#7c3aed]/15 ring-1 ring-[#7c3aed]/40' : 'hover:bg-slate-100'}">
-                <input type="radio" name="role-${a.id}" value="sdr" ${current === 'sdr' ? 'checked' : ''} class="role-radio" data-attendant-id="${a.id}" />
-                <span class="text-[#7c3aed]">🎯 SDR</span>
-              </label>
-              <label class="flex items-center gap-1 cursor-pointer text-xs font-semibold px-2 py-1 rounded ${current === 'closer' ? 'bg-[#00A859]/15 ring-1 ring-[#00A859]/40' : 'hover:bg-slate-100'}">
-                <input type="radio" name="role-${a.id}" value="closer" ${current === 'closer' ? 'checked' : ''} class="role-radio" data-attendant-id="${a.id}" />
-                <span class="text-[#00754d]">💼 Closer</span>
-              </label>
-              <label class="flex items-center gap-1 cursor-pointer text-xs font-semibold px-2 py-1 rounded ${current === 'both' ? 'bg-[#FFB81C]/15 ring-1 ring-[#FFB81C]/40' : 'hover:bg-slate-100'}">
-                <input type="radio" name="role-${a.id}" value="both" ${current === 'both' ? 'checked' : ''} class="role-radio" data-attendant-id="${a.id}" />
-                <span class="text-[#7a5400]">⚡ Ambos</span>
-              </label>
+            <!-- Comissão + tags (aparecem quando tem papel definido) -->
+            <div class="role-extra-fields ${current ? '' : 'hidden'} grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2 pt-2 border-t border-slate-100">
+              <div>
+                <label class="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">💰 Comissão (%)</label>
+                <input type="number" min="0" max="100" step="0.1" value="${pct || ''}" placeholder="Ex: 2.5"
+                       data-attendant-id="${a.id}" class="commission-input num-input w-full text-sm rounded border border-slate-200 bg-slate-50 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#FFB81C]" />
+              </div>
+              <div class="sdr-credit-tags-wrapper ${showSdrFields ? '' : 'hidden'}">
+                <label class="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">🏷️ Tags que dão crédito (SDR)</label>
+                <input type="text" value="${escapeAttr(tags)}" placeholder="Ex: Débora, SDR-Débora"
+                       data-attendant-id="${a.id}" class="credit-tags-input w-full text-sm rounded border border-slate-200 bg-slate-50 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#7c3aed]" />
+              </div>
             </div>
+            <p class="text-[10px] text-slate-400 mt-1 ${showSdrFields ? '' : 'hidden'} sdr-hint">💡 SDR ganha crédito quando o lead tem uma dessas tags + vira Venda Ganha, mesmo depois de transferir.</p>
           </div>`;
       }).join('');
       document.getElementById('rolesModal').classList.remove('hidden');
+
+      // Toggle dos campos extras conforme o papel selecionado
+      document.querySelectorAll('.role-radio').forEach(input => {
+        input.addEventListener('change', (e) => {
+          const row = e.target.closest('[data-row-id]');
+          const extras = row.querySelector('.role-extra-fields');
+          const sdrTags = row.querySelector('.sdr-credit-tags-wrapper');
+          const sdrHint = row.querySelector('.sdr-hint');
+          if (e.target.value) extras.classList.remove('hidden');
+          else extras.classList.add('hidden');
+          const isSdr = e.target.value === 'sdr' || e.target.value === 'both';
+          if (isSdr) { sdrTags.classList.remove('hidden'); sdrHint.classList.remove('hidden'); }
+          else       { sdrTags.classList.add('hidden');    sdrHint.classList.add('hidden'); }
+        });
+      });
     }
     function closeRolesModal() {
       document.getElementById('rolesModal').classList.add('hidden');
@@ -3186,7 +3253,16 @@
       document.querySelectorAll('.role-radio:checked').forEach(input => {
         const id = input.dataset.attendantId;
         const val = input.value;
-        if (val) newRoles[id] = val;  // só salva se != ''
+        if (!val) return; // sem papel, não salva
+        // Pega comissão + tags do mesmo bloco
+        const pctInput = document.querySelector(`.commission-input[data-attendant-id="${id}"]`);
+        const tagsInput = document.querySelector(`.credit-tags-input[data-attendant-id="${id}"]`);
+        const commissionPct = parseFloat(pctInput?.value) || 0;
+        const creditTags = (tagsInput?.value || '')
+          .split(',')
+          .map(s => s.trim())
+          .filter(Boolean);
+        newRoles[id] = { role: val, commissionPct, creditTags };
       });
       setRoles(newRoles);
       closeRolesModal();
@@ -4033,7 +4109,7 @@
       renderOverviewMiniFunnel(deals);
     }
 
-    // Performance da Equipe (SDR × Closer) — agrupa por papel definido em getRoles()
+    // Performance da Equipe (SDR × Closer) com atribuição via tag + comissão %
     function renderTeamPerformance(dealsCreated, wonInPeriod) {
       const roles = getRoles();
       const card = document.getElementById('teamPerformanceCard');
@@ -4042,57 +4118,95 @@
 
       const attendantsById = Object.fromEntries((biState.raw?.attendants || []).map(a => [a.id, a]));
 
-      // SDR: contagem de LEADS atribuídos no período (deals criados)
-      const sdrCounts = {};   // { attendantId: count }
+      // ===== SDR: 2 visões =====
+      //  (A) Leads atribuídos no período (qualificação): conta deals onde attendantId é SDR
+      //  (B) Vendas ganhas com o crédito DA SDR via TAG: lead tem a tag → ela ganha crédito
+      //      mesmo que o attendantId final seja outro (Closer)
+      const sdrAttributions = {}; // { attendantId: { leadsQualified, wonByTag, revenueByTag, commissionEarned } }
+      const ensureSdr = (id) => {
+        if (!sdrAttributions[id]) sdrAttributions[id] = { leadsQualified: 0, wonByTag: 0, revenueByTag: 0, commissionEarned: 0 };
+        return sdrAttributions[id];
+      };
+
+      // (A) Leads em qualificação (atribuição direta a SDR)
       for (const d of dealsCreated) {
         if (!d.attendantId) continue;
-        const role = roles[d.attendantId];
-        if (role === 'sdr' || role === 'both') {
-          sdrCounts[d.attendantId] = (sdrCounts[d.attendantId] || 0) + 1;
+        const cfg = roles[d.attendantId];
+        if (cfg && (cfg.role === 'sdr' || cfg.role === 'both')) {
+          ensureSdr(d.attendantId).leadsQualified++;
         }
       }
-      const sdrTotal = Object.values(sdrCounts).reduce((a, n) => a + n, 0);
 
-      // Closer: contagem de VENDAS GANHAS (já é statusChangedAt no período) + receita
-      const closerStats = {}; // { attendantId: { won, revenue } }
+      // (B) Vendas ganhas atribuídas a SDR via TAG (após transferência pra Closer)
+      for (const d of wonInPeriod) {
+        const sdrId = getSdrCreditFor(d.leadTags || []);
+        if (!sdrId) continue;
+        const cfg  = roles[sdrId];
+        const b    = ensureSdr(sdrId);
+        b.wonByTag++;
+        b.revenueByTag += (d.total || 0);
+        b.commissionEarned += (d.total || 0) * (cfg.commissionPct || 0) / 100;
+      }
+
+      // ===== Closer =====
+      const closerStats = {}; // { attendantId: { won, revenue, commissionEarned } }
       for (const d of wonInPeriod) {
         if (!d.attendantId) continue;
-        const role = roles[d.attendantId];
-        if (role === 'closer' || role === 'both') {
-          if (!closerStats[d.attendantId]) closerStats[d.attendantId] = { won: 0, revenue: 0 };
+        const cfg = roles[d.attendantId];
+        if (cfg && (cfg.role === 'closer' || cfg.role === 'both')) {
+          if (!closerStats[d.attendantId]) closerStats[d.attendantId] = { won: 0, revenue: 0, commissionEarned: 0 };
           closerStats[d.attendantId].won++;
           closerStats[d.attendantId].revenue += (d.total || 0);
+          closerStats[d.attendantId].commissionEarned += (d.total || 0) * (cfg.commissionPct || 0) / 100;
         }
       }
-      const closerWonTotal     = Object.values(closerStats).reduce((a, s) => a + s.won, 0);
-      const closerRevenueTotal = Object.values(closerStats).reduce((a, s) => a + s.revenue, 0);
 
-      // Conta papéis
-      const sdrCount    = Object.values(roles).filter(r => r === 'sdr' || r === 'both').length;
-      const closerCount = Object.values(roles).filter(r => r === 'closer' || r === 'both').length;
+      // Totais
+      const sdrLeadsTotal    = Object.values(sdrAttributions).reduce((a, s) => a + s.leadsQualified, 0);
+      const sdrWonTotal      = Object.values(sdrAttributions).reduce((a, s) => a + s.wonByTag, 0);
+      const sdrRevenueTotal  = Object.values(sdrAttributions).reduce((a, s) => a + s.revenueByTag, 0);
+      const sdrCommTotal     = Object.values(sdrAttributions).reduce((a, s) => a + s.commissionEarned, 0);
+      const closerWonTotal   = Object.values(closerStats).reduce((a, s) => a + s.won, 0);
+      const closerRevTotal   = Object.values(closerStats).reduce((a, s) => a + s.revenue, 0);
+      const closerCommTotal  = Object.values(closerStats).reduce((a, s) => a + s.commissionEarned, 0);
 
-      document.getElementById('teamPerfSubtitle').textContent =
-        `${sdrCount} SDR · ${closerCount} Closer no período`;
+      // Contagens
+      const sdrCount    = Object.values(roles).filter(r => r.role === 'sdr'    || r.role === 'both').length;
+      const closerCount = Object.values(roles).filter(r => r.role === 'closer' || r.role === 'both').length;
 
-      // SDR card
-      document.getElementById('teamSdrLeads').textContent = fmtInt(sdrTotal);
-      const sdrTopArr = Object.entries(sdrCounts)
-        .sort((a, b) => b[1] - a[1])
+      document.getElementById('teamPerfSubtitle').innerHTML =
+        `${sdrCount} SDR · ${closerCount} Closer · Comissão total: <strong class="text-[#041227]">${fmtBRL(sdrCommTotal + closerCommTotal)}</strong>`;
+
+      // ===== Card SDR =====
+      document.getElementById('teamSdrLeads').innerHTML =
+        `${fmtInt(sdrLeadsTotal)} <span class="text-sm font-normal text-slate-500">leads</span>`;
+      const sdrTopArr = Object.entries(sdrAttributions)
+        .sort((a, b) => b[1].commissionEarned - a[1].commissionEarned)
         .slice(0, 3)
-        .map(([id, count]) => `<strong>${escapeHTML(attendantsById[id]?.name || '?')}</strong> (${count})`);
+        .map(([id, s]) => {
+          const name = attendantsById[id]?.name || '?';
+          if (s.commissionEarned > 0) {
+            return `<div><strong>${escapeHTML(name)}</strong> · ${s.wonByTag} ganhos via tag · <strong class="text-[#7c3aed]">${fmtBRL(s.commissionEarned)}</strong> comissão</div>`;
+          }
+          return `<div><strong>${escapeHTML(name)}</strong> · ${s.leadsQualified} leads qualificados</div>`;
+        });
       document.getElementById('teamSdrTop').innerHTML = sdrTopArr.length > 0
-        ? '🥇 Top: ' + sdrTopArr.join(' · ')
-        : '<span class="text-slate-400">Nenhum lead atribuído no período</span>';
+        ? `<p class="text-[10px] uppercase tracking-widest font-bold text-slate-500 mb-1">🥇 Top SDRs no período</p>${sdrTopArr.join('')}`
+        : '<span class="text-slate-400">Configure tags de crédito pros SDRs no botão "Papéis"</span>';
 
-      // Closer card
-      document.getElementById('teamCloserWon').textContent = fmtInt(closerWonTotal) + ' vendas';
-      document.getElementById('teamCloserRevenue').textContent = fmtBRL(closerRevenueTotal);
+      // ===== Card Closer =====
+      document.getElementById('teamCloserWon').innerHTML = `${fmtInt(closerWonTotal)} <span class="text-sm font-normal text-slate-500">vendas</span>`;
+      document.getElementById('teamCloserRevenue').innerHTML =
+        `<strong>${fmtBRL(closerRevTotal)}</strong> em vendas · <strong class="text-[#00754d]">${fmtBRL(closerCommTotal)}</strong> comissão`;
       const closerTopArr = Object.entries(closerStats)
-        .sort((a, b) => b[1].revenue - a[1].revenue)
+        .sort((a, b) => b[1].commissionEarned - a[1].commissionEarned)
         .slice(0, 3)
-        .map(([id, s]) => `<strong>${escapeHTML(attendantsById[id]?.name || '?')}</strong> (${fmtBRL(s.revenue)})`);
+        .map(([id, s]) => {
+          const name = attendantsById[id]?.name || '?';
+          return `<div><strong>${escapeHTML(name)}</strong> · ${s.won} ganhos · <strong class="text-[#00754d]">${fmtBRL(s.commissionEarned)}</strong> comissão</div>`;
+        });
       document.getElementById('teamCloserTop').innerHTML = closerTopArr.length > 0
-        ? '🥇 Top: ' + closerTopArr.join(' · ')
+        ? `<p class="text-[10px] uppercase tracking-widest font-bold text-slate-500 mb-1">🥇 Top Closers no período</p>${closerTopArr.join('')}`
         : '<span class="text-slate-400">Nenhum fechamento no período</span>';
     }
 
@@ -4451,34 +4565,50 @@
       const lostInPeriod = getLostInFilteredPeriod();   // pra perdidos
 
       const byAtt = {};
+      const attendantsById = Object.fromEntries((biState.raw?.attendants || []).map(a => [a.id, a]));
       // Inicializa baseado em quem aparece em qualquer um dos conjuntos
-      const ensure = (att) => {
-        if (!att?.attendantId) return null;
-        const k = att.attendantId;
-        if (!byAtt[k]) {
-          byAtt[k] = { id: k, name: att.attendantName, deals: [], total: 0, won: 0, lost: 0, revenue: 0 };
+      const ensure = (id, name) => {
+        if (!id) return null;
+        if (!byAtt[id]) {
+          byAtt[id] = { id, name: name || attendantsById[id]?.name || '?', deals: [], total: 0, won: 0, lost: 0, revenue: 0, commission: 0, viaTagWon: 0 };
         }
-        return byAtt[k];
+        return byAtt[id];
       };
 
       // Negócios CRIADOS no período (mantém pra contagem de "Negócios")
       for (const d of dealsCreated) {
-        const b = ensure(d);
+        const b = ensure(d.attendantId, d.attendantName);
         if (!b) continue;
         b.deals.push(d);
         b.total++;
       }
-      // GANHOS NO PERÍODO (statusChangedAt) → receita real
+      // GANHOS NO PERÍODO (statusChangedAt) → receita + comissão pro Closer
       for (const d of wonInPeriod) {
-        const b = ensure(d);
-        if (!b) continue;
-        if (!b.deals.includes(d)) b.deals.push(d);  // adiciona se não estava
-        b.won++;
-        b.revenue += (d.total || 0);
+        const b = ensure(d.attendantId, d.attendantName);
+        if (b) {
+          if (!b.deals.includes(d)) b.deals.push(d);
+          b.won++;
+          b.revenue += (d.total || 0);
+          // Comissão do Closer (se tiver papel definido)
+          const cfg = getRoleConfigFor(d.attendantId);
+          if (cfg.role === 'closer' || cfg.role === 'both') {
+            b.commission += (d.total || 0) * (cfg.commissionPct || 0) / 100;
+          }
+        }
+        // Crédito da SDR via tag (mesmo sendo outro attendantId final)
+        const sdrId = getSdrCreditFor(d.leadTags || []);
+        if (sdrId && sdrId !== d.attendantId) {
+          const sb = ensure(sdrId);
+          if (sb) {
+            sb.viaTagWon++;
+            const sdrCfg = getRoleConfigFor(sdrId);
+            sb.commission += (d.total || 0) * (sdrCfg.commissionPct || 0) / 100;
+          }
+        }
       }
       // PERDIDOS NO PERÍODO (statusChangedAt)
       for (const d of lostInPeriod) {
-        const b = ensure(d);
+        const b = ensure(d.attendantId, d.attendantName);
         if (!b) continue;
         if (!b.deals.includes(d)) b.deals.push(d);
         b.lost++;
@@ -4544,9 +4674,14 @@
           <td class="px-4 py-2 text-right font-bold text-[#041227]">${fmtBRL(s.revenue)}</td>
           <td class="px-4 py-2 text-right">${s.avgTicket > 0 ? fmtBRL(s.avgTicket) : '—'}</td>
           <td class="px-4 py-2 text-right">${s.conversionRate.toFixed(1)}%</td>
+          <td class="px-4 py-2 text-right">${
+            s.commission > 0
+              ? `<span class="font-bold text-[#7a5400]">${fmtBRL(s.commission)}</span>${s.viaTagWon > 0 ? `<br><span class="text-[9px] text-[#7c3aed]">🏷️ ${s.viaTagWon} via tag</span>` : ''}`
+              : '<span class="text-slate-400">—</span>'
+          }</td>
           <td class="px-4 py-2" style="min-width: 160px" onclick="event.stopPropagation()">${progressBarHTML(progress)}</td>
         </tr>
-      `; }).join('') || '<tr><td colspan="8" class="text-center text-slate-400 py-6 text-sm">Sem dados</td></tr>';
+      `; }).join('') || '<tr><td colspan="9" class="text-center text-slate-400 py-6 text-sm">Sem dados</td></tr>';
 
       // Wire up clicks (event delegation seria melhor mas vamos direto)
       document.querySelectorAll('[data-seller-row]').forEach(row => {
