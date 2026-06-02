@@ -4,10 +4,14 @@
 // e devolve um payload pronto para o dashboard renderizar.
 //
 // Query params:
-//   - mixMarketing (0-100, default 60)
-//   - mixUtility   (0-100, default 30)
-//   - mixAuth      (0-100, default 10)
-//   - usdBrl       (decimal, default 5.00) — cotação aplicada
+//   - mixMarketing      (0-100, default 60)
+//   - mixUtility        (0-100, default 30)
+//   - mixAuth           (0-100, default 10)
+//   - usdBrl            (decimal, default 5.00) — cotação aplicada
+//   - officialInstances (CSV ids, opcional) — quando presente, calcula custo SÓ
+//                       das conversas dessas instâncias. Útil pra clientes que
+//                       têm WhatsApp Oficial + Evolution rodando lado a lado e
+//                       só a oficial é cobrada pela Meta.
 // ============================================================
 
 const { dcGetAll, send, sendError, getValidatedKey, handleOptions } = require('./_client');
@@ -121,6 +125,19 @@ module.exports = async function handler(req, res) {
       leadsByEffectiveOrigin['Sem origem identificada'] = leadsWithoutOrigin;
     }
 
+    // ---- Filtro de instâncias oficiais (opcional) ----
+    // Quando o cliente envia ?officialInstances=id1,id2,..., calculamos custo
+    // SOMENTE das conversas dessas instâncias (porque só a Oficial é cobrada
+    // pela Meta — Evolution/Baileys não tem custo Meta).
+    const officialInstancesRaw = q.officialInstances || '';
+    const officialInstanceIds = officialInstancesRaw
+      ? new Set(officialInstancesRaw.split(',').map(s => s.trim()).filter(Boolean))
+      : null;  // null = sem filtro, considera todas
+
+    const filteredConvs = officialInstanceIds
+      ? convsRes.data.filter(c => c.instance?.id && officialInstanceIds.has(c.instance.id))
+      : convsRes.data;
+
     // ---- Processamento de conversas por mês (últimos 12 meses) ----
     const now = new Date();
     const months = [];
@@ -136,7 +153,7 @@ module.exports = async function handler(req, res) {
     }
     const monthMap = Object.fromEntries(months.map(m => [m.month, m]));
 
-    for (const c of convsRes.data) {
+    for (const c of filteredConvs) {
       if (!c.createdAt) continue;
       const ym = c.createdAt.slice(0, 7);
       const bucket = monthMap[ym];
@@ -208,7 +225,18 @@ module.exports = async function handler(req, res) {
         usdBrl,
         avgCostUSD,
         avgCostBRL: avgCostUSD * usdBrl,
-        rates: RATES
+        rates: RATES,
+        // Info do filtro de instâncias aplicado
+        instanceFilter: officialInstanceIds ? {
+          active:           true,
+          officialIds:      Array.from(officialInstanceIds),
+          conversationsConsidered: filteredConvs.length,
+          conversationsTotal:      convsRes.data.length,
+          excludedCount:    convsRes.data.length - filteredConvs.length
+        } : {
+          active: false,
+          note: 'Sem filtro — custo calculado com TODAS as conversas. Configure suas instâncias oficiais pra cálculo preciso.'
+        }
       },
       cached: fromCache,
       cacheAgeMs: fromCache ? (Date.now() - cached.at) : 0,

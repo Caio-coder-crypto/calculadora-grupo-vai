@@ -737,11 +737,17 @@
             </h2>
             <p class="text-sm text-white/90 mt-2 max-w-xl">Quanto sua empresa está gastando na API Oficial do WhatsApp Business este mês — e quanto vai gastar até o fim do mês.</p>
           </div>
-          <button id="syncBtn" type="button"
-                  class="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-[#041227] text-white font-bold hover:bg-[#0a1d3d] transition shadow-lg ring-1 ring-[#FFB81C]/40 hover:scale-[1.02]">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-            Sincronizar com DataCrazy
-          </button>
+          <div class="flex items-center gap-2 flex-wrap">
+            <button id="instancesBtn" type="button"
+                    class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white/90 text-[#041227] font-semibold hover:bg-white transition shadow-md text-sm">
+              📱 Instâncias <span id="instancesBadge" class="hidden text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[#00A859] text-white"></span>
+            </button>
+            <button id="syncBtn" type="button"
+                    class="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-[#041227] text-white font-bold hover:bg-[#0a1d3d] transition shadow-lg ring-1 ring-[#FFB81C]/40 hover:scale-[1.02]">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+              Sincronizar
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1318,6 +1324,47 @@
         <button id="goalsSave" type="button"
                 class="flex-1 px-4 py-2.5 rounded-lg bg-[#041227] text-white hover:bg-[#0a1d3d] font-bold text-sm transition shadow-lg ring-1 ring-[#FFB81C]/30">
           Salvar metas
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- MODAL INSTÂNCIAS WHATSAPP — marca quais são Oficial (Meta)    -->
+  <!-- ============================================================ -->
+  <div id="instancesModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#041227]/80 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[88vh] overflow-hidden flex flex-col">
+      <div class="bg-[#041227] text-white p-5 relative flex-shrink-0">
+        <div class="absolute top-0 left-0 w-full h-1 flex">
+          <span class="flex-1 bg-[#25D366]"></span>
+          <span class="flex-1 bg-[#FFB81C]"></span>
+        </div>
+        <button id="instancesClose" type="button" class="absolute top-4 right-4 text-slate-300 hover:text-white">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-5 h-5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <h3 class="text-lg font-bold flex items-center gap-2">📱 Instâncias WhatsApp</h3>
+        <p class="text-sm text-slate-300 mt-1">
+          Marque quais instâncias usam a <strong>API Oficial da Meta</strong> (cobradas) vs <strong>Evolution/não-oficial</strong> (gratuitas).
+          O cálculo de custo considera apenas as oficiais.
+        </p>
+      </div>
+      <!-- Resumo do que foi detectado -->
+      <div class="bg-slate-50 border-b border-slate-200 p-3 flex-shrink-0 text-[11px] text-slate-600" id="instancesAutoSummary">
+        Carregando…
+      </div>
+      <!-- Lista de instâncias -->
+      <div class="flex-1 overflow-auto p-4 space-y-2" id="instancesList">
+        <p class="text-center text-slate-400 py-6 text-sm">Carregando instâncias…</p>
+      </div>
+      <!-- Footer -->
+      <div class="border-t border-slate-200 p-4 flex items-center justify-between flex-shrink-0 gap-2">
+        <button id="instancesClearAll" type="button"
+                class="px-4 py-2.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 font-medium text-sm transition">
+          Voltar ao automático
+        </button>
+        <button id="instancesSave" type="button"
+                class="flex-1 px-4 py-2.5 rounded-lg bg-[#041227] text-white hover:bg-[#0a1d3d] font-bold text-sm transition shadow-lg ring-1 ring-[#25D366]/30">
+          Salvar configuração
         </button>
       </div>
     </div>
@@ -2020,6 +2067,11 @@
           mixAuth: dashState.mix.auth,
           usdBrl: state.usdBrl || 5.00
         });
+        // Se o cliente configurou instâncias oficiais, envia pra filtrar custo
+        const officialIds = getOfficialInstanceIds();
+        if (officialIds.length > 0) {
+          params.set('officialInstances', officialIds.join(','));
+        }
         const res = await dcFetch('/api/datacrazy/summary?' + params.toString());
         // Lê como texto primeiro pra evitar "Unexpected token" quando Vercel
         // retorna HTML em caso de timeout/erro 500
@@ -2125,10 +2177,16 @@
       // Gráfico de leads por source
       renderSourceChart(data.leadsBySource);
 
-      // Footer
+      // Footer (com info do filtro de instâncias)
       const ts = new Date(data.fetchedAt).toLocaleString('pt-BR');
-      document.getElementById('dashFooter').textContent =
-        `Última sincronização: ${ts} · Cotação aplicada: US$ 1 = ${fmtBRL(data.config.usdBrl)}`;
+      let footerText = `Última sincronização: ${ts} · Cotação: US$ 1 = ${fmtBRL(data.config.usdBrl)}`;
+      const inst = data.config?.instanceFilter;
+      if (inst?.active) {
+        footerText += ` · 📱 ${inst.officialIds.length} instância${inst.officialIds.length === 1 ? '' : 's'} oficial${inst.officialIds.length === 1 ? '' : 'is'} · ${inst.conversationsConsidered}/${inst.conversationsTotal} conversas consideradas`;
+      } else {
+        footerText += ` · ⚠️ Sem filtro de instâncias (clique 📱 Instâncias pra refinar)`;
+      }
+      document.getElementById('dashFooter').textContent = footerText;
 
       // Popula dropdown do simulador com origens reais (source + tags)
       populateSimOriginDropdown(data);
@@ -2404,6 +2462,162 @@
 
     // Estado inicial
     recalcSim();
+
+    // ======================================================================
+    // INSTÂNCIAS WHATSAPP — cliente marca quais são oficiais Meta
+    // ======================================================================
+    const INSTANCES_STORAGE = 'dc_official_instances_v1';
+    let instancesCache = null;  // dados da API (cached enquanto modal está aberto)
+
+    function getOfficialInstanceIds() {
+      try { return JSON.parse(localStorage.getItem(INSTANCES_STORAGE) || '[]'); }
+      catch { return []; }
+    }
+    function setOfficialInstanceIds(ids) {
+      try { localStorage.setItem(INSTANCES_STORAGE, JSON.stringify(ids || [])); }
+      catch {}
+      updateInstancesBadge();
+    }
+
+    function updateInstancesBadge() {
+      const ids = getOfficialInstanceIds();
+      const badge = document.getElementById('instancesBadge');
+      if (!badge) return;
+      if (ids.length > 0) {
+        badge.textContent = ids.length + ' oficial' + (ids.length === 1 ? '' : 'is');
+        badge.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden');
+      }
+    }
+
+    async function loadInstances() {
+      try {
+        const res = await dcFetch('/api/datacrazy/instances');
+        const data = await res.json();
+        if (!res.ok || data.error) throw new Error(data.message || 'Erro ao carregar');
+        instancesCache = data;
+        return data;
+      } catch (err) {
+        console.error('[instances]', err);
+        throw err;
+      }
+    }
+
+    async function openInstancesModal() {
+      if (!getDcKey()) { openConfig(); showConfigMessage('info', 'Configure sua chave DataCrazy antes.'); return; }
+      document.getElementById('instancesModal').classList.remove('hidden');
+      document.getElementById('instancesList').innerHTML = '<p class="text-center text-slate-400 py-6 text-sm">Carregando instâncias…</p>';
+      document.getElementById('instancesAutoSummary').textContent = 'Carregando…';
+      try {
+        const data = await loadInstances();
+        renderInstancesList(data);
+      } catch (err) {
+        document.getElementById('instancesList').innerHTML = `<p class="text-center text-red-600 py-6 text-sm">Erro: ${escapeHTML(err.message)}</p>`;
+      }
+    }
+
+    function closeInstancesModal() {
+      document.getElementById('instancesModal').classList.add('hidden');
+    }
+
+    function renderInstancesList(data) {
+      const userSelected = new Set(getOfficialInstanceIds());
+      const list = document.getElementById('instancesList');
+      const sum = data.summary;
+
+      document.getElementById('instancesAutoSummary').innerHTML = `
+        <strong>${sum.total}</strong> instância${sum.total === 1 ? '' : 's'} no CRM
+        · <span class="text-[#00754d]">${sum.connected} conectada${sum.connected === 1 ? '' : 's'}</span>
+        ${sum.suggestedOfficial > 0 ? `· <span class="text-[#00A859]">${sum.suggestedOfficial} sugerida${sum.suggestedOfficial === 1 ? '' : 's'} como oficial</span>` : ''}
+        ${sum.suggestedNonOfficial > 0 ? `· <span class="text-slate-500">${sum.suggestedNonOfficial} Evolution</span>` : ''}
+        ${sum.undetermined > 0 ? `· <span class="text-[#FFB81C]">${sum.undetermined} indefinida${sum.undetermined === 1 ? '' : 's'}</span>` : ''}
+      `;
+
+      if (data.data.length === 0) {
+        list.innerHTML = '<p class="text-center text-slate-400 py-6 text-sm">Nenhuma instância encontrada no CRM.</p>';
+        return;
+      }
+
+      list.innerHTML = data.data.map(inst => {
+        const isOfficial = userSelected.has(inst.id);
+        const statusBadge = inst.status === 'CONNECTED'
+          ? '<span class="inline-block w-2 h-2 rounded-full bg-[#00A859]" title="Conectada"></span>'
+          : '<span class="inline-block w-2 h-2 rounded-full bg-slate-300" title="Desconectada"></span>';
+        const suggBadge = inst.suggestedOfficial === true
+          ? '<span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#00A859]/15 text-[#00754d]">SUGERIDA OFICIAL</span>'
+          : inst.suggestedOfficial === false
+            ? '<span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">EVOLUTION</span>'
+            : '<span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#FFB81C]/15 text-[#7a5400]">VOCÊ DECIDE</span>';
+        return `
+          <label class="flex items-center gap-3 p-3 rounded-lg border ${isOfficial ? 'border-[#25D366] bg-[#25D366]/5' : 'border-slate-200 hover:bg-slate-50'} cursor-pointer transition">
+            <input type="checkbox" data-instance-id="${inst.id}" ${isOfficial ? 'checked' : ''}
+                   class="instance-checkbox w-5 h-5 accent-[#25D366]" />
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                ${statusBadge}
+                <span class="text-sm font-bold text-[#041227] truncate">${escapeHTML(inst.name)}</span>
+                ${suggBadge}
+              </div>
+              <p class="text-[10px] text-slate-500 mt-0.5">
+                Provider: <code>${escapeHTML(inst.provider || '—')}</code>
+                · Engine: <code>${escapeHTML(inst.engine || '—')}</code>
+              </p>
+            </div>
+            <div class="text-right text-[10px] text-slate-500">
+              ${isOfficial
+                ? '<span class="font-bold text-[#00754d]">✓ Cobrada pela Meta</span>'
+                : '<span class="text-slate-400">Não cobrada</span>'
+              }
+            </div>
+          </label>`;
+      }).join('');
+
+      // Toggle visual ao clicar
+      list.querySelectorAll('.instance-checkbox').forEach(cb => {
+        cb.addEventListener('change', () => {
+          const label = cb.closest('label');
+          if (cb.checked) {
+            label.className = 'flex items-center gap-3 p-3 rounded-lg border border-[#25D366] bg-[#25D366]/5 cursor-pointer transition';
+          } else {
+            label.className = 'flex items-center gap-3 p-3 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer transition';
+          }
+          // Atualiza o "Cobrada pela Meta"
+          const last = label.querySelector('.text-right');
+          last.innerHTML = cb.checked
+            ? '<span class="font-bold text-[#00754d]">✓ Cobrada pela Meta</span>'
+            : '<span class="text-slate-400">Não cobrada</span>';
+        });
+      });
+    }
+
+    document.getElementById('instancesBtn').addEventListener('click', openInstancesModal);
+    document.getElementById('instancesClose').addEventListener('click', closeInstancesModal);
+    document.getElementById('instancesModal').addEventListener('click', (e) => {
+      if (e.target.id === 'instancesModal') closeInstancesModal();
+    });
+    document.getElementById('instancesClearAll').addEventListener('click', () => {
+      // Aplica sugestões automáticas: marca todas que vieram como suggestedOfficial=true
+      if (!instancesCache?.data) return;
+      const autoIds = instancesCache.data
+        .filter(i => i.suggestedOfficial === true)
+        .map(i => i.id);
+      document.querySelectorAll('.instance-checkbox').forEach(cb => {
+        cb.checked = autoIds.includes(cb.dataset.instanceId);
+        cb.dispatchEvent(new Event('change'));
+      });
+    });
+    document.getElementById('instancesSave').addEventListener('click', () => {
+      const ids = [];
+      document.querySelectorAll('.instance-checkbox:checked').forEach(cb => {
+        ids.push(cb.dataset.instanceId);
+      });
+      setOfficialInstanceIds(ids);
+      closeInstancesModal();
+      // Se já tem dados sincronizados, ressincroniza com o novo filtro
+      if (dashState.lastData) syncDashboard();
+    });
+    updateInstancesBadge();
 
     // ======================================================================
     // ALERTA DE ORÇAMENTO — teto mensal de gasto WhatsApp + Webhook
