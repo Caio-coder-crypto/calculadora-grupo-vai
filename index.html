@@ -622,11 +622,17 @@
           </div>
           <div class="mt-3 pt-3 border-t border-slate-200 flex items-center justify-between flex-wrap gap-2">
             <div class="text-[11px] text-slate-500">
+              <span id="rolesConfigStatus">Sem papéis configurados</span>
+              <span class="mx-1.5 text-slate-300">|</span>
               <span id="goalsConfigStatus">Sem metas configuradas</span>
               <span class="mx-1.5 text-slate-300">|</span>
               <span id="tagsConfigStatus">Tags classificadas automaticamente</span>
             </div>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 flex-wrap">
+              <button id="rolesOpenBtn" type="button"
+                      class="inline-flex items-center gap-1.5 text-xs font-semibold text-[#041227] bg-[#7c3aed]/10 hover:bg-[#7c3aed]/20 ring-1 ring-[#7c3aed]/40 px-3 py-1.5 rounded-lg transition">
+                👥 Papéis (SDR/Closer)
+              </button>
               <button id="tagsOpenBtn" type="button"
                       class="inline-flex items-center gap-1.5 text-xs font-semibold text-[#041227] bg-[#00A859]/10 hover:bg-[#00A859]/20 ring-1 ring-[#00A859]/40 px-3 py-1.5 rounded-lg transition">
                 🏷️ Configurar Canais
@@ -757,6 +763,33 @@
               </div>
             </div>
 
+            <!-- LINHA 3.2: Performance da Equipe (SDR × Closer) — só aparece se houver papéis configurados -->
+            <div id="teamPerformanceCard" class="hidden bg-white rounded-xl border-2 border-[#7c3aed]/30 p-5 shadow-sm">
+              <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+                <div>
+                  <h4 class="text-sm font-bold text-[#041227] flex items-center gap-2">👥 Performance da Equipe Comercial</h4>
+                  <p class="text-[11px] text-slate-500" id="teamPerfSubtitle">— SDR · — Closer no período</p>
+                </div>
+                <button id="teamPerfConfigBtn" type="button" class="text-[10px] font-semibold text-[#7c3aed] hover:underline">Editar papéis →</button>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <!-- SDR -->
+                <div class="bg-gradient-to-br from-[#7c3aed]/10 to-[#7c3aed]/5 border border-[#7c3aed]/30 rounded-lg p-4">
+                  <p class="text-[10px] font-bold uppercase tracking-widest text-[#7c3aed]">🎯 SDR — Pré-vendas</p>
+                  <p class="text-2xl font-extrabold text-[#041227] mt-1" id="teamSdrLeads">0</p>
+                  <p class="text-[11px] text-slate-600 mt-0.5">leads atribuídos no período</p>
+                  <div class="mt-2 pt-2 border-t border-[#7c3aed]/20 text-[11px]" id="teamSdrTop">—</div>
+                </div>
+                <!-- Closer -->
+                <div class="bg-gradient-to-br from-[#00A859]/10 to-[#00A859]/5 border border-[#00A859]/30 rounded-lg p-4">
+                  <p class="text-[10px] font-bold uppercase tracking-widest text-[#00754d]">💼 Closers — Fechamento</p>
+                  <p class="text-2xl font-extrabold text-[#041227] mt-1" id="teamCloserWon">0</p>
+                  <p class="text-[11px] text-slate-600 mt-0.5"><span id="teamCloserRevenue">R$ 0</span> em vendas</p>
+                  <div class="mt-2 pt-2 border-t border-[#00A859]/20 text-[11px]" id="teamCloserTop">—</div>
+                </div>
+              </div>
+            </div>
+
             <!-- LINHA 3.5: Meta da equipe (só aparece se houver metas configuradas) -->
             <div id="teamGoalCard" class="hidden bg-white rounded-xl border-2 border-[#FFB81C]/40 p-5 shadow-sm">
               <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
@@ -864,9 +897,18 @@
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3" id="sellersPodium"></div>
 
             <div class="bg-white rounded-lg border border-slate-200 overflow-hidden">
-              <div class="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
+              <div class="px-4 py-3 border-b border-slate-200 flex items-center justify-between flex-wrap gap-2">
                 <h4 class="text-sm font-bold text-[#041227]">Ranking completo</h4>
-                <span class="text-[10px] font-semibold uppercase tracking-widest text-slate-500" id="sellersTotal">— vendedores</span>
+                <div class="flex items-center gap-3">
+                  <div class="flex items-center gap-1 text-[10px] font-bold">
+                    <span class="text-slate-500 uppercase tracking-widest mr-1">Filtrar:</span>
+                    <button data-sellers-filter="all" class="sellers-filter-btn px-2.5 py-1 rounded font-semibold transition bg-[#041227] text-white">Todos</button>
+                    <button data-sellers-filter="sdr" class="sellers-filter-btn px-2.5 py-1 rounded font-semibold transition text-[#7c3aed] hover:bg-[#7c3aed]/10">🎯 SDR</button>
+                    <button data-sellers-filter="closer" class="sellers-filter-btn px-2.5 py-1 rounded font-semibold transition text-[#00754d] hover:bg-[#00A859]/10">💼 Closer</button>
+                    <button data-sellers-filter="undefined" class="sellers-filter-btn px-2.5 py-1 rounded font-semibold transition text-slate-500 hover:bg-slate-100">Sem papel</button>
+                  </div>
+                  <span class="text-[10px] font-semibold uppercase tracking-widest text-slate-500" id="sellersTotal">— vendedores</span>
+                </div>
               </div>
               <div class="overflow-x-auto">
                 <table class="w-full text-sm">
@@ -1170,6 +1212,51 @@
         <button id="goalsSave" type="button"
                 class="flex-1 px-4 py-2.5 rounded-lg bg-[#041227] text-white hover:bg-[#0a1d3d] font-bold text-sm transition shadow-lg ring-1 ring-[#FFB81C]/30">
           Salvar metas
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- MODAL PAPÉIS — SDR / Closer / Ambos                           -->
+  <!-- ============================================================ -->
+  <div id="rolesModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#041227]/80 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[88vh] overflow-hidden flex flex-col">
+      <div class="bg-[#041227] text-white p-5 relative flex-shrink-0">
+        <div class="absolute top-0 left-0 w-full h-1 flex">
+          <span class="flex-1 bg-[#7c3aed]"></span>
+          <span class="flex-1 bg-[#00A859]"></span>
+        </div>
+        <button id="rolesClose" type="button" class="absolute top-4 right-4 text-slate-300 hover:text-white">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-5 h-5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <h3 class="text-lg font-bold flex items-center gap-2">👥 Papéis da Equipe Comercial</h3>
+        <p class="text-sm text-slate-300 mt-1">
+          Define se cada pessoa é <strong>SDR</strong> (qualifica leads), <strong>Closer</strong> (fecha vendas) ou <strong>Ambos</strong>.
+          Isso ativa rankings separados e métricas de meritocracia.
+        </p>
+      </div>
+
+      <!-- Legenda -->
+      <div class="bg-slate-50 border-b border-slate-200 p-3 flex-shrink-0 flex items-center gap-4 flex-wrap text-[11px]">
+        <span class="flex items-center gap-1.5"><span class="inline-block w-2 h-2 rounded-full bg-[#7c3aed]"></span> <strong>SDR</strong> — pré-vendas / qualificação</span>
+        <span class="flex items-center gap-1.5"><span class="inline-block w-2 h-2 rounded-full bg-[#00A859]"></span> <strong>Closer</strong> — fechamento de vendas</span>
+        <span class="flex items-center gap-1.5"><span class="inline-block w-2 h-2 rounded-full bg-[#FFB81C]"></span> <strong>Ambos</strong> — full-cycle</span>
+        <span class="flex items-center gap-1.5"><span class="inline-block w-2 h-2 rounded-full bg-slate-300"></span> <strong>Não definido</strong></span>
+      </div>
+
+      <!-- Lista de atendentes -->
+      <div class="flex-1 overflow-auto p-4 space-y-2" id="rolesList"></div>
+
+      <!-- Footer -->
+      <div class="border-t border-slate-200 p-4 flex items-center justify-between flex-shrink-0 gap-2">
+        <button id="rolesClearAll" type="button"
+                class="px-4 py-2.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 font-medium text-sm transition">
+          Limpar papéis
+        </button>
+        <button id="rolesSave" type="button"
+                class="flex-1 px-4 py-2.5 rounded-lg bg-[#041227] text-white hover:bg-[#0a1d3d] font-bold text-sm transition shadow-lg ring-1 ring-[#7c3aed]/30">
+          Salvar papéis
         </button>
       </div>
     </div>
@@ -2861,6 +2948,123 @@
     document.getElementById('drillExport').addEventListener('click', exportDrillCSV);
 
     // ======================================================================
+    // PAPÉIS — SDR / Closer / Ambos (meritocracia da equipe comercial)
+    // Storage: localStorage. Cada cliente define seus próprios papéis.
+    // ======================================================================
+    const ROLES_STORAGE = 'dc_roles_v1';
+    const ROLE_LABELS = {
+      sdr:    { label: 'SDR',    color: '#7c3aed', emoji: '🎯' },
+      closer: { label: 'Closer', color: '#00A859', emoji: '💼' },
+      both:   { label: 'Ambos',  color: '#FFB81C', emoji: '⚡' }
+    };
+
+    function getRoles() {
+      try { return JSON.parse(localStorage.getItem(ROLES_STORAGE) || '{}'); }
+      catch { return {}; }
+    }
+    function setRoles(map) {
+      try { localStorage.setItem(ROLES_STORAGE, JSON.stringify(map)); } catch {}
+      updateRolesStatus();
+    }
+    function getRoleFor(attendantId) {
+      return getRoles()[attendantId] || null;  // 'sdr' | 'closer' | 'both' | null
+    }
+    function isInRole(attendantId, filter) {
+      const role = getRoleFor(attendantId);
+      if (filter === 'all') return true;
+      if (filter === 'sdr')    return role === 'sdr'    || role === 'both';
+      if (filter === 'closer') return role === 'closer' || role === 'both';
+      if (filter === 'undefined') return !role;
+      return true;
+    }
+
+    function updateRolesStatus() {
+      const r = getRoles();
+      const counts = { sdr: 0, closer: 0, both: 0 };
+      Object.values(r).forEach(v => { if (counts[v] !== undefined) counts[v]++; });
+      const total = counts.sdr + counts.closer + counts.both;
+      const el = document.getElementById('rolesConfigStatus');
+      if (!el) return;
+      el.innerHTML = total === 0
+        ? 'Sem papéis configurados'
+        : `<strong class="text-[#7c3aed]">${counts.sdr}</strong> SDR · <strong class="text-[#00A859]">${counts.closer}</strong> Closer · <strong class="text-[#FFB81C]">${counts.both}</strong> ambos`;
+    }
+
+    // ----- Modal -----
+    function openRolesModal() {
+      if (!biState.raw) { alert('Carregue o BI primeiro pra ver os atendentes.'); return; }
+      const attendantsInDeals = new Set(biState.raw.deals.map(d => d.attendantId).filter(Boolean));
+      const useful = biState.raw.attendants
+        .filter(a => attendantsInDeals.has(a.id))
+        .sort((a, b) => a.name.localeCompare(b.name));
+      const roles = getRoles();
+
+      document.getElementById('rolesList').innerHTML = useful.map(a => {
+        const current = roles[a.id] || '';
+        const mkRadio = (val, label, color) => `
+          <label class="flex items-center gap-1.5 cursor-pointer px-2.5 py-1 rounded border ${current === val ? 'bg-' + color + '/15 ring-1 ring-' + color + '/40' : 'border-slate-200 hover:bg-slate-50'}">
+            <input type="radio" name="role-${a.id}" value="${val}" ${current === val ? 'checked' : ''} class="role-radio" data-attendant-id="${a.id}" />
+            <span class="text-xs font-semibold">${label}</span>
+          </label>`;
+        return `
+          <div class="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50">
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-semibold text-[#041227] truncate">${escapeHTML(a.name)}</p>
+              <p class="text-[10px] text-slate-500 truncate">${escapeHTML(a.email || '')}</p>
+            </div>
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <label class="flex items-center gap-1 cursor-pointer text-xs">
+                <input type="radio" name="role-${a.id}" value="" ${!current ? 'checked' : ''} class="role-radio" data-attendant-id="${a.id}" />
+                <span class="text-slate-500">—</span>
+              </label>
+              <label class="flex items-center gap-1 cursor-pointer text-xs font-semibold px-2 py-1 rounded ${current === 'sdr' ? 'bg-[#7c3aed]/15 ring-1 ring-[#7c3aed]/40' : 'hover:bg-slate-100'}">
+                <input type="radio" name="role-${a.id}" value="sdr" ${current === 'sdr' ? 'checked' : ''} class="role-radio" data-attendant-id="${a.id}" />
+                <span class="text-[#7c3aed]">🎯 SDR</span>
+              </label>
+              <label class="flex items-center gap-1 cursor-pointer text-xs font-semibold px-2 py-1 rounded ${current === 'closer' ? 'bg-[#00A859]/15 ring-1 ring-[#00A859]/40' : 'hover:bg-slate-100'}">
+                <input type="radio" name="role-${a.id}" value="closer" ${current === 'closer' ? 'checked' : ''} class="role-radio" data-attendant-id="${a.id}" />
+                <span class="text-[#00754d]">💼 Closer</span>
+              </label>
+              <label class="flex items-center gap-1 cursor-pointer text-xs font-semibold px-2 py-1 rounded ${current === 'both' ? 'bg-[#FFB81C]/15 ring-1 ring-[#FFB81C]/40' : 'hover:bg-slate-100'}">
+                <input type="radio" name="role-${a.id}" value="both" ${current === 'both' ? 'checked' : ''} class="role-radio" data-attendant-id="${a.id}" />
+                <span class="text-[#7a5400]">⚡ Ambos</span>
+              </label>
+            </div>
+          </div>`;
+      }).join('');
+      document.getElementById('rolesModal').classList.remove('hidden');
+    }
+    function closeRolesModal() {
+      document.getElementById('rolesModal').classList.add('hidden');
+    }
+
+    document.getElementById('rolesOpenBtn').addEventListener('click', openRolesModal);
+    document.getElementById('rolesClose').addEventListener('click', closeRolesModal);
+    document.getElementById('rolesModal').addEventListener('click', (e) => {
+      if (e.target.id === 'rolesModal') closeRolesModal();
+    });
+    document.getElementById('rolesClearAll').addEventListener('click', () => {
+      if (!confirm('Apagar TODOS os papéis configurados?')) return;
+      localStorage.removeItem(ROLES_STORAGE);
+      updateRolesStatus();
+      closeRolesModal();
+      renderActiveTab();
+    });
+    document.getElementById('rolesSave').addEventListener('click', () => {
+      const newRoles = {};
+      document.querySelectorAll('.role-radio:checked').forEach(input => {
+        const id = input.dataset.attendantId;
+        const val = input.value;
+        if (val) newRoles[id] = val;  // só salva se != ''
+      });
+      setRoles(newRoles);
+      closeRolesModal();
+      renderActiveTab();
+    });
+
+    setTimeout(updateRolesStatus, 100);
+
+    // ======================================================================
     // BI CRM — Painel completo com tabs, filtros e múltiplas visões
     // ======================================================================
     const biState = {
@@ -2928,6 +3132,108 @@
       attSel.innerHTML = '<option value="__all__">Todos os vendedores</option>' +
         usefulAttendants.sort((a, b) => a.name.localeCompare(b.name))
           .map(a => `<option value="${a.id}">${escapeHTML(a.name)}</option>`).join('');
+    }
+
+    // ===== Range do período filtrado (start/end timestamps) =====
+    // Usado pra saber se um deal foi GANHO no período (statusChangedAt).
+    function getCurrentPeriodRange() {
+      const { period, customStart, customEnd } = biState.filters;
+      if (period === 'all') return { start: 0, end: Infinity };
+      if (period === 'this_month') return calendarMonthRange(0);
+      if (period === 'last_month') return calendarMonthRange(1);
+      if (period === 'compare')    return calendarMonthRange(0);
+      if (period === 'custom') {
+        if (!customStart || !customEnd) return { start: 0, end: Infinity };
+        return {
+          start: new Date(customStart + 'T00:00:00').getTime(),
+          end:   new Date(customEnd   + 'T23:59:59').getTime() + 1
+        };
+      }
+      const days  = parseInt(period, 10);
+      const end   = Date.now();
+      const start = end - days * 86400000;
+      return { start, end };
+    }
+
+    // ===== Retorna deals GANHOS no período (baseado em statusChangedAt) =====
+    // ATENÇÃO: isso é o conceito de "RECEITA do período" — quando o deal virou
+    // Venda Ganha. Diferente de biState.filtered que é "deals criados no período".
+    // Exemplo: deal criado em Janeiro mas fechado em Maio aparece aqui no filtro de Maio.
+    function getWonInFilteredPeriod() {
+      if (!biState.raw) return [];
+      const { period, pipeline, attendant } = biState.filters;
+      const range = getCurrentPeriodRange();
+      let deals = biState.raw.deals.filter(d => {
+        if (!isWon(d)) return false;
+        // Usa statusChangedAt; fallback lastMovedAt; último recurso createdAt
+        const stamp = d.statusChangedAt || d.lastMovedAt || d.createdAt;
+        if (!stamp) return false;
+        const t = new Date(stamp).getTime();
+        return t >= range.start && t < range.end;
+      });
+      if (pipeline !== '__all__')  deals = deals.filter(d => d.pipelineId === pipeline);
+      if (attendant !== '__all__') deals = deals.filter(d => d.attendantId === attendant);
+      return deals;
+    }
+
+    // Helper: filtros de pipeline+atendente em um único deal
+    function applyAttendantPipelineFilter(d) {
+      const { pipeline, attendant } = biState.filters;
+      if (pipeline !== '__all__'  && d.pipelineId  !== pipeline)  return false;
+      if (attendant !== '__all__' && d.attendantId !== attendant) return false;
+      return true;
+    }
+
+    // ===== Retorna deals GANHOS no PERÍODO ANTERIOR (mesma duração) =====
+    // Usado pra comparar receita atual vs anterior (▲▼ %).
+    function getPreviousWonInPeriod() {
+      if (!biState.raw) return [];
+      const { period, customStart, customEnd } = biState.filters;
+      if (period === 'all') return [];
+
+      let cutoffStart, cutoffEnd;
+      if (period === 'custom') {
+        if (!customStart || !customEnd) return [];
+        const startTs = new Date(customStart + 'T00:00:00').getTime();
+        const endTs   = new Date(customEnd   + 'T23:59:59').getTime();
+        const span    = endTs - startTs;
+        cutoffEnd     = startTs;
+        cutoffStart   = startTs - span;
+      } else if (period === 'this_month' || period === 'last_month' || period === 'compare') {
+        const base = period === 'last_month' ? 1 : 0;
+        const prev = calendarMonthRange(base + 1);
+        cutoffStart = prev.start;
+        cutoffEnd   = prev.end;
+      } else {
+        const days  = parseInt(period, 10);
+        cutoffEnd   = Date.now() - days * 86400000;
+        cutoffStart = cutoffEnd - days * 86400000;
+      }
+
+      return biState.raw.deals.filter(d => {
+        if (!isWon(d)) return false;
+        const stamp = d.statusChangedAt || d.lastMovedAt || d.createdAt;
+        if (!stamp) return false;
+        const t = new Date(stamp).getTime();
+        return t >= cutoffStart && t < cutoffEnd && applyAttendantPipelineFilter(d);
+      });
+    }
+
+    // ===== Retorna deals PERDIDOS no período (statusChangedAt) =====
+    function getLostInFilteredPeriod() {
+      if (!biState.raw) return [];
+      const { period, pipeline, attendant } = biState.filters;
+      const range = getCurrentPeriodRange();
+      let deals = biState.raw.deals.filter(d => {
+        if (!isLost(d)) return false;
+        const stamp = d.statusChangedAt || d.lastMovedAt || d.createdAt;
+        if (!stamp) return false;
+        const t = new Date(stamp).getTime();
+        return t >= range.start && t < range.end;
+      });
+      if (pipeline !== '__all__')  deals = deals.filter(d => d.pipelineId === pipeline);
+      if (attendant !== '__all__') deals = deals.filter(d => d.attendantId === attendant);
+      return deals;
     }
 
     // Retorna [início, fim) de um mês-calendário. monthsAgo: 0 = mês atual, 1 = passado.
@@ -3123,16 +3429,55 @@
     // ---------- FUNIL GLOBAL (formato funil de verdade, acima das abas) ----------
     function renderGlobalFunnel() {
       const deals = biState.filtered || [];
+      const { pipeline } = biState.filters;
 
-      // Agrupa por etapa ordenada
-      const byStage = {};
-      for (const d of deals) {
-        const k = d.stageName || 'Sem etapa';
-        if (!byStage[k]) byStage[k] = { name: k, count: 0, value: 0, color: d.stageColor || '#94a3b8', index: d.stageIndex ?? 999 };
-        byStage[k].count++;
-        byStage[k].value += d.total || 0;
+      // ===== Pega TODAS as etapas do pipeline (mesmo as vazias) =====
+      // Antes contávamos só etapas com deals — agora mostramos TODAS,
+      // porque o gestor precisa ver "0 leads na Negociação" se for o caso.
+      let pipelineStages = [];
+      if (pipeline === '__all__') {
+        // Quando "todos os pipelines", usa o primeiro pipeline (geralmente o principal)
+        // OU achata todas as etapas se quiser. Pra simplicidade visual, usamos o primeiro.
+        const primaryPipeline = biState.raw?.pipelines?.[0];
+        pipelineStages = primaryPipeline?.stages || [];
+      } else {
+        const p = biState.raw?.pipelines?.find(p => p.id === pipeline);
+        pipelineStages = p?.stages || [];
       }
-      const stages = Object.values(byStage).sort((a, b) => a.index - b.index);
+
+      // Conta deals POR stageId (não por nome — mais confiável)
+      const countByStageId = {};
+      const valueByStageId = {};
+      for (const d of deals) {
+        if (!d.stageId) continue;
+        countByStageId[d.stageId] = (countByStageId[d.stageId] || 0) + 1;
+        valueByStageId[d.stageId] = (valueByStageId[d.stageId] || 0) + (d.total || 0);
+      }
+
+      // Monta lista final de etapas, incluindo as ZERADAS
+      let stages = pipelineStages
+        .slice()
+        .sort((a, b) => (a.index ?? 999) - (b.index ?? 999))
+        .map(s => ({
+          id:    s.id,
+          name:  s.name,
+          color: s.color || '#94a3b8',
+          index: s.index,
+          count: countByStageId[s.id] || 0,
+          value: valueByStageId[s.id] || 0
+        }));
+
+      // Fallback: se não tem pipeline definido (raríssimo), agrupa por nome dos deals
+      if (stages.length === 0 && deals.length > 0) {
+        const byName = {};
+        for (const d of deals) {
+          const k = d.stageName || 'Sem etapa';
+          if (!byName[k]) byName[k] = { name: k, count: 0, value: 0, color: d.stageColor || '#94a3b8', index: d.stageIndex ?? 999 };
+          byName[k].count++;
+          byName[k].value += d.total || 0;
+        }
+        stages = Object.values(byName).sort((a, b) => a.index - b.index);
+      }
 
       // Resumo no header
       const totalDeals = deals.length;
@@ -3224,19 +3569,22 @@
     // ---------- BANNER DE COMPARAÇÃO MENSAL ----------
     let lastComparison = null; // guarda pra exportar
 
-    function computeMonthMetrics(deals) {
-      const won = deals.filter(isWon);
-      const lost = deals.filter(isLost);
-      const open = deals.filter(isOpen);
-      const revenue = sumTotal(won);
+    // Calcula métricas de um mês usando:
+    //   - dealsCreated: criados no mês (pra contagem "Novos deals")
+    //   - wonByStatus / lostByStatus: ganhos/perdidos POR STATUSCHANGEDAT no mês (receita real)
+    function computeMonthMetrics(dealsCreated, wonByStatus, lostByStatus) {
+      const open = dealsCreated.filter(isOpen);  // em aberto entre os criados
+      const revenue = sumTotal(wonByStatus);
       return {
-        deals: deals.length,
-        won: won.length,
-        lost: lost.length,
+        deals: dealsCreated.length,
+        won: wonByStatus.length,
+        lost: lostByStatus.length,
         open: open.length,
         revenue,
-        avgTicket: won.length > 0 ? revenue / won.length : 0,
-        conversion: (won.length + lost.length) > 0 ? (won.length / (won.length + lost.length) * 100) : 0,
+        avgTicket: wonByStatus.length > 0 ? revenue / wonByStatus.length : 0,
+        conversion: (wonByStatus.length + lostByStatus.length) > 0
+          ? (wonByStatus.length / (wonByStatus.length + lostByStatus.length) * 100)
+          : 0,
         pipeline: sumTotal(open)
       };
     }
@@ -3250,14 +3598,35 @@
       banner.classList.remove('hidden');
 
       // Mês atual e passado (com filtros de pipeline/vendedor aplicados)
-      const base = applyPipelineAttendantFilters(biState.raw.deals);
+      const base  = applyPipelineAttendantFilters(biState.raw.deals);
       const rThis = calendarMonthRange(0);
       const rLast = calendarMonthRange(1);
-      const thisMonth = base.filter(d => { const t = new Date(d.createdAt).getTime(); return t >= rThis.start && t < rThis.end; });
-      const lastMonth = base.filter(d => { const t = new Date(d.createdAt).getTime(); return t >= rLast.start && t < rLast.end; });
 
-      const cur = computeMonthMetrics(thisMonth);
-      const prev = computeMonthMetrics(lastMonth);
+      // CRIADOS no mês (createdAt)
+      const inRange = (d, r, field) => {
+        const stamp = d[field];
+        if (!stamp) return false;
+        const t = new Date(stamp).getTime();
+        return t >= r.start && t < r.end;
+      };
+      const thisCreated = base.filter(d => inRange(d, rThis, 'createdAt'));
+      const lastCreated = base.filter(d => inRange(d, rLast, 'createdAt'));
+
+      // GANHOS / PERDIDOS no mês por STATUSCHANGEDAT (com fallback)
+      const wonOrLostInRange = (d, r, predicate) => {
+        if (!predicate(d)) return false;
+        const stamp = d.statusChangedAt || d.lastMovedAt || d.createdAt;
+        if (!stamp) return false;
+        const t = new Date(stamp).getTime();
+        return t >= r.start && t < r.end;
+      };
+      const thisWon  = base.filter(d => wonOrLostInRange(d, rThis, isWon));
+      const thisLost = base.filter(d => wonOrLostInRange(d, rThis, isLost));
+      const lastWon  = base.filter(d => wonOrLostInRange(d, rLast, isWon));
+      const lastLost = base.filter(d => wonOrLostInRange(d, rLast, isLost));
+
+      const cur  = computeMonthMetrics(thisCreated, thisWon,  thisLost);
+      const prev = computeMonthMetrics(lastCreated, lastWon,  lastLost);
       lastComparison = { cur, prev, thisLabel: rThis.label, lastLabel: rLast.label };
 
       // Abreviações dos meses (ex: "mai/26", "abr/26")
@@ -3408,17 +3777,15 @@
 
     // ---------- VISÃO GERAL ----------
     function renderOverview() {
-      const deals = biState.filtered || [];
-      const prev = getPreviousPeriodDeals();
+      const deals = biState.filtered || [];           // deals CRIADOS no período (pra contagens)
+      const won   = getWonInFilteredPeriod();         // deals GANHOS no período (statusChangedAt) — RECEITA
+      const lost  = getLostInFilteredPeriod();        // deals PERDIDOS no período (statusChangedAt)
+      const open  = (biState.raw?.deals || []).filter(d => isOpen(d) && applyAttendantPipelineFilter(d));  // PIPELINE ATUAL (snapshot)
+      const prevWon = getPreviousWonInPeriod();       // ganhos no período ANTERIOR (pra delta)
 
-      const won  = deals.filter(isWon);
-      const lost = deals.filter(isLost);
-      const open = deals.filter(isOpen);
-      const prevWon = prev.filter(isWon);
-
-      const revenue = sumTotal(won);
+      const revenue     = sumTotal(won);
       const prevRevenue = sumTotal(prevWon);
-      const pipeline = sumTotal(open);
+      const pipeline    = sumTotal(open);
       const avgTicket = won.length > 0 ? revenue / won.length : 0;
       const conv = (won.length + lost.length) > 0 ? (won.length / (won.length + lost.length) * 100) : 0;
 
@@ -3519,6 +3886,9 @@
         document.getElementById('kpiTopOriginRevenue').textContent = 'Sem dados';
       }
 
+      // Performance da equipe (SDR × Closer)
+      renderTeamPerformance(deals, won);
+
       // Meta da equipe
       renderTeamGoal(won);
 
@@ -3530,6 +3900,69 @@
 
       // Mini funil
       renderOverviewMiniFunnel(deals);
+    }
+
+    // Performance da Equipe (SDR × Closer) — agrupa por papel definido em getRoles()
+    function renderTeamPerformance(dealsCreated, wonInPeriod) {
+      const roles = getRoles();
+      const card = document.getElementById('teamPerformanceCard');
+      if (Object.keys(roles).length === 0) { card.classList.add('hidden'); return; }
+      card.classList.remove('hidden');
+
+      const attendantsById = Object.fromEntries((biState.raw?.attendants || []).map(a => [a.id, a]));
+
+      // SDR: contagem de LEADS atribuídos no período (deals criados)
+      const sdrCounts = {};   // { attendantId: count }
+      for (const d of dealsCreated) {
+        if (!d.attendantId) continue;
+        const role = roles[d.attendantId];
+        if (role === 'sdr' || role === 'both') {
+          sdrCounts[d.attendantId] = (sdrCounts[d.attendantId] || 0) + 1;
+        }
+      }
+      const sdrTotal = Object.values(sdrCounts).reduce((a, n) => a + n, 0);
+
+      // Closer: contagem de VENDAS GANHAS (já é statusChangedAt no período) + receita
+      const closerStats = {}; // { attendantId: { won, revenue } }
+      for (const d of wonInPeriod) {
+        if (!d.attendantId) continue;
+        const role = roles[d.attendantId];
+        if (role === 'closer' || role === 'both') {
+          if (!closerStats[d.attendantId]) closerStats[d.attendantId] = { won: 0, revenue: 0 };
+          closerStats[d.attendantId].won++;
+          closerStats[d.attendantId].revenue += (d.total || 0);
+        }
+      }
+      const closerWonTotal     = Object.values(closerStats).reduce((a, s) => a + s.won, 0);
+      const closerRevenueTotal = Object.values(closerStats).reduce((a, s) => a + s.revenue, 0);
+
+      // Conta papéis
+      const sdrCount    = Object.values(roles).filter(r => r === 'sdr' || r === 'both').length;
+      const closerCount = Object.values(roles).filter(r => r === 'closer' || r === 'both').length;
+
+      document.getElementById('teamPerfSubtitle').textContent =
+        `${sdrCount} SDR · ${closerCount} Closer no período`;
+
+      // SDR card
+      document.getElementById('teamSdrLeads').textContent = fmtInt(sdrTotal);
+      const sdrTopArr = Object.entries(sdrCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([id, count]) => `<strong>${escapeHTML(attendantsById[id]?.name || '?')}</strong> (${count})`);
+      document.getElementById('teamSdrTop').innerHTML = sdrTopArr.length > 0
+        ? '🥇 Top: ' + sdrTopArr.join(' · ')
+        : '<span class="text-slate-400">Nenhum lead atribuído no período</span>';
+
+      // Closer card
+      document.getElementById('teamCloserWon').textContent = fmtInt(closerWonTotal) + ' vendas';
+      document.getElementById('teamCloserRevenue').textContent = fmtBRL(closerRevenueTotal);
+      const closerTopArr = Object.entries(closerStats)
+        .sort((a, b) => b[1].revenue - a[1].revenue)
+        .slice(0, 3)
+        .map(([id, s]) => `<strong>${escapeHTML(attendantsById[id]?.name || '?')}</strong> (${fmtBRL(s.revenue)})`);
+      document.getElementById('teamCloserTop').innerHTML = closerTopArr.length > 0
+        ? '🥇 Top: ' + closerTopArr.join(' · ')
+        : '<span class="text-slate-400">Nenhum fechamento no período</span>';
     }
 
     function renderTeamGoal(wonDeals) {
@@ -3726,18 +4159,16 @@
     // Botão "Editar metas" do card Meta da Equipe
     document.getElementById('teamGoalConfigBtn').addEventListener('click', openGoalsModal);
 
+    // Botão "Editar papéis" do card Performance da Equipe
+    document.getElementById('teamPerfConfigBtn').addEventListener('click', openRolesModal);
+
     // ---------- FUNIL ----------
     function renderFunnel() {
       const deals = biState.filtered || [];
 
-      // Detectar status: status === 'won' ou stageName contém "Ganha"
-      const isWon = (d) => d.status === 'won' || /ganh/i.test(d.stageName);
-      const isLost = (d) => d.status === 'lost';
-      const isOpen = (d) => !isWon(d) && !isLost(d);
-
-      const won = deals.filter(isWon);
-      const lost = deals.filter(isLost);
-      const open = deals.filter(isOpen);
+      const won  = getWonInFilteredPeriod();    // GANHOS no período (statusChangedAt)
+      const lost = getLostInFilteredPeriod();   // PERDIDOS no período (statusChangedAt)
+      const open = (biState.raw?.deals || []).filter(d => isOpen(d) && applyAttendantPipelineFilter(d));  // ABERTOS AGORA (snapshot)
 
       const sum = (arr) => arr.reduce((a, d) => a + (d.total || 0), 0);
       const wonVal = sum(won), lostVal = sum(lost), openVal = sum(open);
@@ -3753,15 +4184,42 @@
       const conv = denominator > 0 ? (won.length / denominator * 100) : 0;
       document.getElementById('funnelConversion').textContent = conv.toFixed(1) + '%';
 
-      // Distribuição por etapa
-      const byStage = {};
-      for (const d of deals) {
-        const k = d.stageName || 'Sem etapa';
-        if (!byStage[k]) byStage[k] = { name: k, count: 0, value: 0, color: d.stageColor, index: d.stageIndex };
-        byStage[k].count++;
-        byStage[k].value += d.total || 0;
+      // Distribuição por etapa — mostra TODAS as etapas do pipeline (mesmo vazias)
+      const { pipeline } = biState.filters;
+      let pipelineStages = [];
+      if (pipeline === '__all__') {
+        pipelineStages = biState.raw?.pipelines?.[0]?.stages || [];
+      } else {
+        pipelineStages = biState.raw?.pipelines?.find(p => p.id === pipeline)?.stages || [];
       }
-      const stages = Object.values(byStage).sort((a, b) => a.index - b.index);
+      const countByStageId = {};
+      const valueByStageId = {};
+      for (const d of deals) {
+        if (!d.stageId) continue;
+        countByStageId[d.stageId] = (countByStageId[d.stageId] || 0) + 1;
+        valueByStageId[d.stageId] = (valueByStageId[d.stageId] || 0) + (d.total || 0);
+      }
+      let stages = pipelineStages
+        .slice()
+        .sort((a, b) => (a.index ?? 999) - (b.index ?? 999))
+        .map(s => ({
+          name:  s.name,
+          color: s.color || '#94a3b8',
+          index: s.index,
+          count: countByStageId[s.id] || 0,
+          value: valueByStageId[s.id] || 0
+        }));
+      // Fallback se não tiver pipeline carregado
+      if (stages.length === 0) {
+        const byStage = {};
+        for (const d of deals) {
+          const k = d.stageName || 'Sem etapa';
+          if (!byStage[k]) byStage[k] = { name: k, count: 0, value: 0, color: d.stageColor, index: d.stageIndex };
+          byStage[k].count++;
+          byStage[k].value += d.total || 0;
+        }
+        stages = Object.values(byStage).sort((a, b) => a.index - b.index);
+      }
 
       const ctx = document.getElementById('funnelChart').getContext('2d');
       if (biState.charts.funnel) biState.charts.funnel.destroy();
@@ -3857,26 +4315,55 @@
 
     // ---------- VENDEDORES ----------
     function renderSellers() {
-      const deals = biState.filtered || [];
+      const dealsCreated = biState.filtered || [];      // pra contagem de "total negócios"
+      const wonInPeriod  = getWonInFilteredPeriod();    // pra receita (statusChangedAt)
+      const lostInPeriod = getLostInFilteredPeriod();   // pra perdidos
 
       const byAtt = {};
-      for (const d of deals) {
-        if (!d.attendantId) continue;
-        const k = d.attendantId;
+      // Inicializa baseado em quem aparece em qualquer um dos conjuntos
+      const ensure = (att) => {
+        if (!att?.attendantId) return null;
+        const k = att.attendantId;
         if (!byAtt[k]) {
-          byAtt[k] = { id: k, name: d.attendantName, deals: [], total: 0, won: 0, lost: 0, revenue: 0 };
+          byAtt[k] = { id: k, name: att.attendantName, deals: [], total: 0, won: 0, lost: 0, revenue: 0 };
         }
-        byAtt[k].deals.push(d);
-        byAtt[k].total++;
-        if (isWon(d)) { byAtt[k].won++; byAtt[k].revenue += (d.total || 0); }
-        else if (isLost(d)) byAtt[k].lost++;
+        return byAtt[k];
+      };
+
+      // Negócios CRIADOS no período (mantém pra contagem de "Negócios")
+      for (const d of dealsCreated) {
+        const b = ensure(d);
+        if (!b) continue;
+        b.deals.push(d);
+        b.total++;
+      }
+      // GANHOS NO PERÍODO (statusChangedAt) → receita real
+      for (const d of wonInPeriod) {
+        const b = ensure(d);
+        if (!b) continue;
+        if (!b.deals.includes(d)) b.deals.push(d);  // adiciona se não estava
+        b.won++;
+        b.revenue += (d.total || 0);
+      }
+      // PERDIDOS NO PERÍODO (statusChangedAt)
+      for (const d of lostInPeriod) {
+        const b = ensure(d);
+        if (!b) continue;
+        if (!b.deals.includes(d)) b.deals.push(d);
+        b.lost++;
       }
 
-      const rows = Object.values(byAtt).map(s => ({
+      let rows = Object.values(byAtt).map(s => ({
         ...s,
+        role: getRoleFor(s.id),
         avgTicket: s.won > 0 ? s.revenue / s.won : 0,
         conversionRate: (s.won + s.lost) > 0 ? (s.won / (s.won + s.lost) * 100) : 0
       })).sort((a, b) => b.revenue - a.revenue);
+
+      // Aplica filtro de papel (atual: sellersFilter)
+      if (biState.sellersFilter && biState.sellersFilter !== 'all') {
+        rows = rows.filter(r => isInRole(r.id, biState.sellersFilter));
+      }
 
       // Métricas pra badges
       const avgRevenue = rows.length > 0 ? rows.reduce((a, r) => a + r.revenue, 0) / rows.length : 0;
@@ -3910,10 +4397,13 @@
         const goal = getGoalFor(s.id);
         const progress = calculateGoalProgress(s.revenue, goal, biState.filters.period);
 
+        const roleBadge = s.role
+          ? `<span class="ml-1 inline-block text-[9px] font-bold px-1.5 py-0.5 rounded ring-1" style="background:${ROLE_LABELS[s.role].color}15;color:${ROLE_LABELS[s.role].color};border-color:${ROLE_LABELS[s.role].color}40">${ROLE_LABELS[s.role].emoji} ${ROLE_LABELS[s.role].label.toUpperCase()}</span>`
+          : '';
         return `
         <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer" data-seller-row="${s.id}">
           <td class="px-4 py-2 font-mono text-xs text-slate-500">${i+1}</td>
-          <td class="px-4 py-2 font-semibold text-[#041227]">${escapeHTML(s.name)} ${badge}</td>
+          <td class="px-4 py-2 font-semibold text-[#041227]">${escapeHTML(s.name)} ${roleBadge} ${badge}</td>
           <td class="px-4 py-2 text-right">
             <button class="hover:underline text-[#041227]" data-seller-deals="${s.id}" data-seller-filter="all">${fmtInt(s.total)}</button>
           </td>
@@ -3963,29 +4453,39 @@
 
     // ---------- ORIGEM ----------
     function renderOrigin() {
-      const deals = biState.filtered || [];
-      const overrides = getTagOverrides();
+      const dealsCreated = biState.filtered || [];     // deals criados no período (pra contagem)
+      const wonInPeriod  = getWonInFilteredPeriod();   // ganhos por status no período (pra receita)
+      const lostInPeriod = getLostInFilteredPeriod();
+      const overrides    = getTagOverrides();
 
       // Agrupa por CANAL COMPOSTO (channel + sub_origin combinados).
-      // Cada deal aparece em UM canal só (sua composição mais específica).
-      // Também acumula ciclo de vendas (dias entre createdAt e statusChangedAt) pros ganhos.
       const byOrigin = {};
-      for (const d of deals) {
-        const channel = composeChannel(d.leadTags || [], overrides);
+      const getBucket = (channel) => {
         if (!byOrigin[channel]) byOrigin[channel] = { name: channel, total: 0, won: 0, lost: 0, revenue: 0, cycleDaysSum: 0, cycleDaysCount: 0 };
-        byOrigin[channel].total++;
-        if (isWon(d)) {
-          byOrigin[channel].won++;
-          byOrigin[channel].revenue += (d.total || 0);
-          // Ciclo de vendas: só pros deals que têm createdAt + statusChangedAt
-          if (d.statusChangedAt && d.createdAt) {
-            const days = (new Date(d.statusChangedAt) - new Date(d.createdAt)) / 86400000;
-            if (days >= 0 && days < 3650) {  // sanity: 0-10 anos
-              byOrigin[channel].cycleDaysSum += days;
-              byOrigin[channel].cycleDaysCount++;
-            }
+        return byOrigin[channel];
+      };
+
+      // Contagem total (deals criados no período)
+      for (const d of dealsCreated) {
+        getBucket(composeChannel(d.leadTags || [], overrides)).total++;
+      }
+      // Receita (ganhos por statusChangedAt no período)
+      for (const d of wonInPeriod) {
+        const bucket = getBucket(composeChannel(d.leadTags || [], overrides));
+        bucket.won++;
+        bucket.revenue += (d.total || 0);
+        // Ciclo de vendas (dias entre criação e fechamento)
+        if (d.statusChangedAt && d.createdAt) {
+          const days = (new Date(d.statusChangedAt) - new Date(d.createdAt)) / 86400000;
+          if (days >= 0 && days < 3650) {
+            bucket.cycleDaysSum += days;
+            bucket.cycleDaysCount++;
           }
-        } else if (isLost(d)) byOrigin[channel].lost++;
+        }
+      }
+      // Perdidos (statusChangedAt no período)
+      for (const d of lostInPeriod) {
+        getBucket(composeChannel(d.leadTags || [], overrides)).lost++;
       }
 
       const rows = Object.values(byOrigin).map(o => ({
@@ -4094,6 +4594,33 @@
       });
       renderActiveTab();
     }
+
+    // Inicializa filtro de vendedores
+    biState.sellersFilter = 'all';
+
+    // Wire up dos botões de filtro de papel (na aba Vendedores)
+    document.querySelectorAll('.sellers-filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        biState.sellersFilter = btn.dataset.sellersFilter;
+        // Atualiza visual dos botões
+        document.querySelectorAll('.sellers-filter-btn').forEach(b => {
+          const active = b.dataset.sellersFilter === biState.sellersFilter;
+          const filter = b.dataset.sellersFilter;
+          if (active) {
+            if (filter === 'sdr')         b.className = 'sellers-filter-btn px-2.5 py-1 rounded font-semibold transition bg-[#7c3aed] text-white';
+            else if (filter === 'closer') b.className = 'sellers-filter-btn px-2.5 py-1 rounded font-semibold transition bg-[#00A859] text-white';
+            else if (filter === 'undefined') b.className = 'sellers-filter-btn px-2.5 py-1 rounded font-semibold transition bg-slate-500 text-white';
+            else                          b.className = 'sellers-filter-btn px-2.5 py-1 rounded font-semibold transition bg-[#041227] text-white';
+          } else {
+            if (filter === 'sdr')         b.className = 'sellers-filter-btn px-2.5 py-1 rounded font-semibold transition text-[#7c3aed] hover:bg-[#7c3aed]/10';
+            else if (filter === 'closer') b.className = 'sellers-filter-btn px-2.5 py-1 rounded font-semibold transition text-[#00754d] hover:bg-[#00A859]/10';
+            else if (filter === 'undefined') b.className = 'sellers-filter-btn px-2.5 py-1 rounded font-semibold transition text-slate-500 hover:bg-slate-100';
+            else                          b.className = 'sellers-filter-btn px-2.5 py-1 rounded font-semibold transition text-slate-700 hover:bg-slate-100';
+          }
+        });
+        if (biState.activeTab === 'sellers') renderSellers();
+      });
+    });
 
     // Wire up
     document.getElementById('biSyncBtn').addEventListener('click', () => loadBi(true));
