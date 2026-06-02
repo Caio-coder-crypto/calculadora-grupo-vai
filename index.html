@@ -3633,6 +3633,105 @@
     const isOpen = (d) => !isWon(d) && !isLost(d);
     const sumTotal = (arr) => arr.reduce((a, d) => a + (d.total || 0), 0);
 
+    // ============================================================
+    // HELPER COMPARTILHADO: constrói funil CUMULATIVO
+    // ============================================================
+    // Cumulativo: cada etapa mostra "todos os deals que chegaram NESTA etapa OU ALÉM".
+    // Etapa 1: total de leads que entraram no funil (todos)
+    // Etapa 2: total de leads que chegaram na 2 OU avançaram pra 3, 4, 5...
+    // Etapa N: ...
+    //
+    // Terminais detectados dinamicamente:
+    //   - Won terminal: stage onde >=70% dos deals têm status='won' (mínimo 3)
+    //   - Lost terminal: stage onde >=70% dos deals têm status='lost' (mínimo 3)
+    //
+    // Lost terminals saem do funil principal e ficam num bloco separado embaixo.
+    // ============================================================
+    function buildCumulativeFunnel(allPipelineStages, dealsToCount) {
+      // 1) Estatísticas por stage pra detecção de terminais
+      const stageStats = {};
+      for (const d of dealsToCount) {
+        if (!d.stageId) continue;
+        if (!stageStats[d.stageId]) stageStats[d.stageId] = { won: 0, lost: 0, inProcess: 0, total: 0 };
+        const s = stageStats[d.stageId];
+        s.total++;
+        if (d.status === 'won') s.won++;
+        else if (d.status === 'lost') s.lost++;
+        else s.inProcess++;
+      }
+      const wonTerminalIds = new Set();
+      const lostTerminalIds = new Set();
+      for (const [id, st] of Object.entries(stageStats)) {
+        if (st.total < 3) continue; // base estatística pequena demais — não classifica
+        if (st.won  / st.total >= 0.7) wonTerminalIds.add(id);
+        if (st.lost / st.total >= 0.7) lostTerminalIds.add(id);
+      }
+
+      // 2) Stages ordenados pelo index do pipeline
+      const sorted = (allPipelineStages || []).slice().sort((a, b) => (a.index ?? 999) - (b.index ?? 999));
+      const activeFlow = sorted.filter(s => !lostTerminalIds.has(s.id));
+      const lostStages = sorted.filter(s =>  lostTerminalIds.has(s.id));
+
+      // 3) Pra cada deal: qual a "maior etapa que chegou"
+      //    - Se won: chegou até o stage atual (que é terminal positivo)
+      //    - Se lost: chegou até o stage atual (que é terminal negativo) — mas trataremos especialmente
+      //    - Se in_process: chegou até o stage atual
+      //    Pra cumulativo, assumimos que se está na etapa X, passou pelas etapas 0..X (fluxo natural)
+
+      // 4) Conta cumulativo pra cada active flow stage
+      const activeStages = activeFlow.map(stage => {
+        let count = 0, value = 0;
+        if (wonTerminalIds.has(stage.id)) {
+          // Terminal positivo: conta SÓ os deals ganhos AQUI
+          for (const d of dealsToCount) {
+            if (d.stageId === stage.id && d.status === 'won') {
+              count++;
+              value += d.total || 0;
+            }
+          }
+        } else {
+          // Cumulativo: deals cuja etapa atual >= esta
+          // Inclui lost terminals porque "passaram por aqui antes de ir morrer"
+          for (const d of dealsToCount) {
+            const idx = d.stageIndex ?? -1;
+            if (idx >= stage.index) {
+              count++;
+              value += d.total || 0;
+            }
+          }
+        }
+        return {
+          id:    stage.id,
+          name:  stage.name,
+          color: stage.color || '#94a3b8',
+          index: stage.index,
+          count,
+          value,
+          isWonTerminal: wonTerminalIds.has(stage.id)
+        };
+      });
+
+      // 5) Lost stages (mostrados separadamente embaixo do funil)
+      const lostStagesData = lostStages.map(stage => {
+        let count = 0, value = 0;
+        for (const d of dealsToCount) {
+          if (d.stageId === stage.id) {
+            count++;
+            value += d.total || 0;
+          }
+        }
+        return {
+          id:    stage.id,
+          name:  stage.name,
+          color: stage.color || '#dc2626',
+          count,
+          value
+        };
+      });
+
+      return { activeStages, lostStages: lostStagesData, wonTerminalIds, lostTerminalIds };
+    }
+
     // ---------- FUNIL GLOBAL (formato funil de verdade, acima das abas) ----------
     function renderGlobalFunnel() {
       const deals = biState.filtered || [];
@@ -3652,46 +3751,23 @@
         pipelineStages = p?.stages || [];
       }
 
-      // Conta deals POR stageId (não por nome — mais confiável)
-      const countByStageId = {};
-      const valueByStageId = {};
-      for (const d of deals) {
-        if (!d.stageId) continue;
-        countByStageId[d.stageId] = (countByStageId[d.stageId] || 0) + 1;
-        valueByStageId[d.stageId] = (valueByStageId[d.stageId] || 0) + (d.total || 0);
-      }
+      // (cálculo cumulativo é feito mais abaixo via buildCumulativeFunnel)
+      let stages = [];
 
-      // Monta lista final de etapas, incluindo as ZERADAS
-      let stages = pipelineStages
-        .slice()
-        .sort((a, b) => (a.index ?? 999) - (b.index ?? 999))
-        .map(s => ({
-          id:    s.id,
-          name:  s.name,
-          color: s.color || '#94a3b8',
-          index: s.index,
-          count: countByStageId[s.id] || 0,
-          value: valueByStageId[s.id] || 0
-        }));
-
-      // Fallback: se não tem pipeline definido (raríssimo), agrupa por nome dos deals
-      if (stages.length === 0 && deals.length > 0) {
-        const byName = {};
-        for (const d of deals) {
-          const k = d.stageName || 'Sem etapa';
-          if (!byName[k]) byName[k] = { name: k, count: 0, value: 0, color: d.stageColor || '#94a3b8', index: d.stageIndex ?? 999 };
-          byName[k].count++;
-          byName[k].value += d.total || 0;
-        }
-        stages = Object.values(byName).sort((a, b) => a.index - b.index);
-      }
-
-      // Resumo no header
+      // Resumo no header (usa contagem TOTAL como entrada do funil)
       const totalDeals = deals.length;
       const won = deals.filter(isWon).length;
-      const overallConv = totalDeals > 0 ? (won / totalDeals * 100) : 0;
+      const lost = deals.filter(isLost).length;
+      const overallConv = (won + lost) > 0 ? (won / (won + lost) * 100) : 0;
       document.getElementById('globalFunnelSummary').textContent =
-        `${fmtInt(totalDeals)} deals · ${fmtInt(won)} ganhos · ${overallConv.toFixed(1)}% conversão geral`;
+        `${fmtInt(totalDeals)} deals · ${fmtInt(won)} ganhos · ${fmtInt(lost)} perdidos · ${overallConv.toFixed(1)}% conv. ganho/perdido`;
+
+      // 🧠 USA O HELPER CUMULATIVO (em vez de contar por etapa atual)
+      // Pega TODOS os deals do pipeline (não só os filtrados por período pra contagem)
+      // mas mantém o filtro pra que o usuário veja só o que filtrou.
+      const cumulativeFunnel = buildCumulativeFunnel(pipelineStages, deals);
+      stages = cumulativeFunnel.activeStages;
+      const lostStagesData = cumulativeFunnel.lostStages;
 
       const maxCount = Math.max(...stages.map(s => s.count), 1);
       const container = document.getElementById('globalFunnelStages');
@@ -3702,51 +3778,53 @@
       }
 
       // ---- IDENTIFICA O MAIOR GARGALO (transição com menor conversão) ----
-      // Calcula a conversão de cada transição (a partir da etapa 1)
-      // e encontra a com menor %, desde que a etapa anterior tenha volume relevante.
       let bottleneckIdx = -1;
       let lowestConv = 101;
       for (let i = 1; i < stages.length; i++) {
         const prevCount = stages[i - 1].count;
-        if (prevCount < 3) continue;  // ignora transições com base pequena (estatisticamente irrelevantes)
+        if (prevCount < 3) continue;
         const conv = (stages[i].count / prevCount) * 100;
         if (conv < lowestConv) {
           lowestConv = conv;
           bottleneckIdx = i;
         }
       }
-      // Só destaca se for um gargalo "de verdade" (< 70% de conversão)
       const hasBottleneck = bottleneckIdx > 0 && lowestConv < 70;
 
-      container.innerHTML = stages.map((s, i) => {
-        const widthPct = 30 + (s.count / maxCount * 70); // 30%-100% (formato funil)
-        // Conversão da etapa anterior pra esta
-        let convArrow = '';
+      const stagesHTML = stages.map((s, i) => {
+        const widthPct = 30 + (s.count / maxCount * 70);
+        let convLabel = '';
         if (i > 0) {
           const prevCount = stages[i - 1].count;
           const conv = prevCount > 0 ? (s.count / prevCount * 100) : 0;
           const drop = (100 - conv).toFixed(0);
           if (hasBottleneck && i === bottleneckIdx) {
-            // Badge destacado do MAIOR GARGALO
-            convArrow = `<span class="inline-block mt-1 text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-red-100 text-red-700 ring-1 ring-red-300 animate-pulse">⚠️ Maior Gargalo (${drop}% drop)</span>`;
+            convLabel = `<span class="inline-block mt-1 text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-red-100 text-red-700 ring-1 ring-red-300 animate-pulse">⚠️ Maior Gargalo (-${drop}%)</span>`;
           } else {
-            const dropClass = conv < 50 ? 'text-red-500' : conv < 80 ? 'text-[#FFB81C]' : 'text-[#00A859]';
-            convArrow = `<span class="text-[10px] font-bold ${dropClass} ml-2">↓ ${conv.toFixed(0)}%</span>`;
+            // Etiqueta limpa: "→ X% conv."
+            const convClass = conv < 50 ? 'text-red-500' : conv < 80 ? 'text-[#FFB81C]' : 'text-[#00A859]';
+            convLabel = `<span class="text-[10px] font-bold ${convClass} mt-0.5 block">→ ${conv.toFixed(0)}% conv.</span>`;
           }
+        } else {
+          // Primeira etapa: mostra "ENTRADA"
+          convLabel = '<span class="text-[9px] uppercase tracking-widest font-bold text-[#00A859]/70 mt-0.5 block">entrada</span>';
         }
-        // Highlight extra na própria barra do gargalo
         const isBottleneckStage = hasBottleneck && i === bottleneckIdx;
         const ringClass = isBottleneckStage ? 'ring-2 ring-red-400 ring-offset-1' : '';
+        const wonBadge = s.isWonTerminal
+          ? '<span class="absolute -top-2 -right-2 text-base">🏆</span>'
+          : '';
         return `
           <button class="w-full group cursor-pointer block" data-global-stage="${escapeAttr(s.name)}">
             <div class="flex items-center gap-3">
               <div class="w-32 flex-shrink-0 text-right">
                 <span class="text-[11px] font-semibold text-[#041227] truncate block" title="${escapeAttr(s.name)}">${escapeHTML(s.name)}</span>
-                ${convArrow}
+                ${convLabel}
               </div>
               <div class="flex-1 flex justify-center">
-                <div class="rounded-md py-2 px-3 text-white text-center transition-all group-hover:opacity-85 group-hover:scale-[1.01] shadow-sm ${ringClass}"
+                <div class="relative rounded-md py-2 px-3 text-white text-center transition-all group-hover:opacity-85 group-hover:scale-[1.01] shadow-sm ${ringClass}"
                      style="width: ${widthPct}%; background: linear-gradient(135deg, ${s.color}, ${s.color}cc);">
+                  ${wonBadge}
                   <span class="text-sm font-bold">${fmtInt(s.count)}</span>
                   <span class="text-[10px] opacity-90 ml-1.5">${s.value > 0 ? fmtBRL(s.value) : ''}</span>
                 </div>
@@ -3754,6 +3832,27 @@
             </div>
           </button>`;
       }).join('');
+
+      // ===== Bloco separado de Perdas (etapas terminais negativas) =====
+      let lostHTML = '';
+      if (lostStagesData && lostStagesData.length > 0) {
+        const totalLost = lostStagesData.reduce((a, s) => a + s.count, 0);
+        if (totalLost > 0) {
+          lostHTML = `
+            <div class="mt-4 pt-3 border-t border-dashed border-slate-200">
+              <p class="text-[10px] uppercase tracking-widest font-bold text-red-700 mb-2">💔 Terminal Negativo (saíram do funil)</p>
+              <div class="flex flex-wrap gap-2">
+                ${lostStagesData.map(s => `
+                  <button class="px-3 py-1.5 rounded-lg bg-red-50 border border-red-200 text-xs font-bold text-red-700 hover:bg-red-100 transition" data-global-stage="${escapeAttr(s.name)}">
+                    ${escapeHTML(s.name)}: ${fmtInt(s.count)}${s.value > 0 ? ' · ' + fmtBRL(s.value) : ''}
+                  </button>
+                `).join('')}
+              </div>
+            </div>`;
+        }
+      }
+
+      container.innerHTML = stagesHTML + lostHTML;
 
       // Wire up clicks
       container.querySelectorAll('[data-global-stage]').forEach(btn => {
@@ -4429,7 +4528,7 @@
       const conv = denominator > 0 ? (won.length / denominator * 100) : 0;
       document.getElementById('funnelConversion').textContent = conv.toFixed(1) + '%';
 
-      // Distribuição por etapa — mostra TODAS as etapas do pipeline (mesmo vazias)
+      // 🧠 USA O HELPER CUMULATIVO (mesma lógica do funil global)
       const { pipeline } = biState.filters;
       let pipelineStages = [];
       if (pipeline === '__all__') {
@@ -4437,34 +4536,8 @@
       } else {
         pipelineStages = biState.raw?.pipelines?.find(p => p.id === pipeline)?.stages || [];
       }
-      const countByStageId = {};
-      const valueByStageId = {};
-      for (const d of deals) {
-        if (!d.stageId) continue;
-        countByStageId[d.stageId] = (countByStageId[d.stageId] || 0) + 1;
-        valueByStageId[d.stageId] = (valueByStageId[d.stageId] || 0) + (d.total || 0);
-      }
-      let stages = pipelineStages
-        .slice()
-        .sort((a, b) => (a.index ?? 999) - (b.index ?? 999))
-        .map(s => ({
-          name:  s.name,
-          color: s.color || '#94a3b8',
-          index: s.index,
-          count: countByStageId[s.id] || 0,
-          value: valueByStageId[s.id] || 0
-        }));
-      // Fallback se não tiver pipeline carregado
-      if (stages.length === 0) {
-        const byStage = {};
-        for (const d of deals) {
-          const k = d.stageName || 'Sem etapa';
-          if (!byStage[k]) byStage[k] = { name: k, count: 0, value: 0, color: d.stageColor, index: d.stageIndex };
-          byStage[k].count++;
-          byStage[k].value += d.total || 0;
-        }
-        stages = Object.values(byStage).sort((a, b) => a.index - b.index);
-      }
+      const cumulativeFunnel = buildCumulativeFunnel(pipelineStages, deals);
+      const stages = cumulativeFunnel.activeStages;
 
       const ctx = document.getElementById('funnelChart').getContext('2d');
       if (biState.charts.funnel) biState.charts.funnel.destroy();
