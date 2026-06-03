@@ -3733,12 +3733,35 @@
         .sort((a, b) => a.name.localeCompare(b.name));
       const roles = getRoles();
 
+      // Pega TODAS as tags reais do CRM (ordenadas por uso)
+      const allTagsRaw = getAllTagsFromCRM();  // [{ tag, count }, ...]
+      const allTagsList = allTagsRaw.map(t => t.tag);
+
       document.getElementById('rolesList').innerHTML = useful.map(a => {
         const cfg = roles[a.id] || { role: null, commissionPct: 0, creditTags: [] };
         const current = cfg.role || '';
         const pct = cfg.commissionPct || 0;
-        const tags = (cfg.creditTags || []).join(', ');
+        const selectedTags = new Set(cfg.creditTags || []);
         const showSdrFields = current === 'sdr' || current === 'both';
+
+        // Pills selecionadas (na cor da SDR)
+        const selectedPillsHTML = (cfg.creditTags || []).map(t => `
+          <button type="button" class="credit-tag-remove inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full bg-[#7c3aed] text-white hover:bg-[#6d28d9] transition"
+                  data-attendant-id="${a.id}" data-tag="${escapeAttr(t)}">
+            ${escapeHTML(t)} <span class="text-[12px] leading-none">×</span>
+          </button>
+        `).join('');
+
+        // Pills disponíveis (cinzas, clicáveis) - exclui as já selecionadas
+        const availablePillsHTML = allTagsRaw
+          .filter(t => !selectedTags.has(t.tag))
+          .map(t => `
+            <button type="button" class="credit-tag-add inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-full bg-slate-100 text-slate-600 hover:bg-[#7c3aed]/15 hover:text-[#7c3aed] ring-1 ring-slate-200 hover:ring-[#7c3aed]/40 transition"
+                    data-attendant-id="${a.id}" data-tag="${escapeAttr(t.tag)}">
+              ${escapeHTML(t.tag)} <span class="text-slate-400 text-[9px]">(${t.count})</span>
+            </button>
+          `).join('');
+
         return `
           <div class="border border-slate-200 rounded-lg p-3 hover:border-slate-300 transition" data-row-id="${a.id}">
             <div class="flex items-center gap-3 mb-2">
@@ -3765,41 +3788,140 @@
                 </label>
               </div>
             </div>
-            <!-- Comissão + tags (aparecem quando tem papel definido) -->
-            <div class="role-extra-fields ${current ? '' : 'hidden'} grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2 pt-2 border-t border-slate-100">
+
+            <!-- Comissão (aparece quando tem papel definido) -->
+            <div class="role-extra-fields ${current ? '' : 'hidden'} mt-2 pt-2 border-t border-slate-100 space-y-2">
               <div>
                 <label class="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">💰 Comissão (%)</label>
                 <input type="number" min="0" max="100" step="0.1" value="${pct || ''}" placeholder="Ex: 2.5"
-                       data-attendant-id="${a.id}" class="commission-input num-input w-full text-sm rounded border border-slate-200 bg-slate-50 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#FFB81C]" />
+                       data-attendant-id="${a.id}" class="commission-input num-input w-32 text-sm rounded border border-slate-200 bg-slate-50 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#FFB81C]" />
               </div>
-              <div class="sdr-credit-tags-wrapper ${showSdrFields ? '' : 'hidden'}">
-                <label class="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">🏷️ Tags que dão crédito (SDR)</label>
-                <input type="text" value="${escapeAttr(tags)}" placeholder="Ex: Débora, SDR-Débora"
-                       data-attendant-id="${a.id}" class="credit-tags-input w-full text-sm rounded border border-slate-200 bg-slate-50 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#7c3aed]" />
+
+              <!-- Seletor visual de tags de crédito (só pra SDR/Both) -->
+              <div class="sdr-credit-tags-wrapper ${showSdrFields ? '' : 'hidden'}" data-attendant-id="${a.id}">
+                <label class="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">
+                  🏷️ Tags que dão crédito a esta pessoa
+                </label>
+                <p class="text-[10px] text-slate-500 mb-2">💡 Clique nas tags abaixo pra selecionar. Quando o lead tem essa tag E vira Venda Ganha, conta pra ela (mesmo após transferir).</p>
+
+                <!-- Tags selecionadas -->
+                <div class="credit-tags-selected mb-2 flex flex-wrap gap-1.5 min-h-[28px] p-2 rounded bg-[#7c3aed]/5 border border-dashed border-[#7c3aed]/30">
+                  ${selectedPillsHTML || '<span class="text-[10px] text-slate-400 italic">Nenhuma tag selecionada — clique nas tags abaixo pra adicionar</span>'}
+                </div>
+
+                <!-- Tags disponíveis -->
+                <details class="bg-slate-50 rounded border border-slate-200">
+                  <summary class="cursor-pointer text-[10px] font-bold uppercase tracking-widest text-slate-600 px-2 py-1.5 hover:bg-slate-100 rounded-t">
+                    📋 Ver ${allTagsList.length} tags disponíveis no CRM ▾
+                  </summary>
+                  <div class="credit-tags-available p-2 flex flex-wrap gap-1 max-h-40 overflow-y-auto">
+                    ${availablePillsHTML || '<span class="text-[10px] text-slate-400 italic">Todas as tags já foram selecionadas.</span>'}
+                  </div>
+                </details>
               </div>
             </div>
-            <p class="text-[10px] text-slate-400 mt-1 ${showSdrFields ? '' : 'hidden'} sdr-hint">💡 SDR ganha crédito quando o lead tem uma dessas tags + vira Venda Ganha, mesmo depois de transferir.</p>
           </div>`;
       }).join('');
       document.getElementById('rolesModal').classList.remove('hidden');
 
-      // Toggle dos campos extras conforme o papel selecionado
+      // ---- Wire up: clique nas tags pra adicionar/remover ----
+      // Adicionar tag (clica numa pill cinza disponível)
+      document.querySelectorAll('.credit-tag-add').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const id = btn.dataset.attendantId;
+          const tag = btn.dataset.tag;
+          rolesAddCreditTag(id, tag);
+        });
+      });
+      // Remover tag (clica no X de uma pill roxa selecionada)
+      document.querySelectorAll('.credit-tag-remove').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const id = btn.dataset.attendantId;
+          const tag = btn.dataset.tag;
+          rolesRemoveCreditTag(id, tag);
+        });
+      });
+
+      // ---- Toggle dos campos extras conforme o papel selecionado ----
       document.querySelectorAll('.role-radio').forEach(input => {
         input.addEventListener('change', (e) => {
           const row = e.target.closest('[data-row-id]');
           const extras = row.querySelector('.role-extra-fields');
           const sdrTags = row.querySelector('.sdr-credit-tags-wrapper');
-          const sdrHint = row.querySelector('.sdr-hint');
           if (e.target.value) extras.classList.remove('hidden');
           else extras.classList.add('hidden');
           const isSdr = e.target.value === 'sdr' || e.target.value === 'both';
-          if (isSdr) { sdrTags.classList.remove('hidden'); sdrHint.classList.remove('hidden'); }
-          else       { sdrTags.classList.add('hidden');    sdrHint.classList.add('hidden'); }
+          if (isSdr) sdrTags.classList.remove('hidden');
+          else       sdrTags.classList.add('hidden');
         });
+      });
+    }
+
+    // Estado temporário durante o modal aberto (antes do save)
+    let _rolesTempCreditTags = null;
+    function getTempCreditTags(attId) {
+      if (!_rolesTempCreditTags) _rolesTempCreditTags = {};
+      if (!_rolesTempCreditTags[attId]) {
+        const roles = getRoles();
+        _rolesTempCreditTags[attId] = [...(roles[attId]?.creditTags || [])];
+      }
+      return _rolesTempCreditTags[attId];
+    }
+    function rolesAddCreditTag(attId, tag) {
+      const list = getTempCreditTags(attId);
+      if (!list.includes(tag)) list.push(tag);
+      rerenderCreditTagsRow(attId);
+    }
+    function rolesRemoveCreditTag(attId, tag) {
+      const list = getTempCreditTags(attId);
+      const idx = list.indexOf(tag);
+      if (idx >= 0) list.splice(idx, 1);
+      rerenderCreditTagsRow(attId);
+    }
+    function rerenderCreditTagsRow(attId) {
+      const row = document.querySelector(`[data-row-id="${attId}"]`);
+      if (!row) return;
+      const selected = _rolesTempCreditTags[attId] || [];
+      const selectedSet = new Set(selected);
+      const allTagsRaw = getAllTagsFromCRM();
+
+      const selWrap = row.querySelector('.credit-tags-selected');
+      const availWrap = row.querySelector('.credit-tags-available');
+      const summary = row.querySelector('summary');
+
+      // Pills selecionadas
+      selWrap.innerHTML = selected.length === 0
+        ? '<span class="text-[10px] text-slate-400 italic">Nenhuma tag selecionada — clique nas tags abaixo pra adicionar</span>'
+        : selected.map(t => `
+            <button type="button" class="credit-tag-remove inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full bg-[#7c3aed] text-white hover:bg-[#6d28d9] transition"
+                    data-attendant-id="${attId}" data-tag="${escapeAttr(t)}">
+              ${escapeHTML(t)} <span class="text-[12px] leading-none">×</span>
+            </button>`).join('');
+
+      // Disponíveis (filtra as já selecionadas)
+      const available = allTagsRaw.filter(t => !selectedSet.has(t.tag));
+      availWrap.innerHTML = available.length === 0
+        ? '<span class="text-[10px] text-slate-400 italic">Todas as tags já foram selecionadas.</span>'
+        : available.map(t => `
+            <button type="button" class="credit-tag-add inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-full bg-slate-100 text-slate-600 hover:bg-[#7c3aed]/15 hover:text-[#7c3aed] ring-1 ring-slate-200 hover:ring-[#7c3aed]/40 transition"
+                    data-attendant-id="${attId}" data-tag="${escapeAttr(t.tag)}">
+              ${escapeHTML(t.tag)} <span class="text-slate-400 text-[9px]">(${t.count})</span>
+            </button>`).join('');
+
+      // Atualiza counter no summary
+      if (summary) summary.innerHTML = `📋 Ver ${available.length} tags disponíveis no CRM ▾`;
+
+      // Re-wire dos novos botões
+      row.querySelectorAll('.credit-tag-add').forEach(btn => {
+        btn.addEventListener('click', () => rolesAddCreditTag(btn.dataset.attendantId, btn.dataset.tag));
+      });
+      row.querySelectorAll('.credit-tag-remove').forEach(btn => {
+        btn.addEventListener('click', () => rolesRemoveCreditTag(btn.dataset.attendantId, btn.dataset.tag));
       });
     }
     function closeRolesModal() {
       document.getElementById('rolesModal').classList.add('hidden');
+      _rolesTempCreditTags = null;  // descarta mudanças não salvas
     }
 
     document.getElementById('rolesOpenBtn').addEventListener('click', openRolesModal);
@@ -3816,21 +3938,22 @@
     });
     document.getElementById('rolesSave').addEventListener('click', () => {
       const newRoles = {};
+      const existing = getRoles();
       document.querySelectorAll('.role-radio:checked').forEach(input => {
         const id = input.dataset.attendantId;
         const val = input.value;
         if (!val) return; // sem papel, não salva
-        // Pega comissão + tags do mesmo bloco
+        // Pega comissão do input + tags do estado temporário (clicáveis)
         const pctInput = document.querySelector(`.commission-input[data-attendant-id="${id}"]`);
-        const tagsInput = document.querySelector(`.credit-tags-input[data-attendant-id="${id}"]`);
         const commissionPct = parseFloat(pctInput?.value) || 0;
-        const creditTags = (tagsInput?.value || '')
-          .split(',')
-          .map(s => s.trim())
-          .filter(Boolean);
+        // Se o usuário interagiu com tags durante esta sessão, usa o temp; senão mantém o salvo
+        const creditTags = (_rolesTempCreditTags && _rolesTempCreditTags[id] !== undefined)
+          ? _rolesTempCreditTags[id]
+          : (existing[id]?.creditTags || []);
         newRoles[id] = { role: val, commissionPct, creditTags };
       });
       setRoles(newRoles);
+      _rolesTempCreditTags = null;  // reseta o estado temporário
       closeRolesModal();
       renderActiveTab();
     });
