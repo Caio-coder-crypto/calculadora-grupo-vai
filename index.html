@@ -361,6 +361,7 @@
             <button data-bi-tab="funnel" class="bi-tab whitespace-nowrap px-5 py-3 text-sm font-semibold text-slate-500 hover:text-[#041227] hover:bg-slate-50 transition border-b-2 border-transparent">🔁 Funil de Vendas</button>
             <button data-bi-tab="sellers" class="bi-tab whitespace-nowrap px-5 py-3 text-sm font-semibold text-slate-500 hover:text-[#041227] hover:bg-slate-50 transition border-b-2 border-transparent">👥 Vendedores</button>
             <button data-bi-tab="productivity" class="bi-tab whitespace-nowrap px-5 py-3 text-sm font-semibold text-slate-500 hover:text-[#041227] hover:bg-slate-50 transition border-b-2 border-transparent">⚡ Produtividade</button>
+            <button data-bi-tab="roi" class="bi-tab whitespace-nowrap px-5 py-3 text-sm font-semibold text-slate-500 hover:text-[#041227] hover:bg-slate-50 transition border-b-2 border-transparent">💰 Gastos & ROI</button>
             <button data-bi-tab="origin" class="bi-tab whitespace-nowrap px-5 py-3 text-sm font-semibold text-slate-500 hover:text-[#041227] hover:bg-slate-50 transition border-b-2 border-transparent">🎯 Origem</button>
             <button data-bi-tab="service" class="bi-tab whitespace-nowrap px-5 py-3 text-sm font-semibold text-slate-500 hover:text-[#041227] hover:bg-slate-50 transition border-b-2 border-transparent">💬 Atendimento</button>
           </nav>
@@ -748,6 +749,187 @@
 
               <p class="text-[10px] text-slate-400 text-center" id="prodFooter"></p>
             </div>
+          </div>
+
+          <!-- ===== ABA: GASTOS & ROI ===== -->
+          <div data-bi-content="roi" class="bi-content hidden p-6 space-y-5">
+            <div class="flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <h3 class="text-lg font-bold text-[#041227] flex items-center gap-2">💰 Gastos & Retorno Real</h3>
+                <p class="text-xs text-slate-500 mt-0.5">Cruze TUDO que gastou × receita gerada. Descubra de verdade se sua operação dá lucro.</p>
+              </div>
+              <select id="roiPeriod" class="text-xs rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-[#041227] font-semibold focus:outline-none focus:ring-2 focus:ring-[#FFB81C]">
+                <option value="0">📅 Este mês</option>
+                <option value="1">📅 Mês passado</option>
+                <option value="2">📅 2 meses atrás</option>
+                <option value="3">📅 3 meses atrás</option>
+              </select>
+            </div>
+
+            <!-- Aviso -->
+            <div class="bg-[#00A859]/5 border border-[#00A859]/30 rounded-lg px-4 py-3 text-[12px] text-slate-700">
+              💡 <strong>Como funciona:</strong> os valores AUTOMÁTICOS (receita, custo WhatsApp, comissões) vêm do BI.
+              Você só lança os <strong>gastos manuais</strong> (tráfego, equipe, ferramentas) e o sistema calcula
+              <strong>todas as métricas que importam pro empresário</strong>: ROAS, ROI, CAC, Payback, Margem.
+            </div>
+
+            <!-- Formulário de gastos manuais -->
+            <div class="bg-white rounded-xl border-2 border-[#FFB81C]/40 p-5 shadow-sm">
+              <h4 class="text-sm font-bold text-[#041227] mb-4 flex items-center gap-2">
+                ✏️ Lance seus gastos do período
+                <span id="roiPeriodLabel" class="text-[10px] font-normal text-slate-500 ml-2">—</span>
+              </h4>
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <!-- TRÁFEGO PAGO -->
+                <div>
+                  <label class="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">📘 Meta ADS</label>
+                  <div class="relative">
+                    <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">R$</span>
+                    <input id="roi_ads_meta" type="number" min="0" step="0.01" placeholder="0,00"
+                           class="roi-input w-full pl-8 pr-2 py-2 text-sm rounded border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#1877F2] font-semibold" />
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">🟢 Google ADS</label>
+                  <div class="relative">
+                    <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">R$</span>
+                    <input id="roi_ads_google" type="number" min="0" step="0.01" placeholder="0,00"
+                           class="roi-input w-full pl-8 pr-2 py-2 text-sm rounded border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#4285F4] font-semibold" />
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">⬛ TikTok ADS</label>
+                  <div class="relative">
+                    <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">R$</span>
+                    <input id="roi_ads_tiktok" type="number" min="0" step="0.01" placeholder="0,00"
+                           class="roi-input w-full pl-8 pr-2 py-2 text-sm rounded border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-black font-semibold" />
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">📱 Outros Ads</label>
+                  <div class="relative">
+                    <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">R$</span>
+                    <input id="roi_ads_other" type="number" min="0" step="0.01" placeholder="0,00"
+                           class="roi-input w-full pl-8 pr-2 py-2 text-sm rounded border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#7c3aed] font-semibold" />
+                  </div>
+                </div>
+                <!-- EQUIPE / FERRAMENTAS -->
+                <div>
+                  <label class="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">👥 Salários (equipe)</label>
+                  <div class="relative">
+                    <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">R$</span>
+                    <input id="roi_team" type="number" min="0" step="0.01" placeholder="0,00"
+                           class="roi-input w-full pl-8 pr-2 py-2 text-sm rounded border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#00A859] font-semibold" />
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">🔧 Ferramentas/SaaS</label>
+                  <div class="relative">
+                    <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">R$</span>
+                    <input id="roi_tools" type="number" min="0" step="0.01" placeholder="0,00"
+                           class="roi-input w-full pl-8 pr-2 py-2 text-sm rounded border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#0ea5e9] font-semibold" />
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">📦 Operacional</label>
+                  <div class="relative">
+                    <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">R$</span>
+                    <input id="roi_ops" type="number" min="0" step="0.01" placeholder="0,00"
+                           class="roi-input w-full pl-8 pr-2 py-2 text-sm rounded border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#FFB81C] font-semibold" />
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">🗂️ Outros</label>
+                  <div class="relative">
+                    <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">R$</span>
+                    <input id="roi_other" type="number" min="0" step="0.01" placeholder="0,00"
+                           class="roi-input w-full pl-8 pr-2 py-2 text-sm rounded border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400 font-semibold" />
+                  </div>
+                </div>
+              </div>
+              <p class="text-[10px] text-slate-500 mt-3">💾 Salvo automaticamente ao digitar · Cada período tem seus próprios valores</p>
+            </div>
+
+            <!-- Custos automáticos (do sistema) -->
+            <div class="bg-slate-50 border border-slate-200 rounded-xl p-4">
+              <p class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">🤖 Custos calculados automaticamente</p>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                <div class="flex items-center justify-between bg-white rounded-lg p-3 border border-slate-200">
+                  <span class="text-slate-600">💬 WhatsApp Business API</span>
+                  <strong class="text-[#041227]" id="roi_auto_whatsapp">R$ 0</strong>
+                </div>
+                <div class="flex items-center justify-between bg-white rounded-lg p-3 border border-slate-200">
+                  <span class="text-slate-600">💰 Comissões SDR + Closer</span>
+                  <strong class="text-[#041227]" id="roi_auto_commissions">R$ 0</strong>
+                </div>
+                <div class="flex items-center justify-between bg-white rounded-lg p-3 border border-slate-200">
+                  <span class="text-slate-600">📈 Receita do período</span>
+                  <strong class="text-[#00754d]" id="roi_auto_revenue">R$ 0</strong>
+                </div>
+              </div>
+            </div>
+
+            <!-- KPIs FINANCEIROS -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div class="bg-[#041227] text-white rounded-xl p-4 shadow-md relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-1 bg-[#FFB81C]"></div>
+                <p class="text-[10px] font-bold uppercase tracking-widest text-[#FFB81C]">💸 Investimento Total</p>
+                <p class="text-2xl font-extrabold mt-2" id="roi_kpi_total">R$ 0</p>
+                <p class="text-xs text-slate-300 mt-1" id="roi_kpi_total_breakdown">—</p>
+              </div>
+              <div id="roi_kpi_roas_card" class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-1 bg-[#00A859]"></div>
+                <p class="text-[10px] font-bold uppercase tracking-widest text-slate-500">📈 ROAS Total</p>
+                <p class="text-2xl font-extrabold mt-2" id="roi_kpi_roas">0x</p>
+                <p class="text-xs mt-1" id="roi_kpi_roas_label">—</p>
+              </div>
+              <div id="roi_kpi_roi_card" class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-1 bg-[#7c3aed]"></div>
+                <p class="text-[10px] font-bold uppercase tracking-widest text-slate-500">🚀 ROI</p>
+                <p class="text-2xl font-extrabold mt-2" id="roi_kpi_roi">0%</p>
+                <p class="text-xs mt-1" id="roi_kpi_roi_label">—</p>
+              </div>
+              <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-1 bg-[#FFB81C]"></div>
+                <p class="text-[10px] font-bold uppercase tracking-widest text-slate-500">💵 Lucro Bruto</p>
+                <p class="text-2xl font-extrabold mt-2" id="roi_kpi_profit">R$ 0</p>
+                <p class="text-xs mt-1" id="roi_kpi_margin">Margem: 0%</p>
+              </div>
+            </div>
+
+            <!-- KPIs SECUNDÁRIOS -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div class="bg-white rounded-lg p-3 border border-slate-200">
+                <p class="text-[9px] font-bold uppercase tracking-widest text-slate-500" title="Custo de Aquisição de Cliente = investimento total / novos clientes">👤 CAC</p>
+                <p class="text-lg font-bold text-[#041227] mt-1" id="roi_kpi_cac">R$ 0</p>
+              </div>
+              <div class="bg-white rounded-lg p-3 border border-slate-200">
+                <p class="text-[9px] font-bold uppercase tracking-widest text-slate-500" title="Apenas gastos com ads ÷ novos clientes">📣 CAC Ads</p>
+                <p class="text-lg font-bold text-[#041227] mt-1" id="roi_kpi_cac_ads">R$ 0</p>
+              </div>
+              <div class="bg-white rounded-lg p-3 border border-slate-200">
+                <p class="text-[9px] font-bold uppercase tracking-widest text-slate-500" title="Ticket médio do período">🎫 Ticket Médio</p>
+                <p class="text-lg font-bold text-[#041227] mt-1" id="roi_kpi_ticket">R$ 0</p>
+              </div>
+              <div class="bg-white rounded-lg p-3 border border-slate-200">
+                <p class="text-[9px] font-bold uppercase tracking-widest text-slate-500" title="Quantos meses até recuperar o CAC com vendas">⏱️ Payback</p>
+                <p class="text-lg font-bold text-[#041227] mt-1" id="roi_kpi_payback">— meses</p>
+              </div>
+            </div>
+
+            <!-- VEREDITO TEXTUAL -->
+            <div id="roi_verdict" class="bg-white border-2 rounded-xl p-5">
+              <p class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">🎯 Veredito Realista</p>
+              <p class="text-sm text-slate-700" id="roi_verdict_text">Lance seus gastos pra ver o veredito.</p>
+            </div>
+
+            <!-- Breakdown visual da estrutura de custos -->
+            <div class="bg-white rounded-xl border border-slate-200 p-5">
+              <h4 class="text-sm font-bold text-[#041227] mb-3">🥧 Estrutura de Custos</h4>
+              <div id="roi_cost_breakdown" class="space-y-2"></div>
+            </div>
+
+            <p class="text-[10px] text-slate-400 text-center" id="roi_footer"></p>
           </div>
 
           <!-- ===== ABA: ATENDIMENTO ===== -->
@@ -3921,7 +4103,245 @@
       else if (tab === 'origin') renderOrigin();
       else if (tab === 'service') renderService();
       else if (tab === 'productivity') renderProductivity();
+      else if (tab === 'roi') renderRoi();
     }
+
+    // ======================================================================
+    // GASTOS & ROI — análise financeira realista por período
+    // ======================================================================
+    const ROI_STORAGE = 'dc_expenses_v1';
+    const ROI_FIELDS = ['ads_meta', 'ads_google', 'ads_tiktok', 'ads_other', 'team', 'tools', 'ops', 'other'];
+
+    function getRoiExpenses() {
+      try { return JSON.parse(localStorage.getItem(ROI_STORAGE) || '{}'); }
+      catch { return {}; }
+    }
+    function setRoiExpenses(map) {
+      try { localStorage.setItem(ROI_STORAGE, JSON.stringify(map)); } catch {}
+    }
+    function getRoiPeriodKey() {
+      const monthsAgo = parseInt(document.getElementById('roiPeriod')?.value || '0', 10);
+      const r = calendarMonthRange(monthsAgo);
+      return new Date(r.start).toISOString().slice(0, 7);  // YYYY-MM
+    }
+    function getRoiExpensesForCurrentPeriod() {
+      const all = getRoiExpenses();
+      return all[getRoiPeriodKey()] || {};
+    }
+    function saveRoiExpenseField(field, value) {
+      const all = getRoiExpenses();
+      const key = getRoiPeriodKey();
+      if (!all[key]) all[key] = {};
+      all[key][field] = parseFloat(value) || 0;
+      setRoiExpenses(all);
+    }
+
+    // Classificação de saúde de cada métrica
+    function roiClassify(metric, value) {
+      const rules = {
+        roas:   [[5, 'excellent', '🚀 EXCELENTE'], [3, 'good', '🟢 Saudável'], [1, 'marginal', '🟡 Marginal'], [0, 'critical', '🔴 Crítico']],
+        roi:    [[200, 'excellent', '🚀 EXCELENTE'], [50, 'good', '🟢 Saudável'], [0, 'marginal', '🟡 Marginal'], [-100, 'critical', '🔴 Prejuízo']],
+        margin: [[40, 'excellent', '🚀 ÓTIMA'], [20, 'good', '🟢 Boa'], [5, 'marginal', '🟡 Apertada'], [-100, 'critical', '🔴 Negativa']]
+      };
+      const set = rules[metric] || [];
+      for (const [threshold, level, label] of set) {
+        if (value >= threshold) return { level, label };
+      }
+      return { level: 'critical', label: '🔴 Crítico' };
+    }
+    function roiCardColor(level) {
+      const map = {
+        excellent: { border: 'border-[#00A859]/50', text: 'text-[#00754d]', bar: 'bg-[#00A859]' },
+        good:      { border: 'border-[#00A859]/30', text: 'text-[#00A859]', bar: 'bg-[#00A859]' },
+        marginal:  { border: 'border-[#FFB81C]/40', text: 'text-[#7a5400]', bar: 'bg-[#FFB81C]' },
+        critical:  { border: 'border-red-300',       text: 'text-red-600',  bar: 'bg-red-500' }
+      };
+      return map[level] || map.critical;
+    }
+
+    function renderRoi() {
+      // 1) Período selecionado
+      const monthsAgo = parseInt(document.getElementById('roiPeriod').value || '0', 10);
+      const r = calendarMonthRange(monthsAgo);
+      document.getElementById('roiPeriodLabel').textContent = '· ' + r.label;
+
+      // 2) Carrega valores salvos no formulário
+      const saved = getRoiExpensesForCurrentPeriod();
+      ROI_FIELDS.forEach(f => {
+        const el = document.getElementById('roi_' + f);
+        if (el) el.value = saved[f] || '';
+      });
+
+      // 3) Calcula gastos manuais
+      const expenseFields = ROI_FIELDS.map(f => parseFloat(saved[f]) || 0);
+      const [adsM, adsG, adsT, adsO, team, tools, ops, otherExp] = expenseFields;
+      const adsTotal = adsM + adsG + adsT + adsO;
+      const manualTotal = adsTotal + team + tools + ops + otherExp;
+
+      // 4) Custos AUTOMÁTICOS (do BI)
+      // Receita do mês = soma de deals ganhos no mês (statusChangedAt)
+      const allDeals = biState.raw?.deals || [];
+      const wonInMonth = allDeals.filter(d => {
+        if (!isWon(d)) return false;
+        const stamp = d.statusChangedAt || d.lastMovedAt || d.createdAt;
+        if (!stamp) return false;
+        const t = new Date(stamp).getTime();
+        return t >= r.start && t < r.end;
+      });
+      const monthRevenue = wonInMonth.reduce((a, d) => a + (d.total || 0), 0);
+      const newCustomers = wonInMonth.length;
+      const avgTicket = newCustomers > 0 ? (monthRevenue / newCustomers) : 0;
+
+      // Custo WhatsApp = vem do dashboard (se foi sincronizado)
+      let whatsappCost = 0;
+      if (dashState.lastData?.kpis?.thisMonth?.costBRL && monthsAgo === 0) {
+        whatsappCost = dashState.lastData.kpis.thisMonth.costBRL;
+      }
+
+      // Comissões = soma do que foi calculado nos papéis SDR/Closer pra esse período
+      const roles = getRoles();
+      let commissionsTotal = 0;
+      for (const d of wonInMonth) {
+        // Comissão do closer (attendantId final)
+        const cfg = roles[d.attendantId];
+        if (cfg && (cfg.role === 'closer' || cfg.role === 'both')) {
+          commissionsTotal += (d.total || 0) * (cfg.commissionPct || 0) / 100;
+        }
+        // Comissão do SDR via tag
+        const sdrId = getSdrCreditFor(d.leadTags || []);
+        if (sdrId && sdrId !== d.attendantId) {
+          const sdrCfg = roles[sdrId];
+          if (sdrCfg) {
+            commissionsTotal += (d.total || 0) * (sdrCfg.commissionPct || 0) / 100;
+          }
+        }
+      }
+
+      const totalInvestment = manualTotal + whatsappCost + commissionsTotal;
+      const grossProfit = monthRevenue - totalInvestment;
+
+      // 5) MÉTRICAS FINANCEIRAS
+      const roasTotal  = adsTotal > 0 ? (monthRevenue / adsTotal) : 0;
+      const roi        = totalInvestment > 0 ? ((monthRevenue - totalInvestment) / totalInvestment * 100) : 0;
+      const margin     = monthRevenue > 0 ? (grossProfit / monthRevenue * 100) : 0;
+      const cac        = newCustomers > 0 ? (totalInvestment / newCustomers) : 0;
+      const cacAds     = newCustomers > 0 ? (adsTotal / newCustomers) : 0;
+      const payback    = avgTicket > 0 ? (cac / avgTicket) : 0;
+
+      // 6) Renderização
+      // Custos automáticos
+      document.getElementById('roi_auto_whatsapp').textContent    = fmtBRL(whatsappCost);
+      document.getElementById('roi_auto_commissions').textContent = fmtBRL(commissionsTotal);
+      document.getElementById('roi_auto_revenue').textContent     = fmtBRL(monthRevenue);
+
+      // KPIs principais
+      document.getElementById('roi_kpi_total').textContent = fmtBRL(totalInvestment);
+      document.getElementById('roi_kpi_total_breakdown').textContent =
+        `Ads: ${fmtBRL(adsTotal)} · WhatsApp: ${fmtBRL(whatsappCost)} · Comissões: ${fmtBRL(commissionsTotal)} · Outros: ${fmtBRL(team + tools + ops + otherExp)}`;
+
+      // ROAS card
+      const roasClass = roiClassify('roas', roasTotal);
+      const roasColors = roiCardColor(roasClass.level);
+      document.getElementById('roi_kpi_roas').innerHTML = `<span class="${roasColors.text}">${roasTotal.toFixed(2)}x</span>`;
+      document.getElementById('roi_kpi_roas_label').innerHTML = `<span class="${roasColors.text} font-semibold">${roasClass.label}</span> · pra cada R$1 em ads, R$${roasTotal.toFixed(2)} em receita`;
+      document.getElementById('roi_kpi_roas_card').className = `bg-white rounded-xl border-2 ${roasColors.border} p-4 shadow-sm relative overflow-hidden`;
+
+      // ROI card
+      const roiClass = roiClassify('roi', roi);
+      const roiColors = roiCardColor(roiClass.level);
+      document.getElementById('roi_kpi_roi').innerHTML = `<span class="${roiColors.text}">${roi.toFixed(0)}%</span>`;
+      document.getElementById('roi_kpi_roi_label').innerHTML = `<span class="${roiColors.text} font-semibold">${roiClass.label}</span> · ${roi >= 0 ? 'lucro' : 'prejuízo'} sobre todo investimento`;
+      document.getElementById('roi_kpi_roi_card').className = `bg-white rounded-xl border-2 ${roiColors.border} p-4 shadow-sm relative overflow-hidden`;
+
+      // Lucro / Margem
+      document.getElementById('roi_kpi_profit').innerHTML = grossProfit >= 0
+        ? `<span class="text-[#00754d]">${fmtBRL(grossProfit)}</span>`
+        : `<span class="text-red-600">-${fmtBRL(Math.abs(grossProfit))}</span>`;
+      const marginClass = roiClassify('margin', margin);
+      document.getElementById('roi_kpi_margin').innerHTML = `Margem: <strong>${margin.toFixed(1)}%</strong> · ${marginClass.label}`;
+
+      // KPIs secundários
+      document.getElementById('roi_kpi_cac').textContent      = cac > 0 ? fmtBRL(cac) : '—';
+      document.getElementById('roi_kpi_cac_ads').textContent  = cacAds > 0 ? fmtBRL(cacAds) : '—';
+      document.getElementById('roi_kpi_ticket').textContent   = avgTicket > 0 ? fmtBRL(avgTicket) : '—';
+      document.getElementById('roi_kpi_payback').textContent  = payback > 0 ? `${payback.toFixed(1)} meses` : '—';
+
+      // VEREDITO
+      const verdictEl = document.getElementById('roi_verdict');
+      const verdictText = document.getElementById('roi_verdict_text');
+      let verdict = '';
+      let verdictColor = 'border-slate-200';
+      if (totalInvestment === 0) {
+        verdict = 'Lance pelo menos UM gasto pra calcular as métricas. Mesmo se for só ads, já dá pra ter um ROAS confiável.';
+        verdictColor = 'border-slate-200';
+      } else if (newCustomers === 0) {
+        verdict = `Você investiu <strong>${fmtBRL(totalInvestment)}</strong> mas <strong class="text-red-600">não fechou nenhum cliente</strong> no período. Veja a aba Funil pra entender onde está o gargalo.`;
+        verdictColor = 'border-red-300';
+      } else if (grossProfit < 0) {
+        verdict = `⚠️ <strong class="text-red-600">PREJUÍZO de ${fmtBRL(Math.abs(grossProfit))}</strong>. Receita de ${fmtBRL(monthRevenue)} foi menor que o investimento de ${fmtBRL(totalInvestment)}. Pra cada R$1 investido você está gerando apenas R$${(monthRevenue/totalInvestment).toFixed(2)}. <strong>Ação urgente:</strong> reduzir custos OU aumentar ticket médio (hoje em ${fmtBRL(avgTicket)}).`;
+        verdictColor = 'border-red-300';
+      } else if (roasTotal < 3 && adsTotal > 0) {
+        verdict = `🟡 <strong>Marginal.</strong> Você teve <strong class="text-[#00754d]">${fmtBRL(grossProfit)} de lucro</strong> (${margin.toFixed(1)}% margem), mas o ROAS de ads (${roasTotal.toFixed(2)}x) está baixo. Recomenda-se ROAS >= 3x. <strong>Ação:</strong> testar outras criativos / ajustar segmentação. Seu CAC de ${fmtBRL(cac)} se paga em ${payback.toFixed(1)} meses — se LTV médio for &gt; ${payback.toFixed(1)} meses, ainda vale.`;
+        verdictColor = 'border-[#FFB81C]/40';
+      } else if (roasTotal >= 5) {
+        verdict = `🚀 <strong class="text-[#00754d]">EXCELENTE!</strong> Cada R$1 em ads gera R$${roasTotal.toFixed(2)} em receita. Lucro de ${fmtBRL(grossProfit)} com margem de ${margin.toFixed(1)}%. <strong>Ação:</strong> <strong>escalar investimento em ads</strong> — você está com unit economics saudável. CAC de ${fmtBRL(cac)} se paga em ${payback.toFixed(1)} meses.`;
+        verdictColor = 'border-[#00A859]/50';
+      } else {
+        verdict = `🟢 <strong>Saudável.</strong> Lucro de <strong class="text-[#00754d]">${fmtBRL(grossProfit)}</strong> com margem de ${margin.toFixed(1)}%. ROAS de ${roasTotal.toFixed(2)}x está bom. <strong>Próximo nível:</strong> aumentar ticket médio (hoje ${fmtBRL(avgTicket)}) ou diminuir CAC (hoje ${fmtBRL(cac)}) pra acelerar o crescimento.`;
+        verdictColor = 'border-[#00A859]/30';
+      }
+      verdictText.innerHTML = verdict;
+      verdictEl.className = `bg-white border-2 ${verdictColor} rounded-xl p-5`;
+
+      // BREAKDOWN visual de custos (barras de proporção)
+      const breakdown = [
+        { name: 'Meta ADS',    value: adsM,            color: '#1877F2' },
+        { name: 'Google ADS',  value: adsG,            color: '#4285F4' },
+        { name: 'TikTok ADS',  value: adsT,            color: '#000000' },
+        { name: 'Outros Ads',  value: adsO,            color: '#7c3aed' },
+        { name: 'WhatsApp',    value: whatsappCost,    color: '#25D366' },
+        { name: 'Comissões',   value: commissionsTotal, color: '#FFB81C' },
+        { name: 'Equipe',      value: team,            color: '#00A859' },
+        { name: 'Ferramentas', value: tools,           color: '#0ea5e9' },
+        { name: 'Operacional', value: ops,             color: '#f97316' },
+        { name: 'Outros',      value: otherExp,        color: '#64748b' }
+      ].filter(b => b.value > 0).sort((a, b) => b.value - a.value);
+
+      const breakdownEl = document.getElementById('roi_cost_breakdown');
+      if (breakdown.length === 0) {
+        breakdownEl.innerHTML = '<p class="text-xs text-slate-400 text-center py-3">Sem gastos lançados ainda.</p>';
+      } else {
+        breakdownEl.innerHTML = breakdown.map(b => {
+          const pct = totalInvestment > 0 ? (b.value / totalInvestment * 100) : 0;
+          return `
+            <div>
+              <div class="flex justify-between text-xs mb-0.5">
+                <span class="font-semibold text-[#041227]">${escapeHTML(b.name)}</span>
+                <span class="text-slate-500">${fmtBRL(b.value)} · <strong>${pct.toFixed(1)}%</strong></span>
+              </div>
+              <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                <div class="h-full" style="width: ${pct.toFixed(2)}%; background: ${b.color}"></div>
+              </div>
+            </div>`;
+        }).join('');
+      }
+
+      // Footer
+      document.getElementById('roi_footer').textContent =
+        `Período: ${r.label} · ${newCustomers} novo${newCustomers === 1 ? '' : 's'} cliente${newCustomers === 1 ? '' : 's'} · Última atualização: ${new Date().toLocaleString('pt-BR')}`;
+    }
+
+    // Wire up dos inputs e seletor
+    document.getElementById('roiPeriod').addEventListener('change', renderRoi);
+    document.querySelectorAll('.roi-input').forEach(inp => {
+      inp.addEventListener('input', (e) => {
+        const field = e.target.id.replace('roi_', '');
+        saveRoiExpenseField(field, e.target.value);
+        // Re-renderiza com debounce simples
+        clearTimeout(window.__roiDebounce);
+        window.__roiDebounce = setTimeout(renderRoi, 300);
+      });
+    });
 
     // ---------- PRODUTIVIDADE DIÁRIA ----------
     let productivityData = null;
