@@ -335,18 +335,37 @@
             </div>
           </button>
           <div id="globalFunnelBody" class="px-5 pb-5 pt-1">
-            <!-- Toggle de visualização por canal -->
-            <div class="flex items-center justify-between mb-3 flex-wrap gap-2 pb-2 border-b border-slate-100">
-              <p class="text-[10px] uppercase tracking-widest font-bold text-slate-500">Visualização:</p>
-              <div class="flex items-center gap-1 bg-slate-100 rounded-lg p-0.5">
-                <button data-funnel-view="standard" class="funnel-view-btn px-3 py-1 rounded-md text-[11px] font-bold transition bg-white text-[#041227] shadow-sm">
-                  📊 Etapa
-                </button>
-                <button data-funnel-view="channel" class="funnel-view-btn px-3 py-1 rounded-md text-[11px] font-bold transition text-slate-600 hover:bg-white/50">
-                  🎨 Por canal
-                </button>
+            <!-- Toggles do funil -->
+            <div class="flex items-center justify-between mb-3 flex-wrap gap-3 pb-2 border-b border-slate-100">
+              <!-- Toggle modo: cumulativo (passaram) vs snapshot (estão hoje) -->
+              <div class="flex items-center gap-2 flex-wrap">
+                <p class="text-[10px] uppercase tracking-widest font-bold text-slate-500">Contagem:</p>
+                <div class="flex items-center gap-1 bg-slate-100 rounded-lg p-0.5">
+                  <button data-funnel-mode="cumulative" class="funnel-mode-btn px-3 py-1 rounded-md text-[11px] font-bold transition bg-white text-[#041227] shadow-sm" title="Conta TODOS os deals que passaram por esta etapa (padrão de funil de vendas)">
+                    📈 Cumulativo
+                  </button>
+                  <button data-funnel-mode="snapshot" class="funnel-mode-btn px-3 py-1 rounded-md text-[11px] font-bold transition text-slate-600 hover:bg-white/50" title="Conta APENAS deals atualmente parados nesta etapa (foto do momento)">
+                    📍 Atual
+                  </button>
+                </div>
+                <!-- Tooltip explicativo -->
+                <button id="funnelModeInfo" type="button" class="text-[14px] text-slate-400 hover:text-[#041227] transition" title="Clique pra entender a diferença">ℹ️</button>
+              </div>
+              <!-- Toggle visualização: etapa única vs por canal -->
+              <div class="flex items-center gap-2">
+                <p class="text-[10px] uppercase tracking-widest font-bold text-slate-500">Cores:</p>
+                <div class="flex items-center gap-1 bg-slate-100 rounded-lg p-0.5">
+                  <button data-funnel-view="standard" class="funnel-view-btn px-3 py-1 rounded-md text-[11px] font-bold transition bg-white text-[#041227] shadow-sm">
+                    📊 Etapa
+                  </button>
+                  <button data-funnel-view="channel" class="funnel-view-btn px-3 py-1 rounded-md text-[11px] font-bold transition text-slate-600 hover:bg-white/50">
+                    🎨 Por canal
+                  </button>
+                </div>
               </div>
             </div>
+            <!-- Aviso de modo (aparece conforme seleção) -->
+            <div id="funnelModeHint" class="hidden mb-2 text-[11px] text-slate-600 bg-[#FFB81C]/10 border border-[#FFB81C]/30 rounded-lg px-3 py-2"></div>
             <div id="globalFunnelStages" class="space-y-1.5"></div>
             <!-- Legenda dos canais (só aparece no modo channel) -->
             <div id="globalFunnelLegend" class="hidden flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-slate-100"></div>
@@ -4678,7 +4697,8 @@
     //
     // Lost terminals saem do funil principal e ficam num bloco separado embaixo.
     // ============================================================
-    function buildCumulativeFunnel(allPipelineStages, dealsToCount) {
+    function buildCumulativeFunnel(allPipelineStages, dealsToCount, mode) {
+      mode = mode || 'cumulative';  // 'cumulative' | 'snapshot'
       // 1) Estatísticas por stage pra detecção de terminais
       const stageStats = {};
       for (const d of dealsToCount) {
@@ -4709,13 +4729,15 @@
       //    - Se in_process: chegou até o stage atual
       //    Pra cumulativo, assumimos que se está na etapa X, passou pelas etapas 0..X (fluxo natural)
 
-      // 4) Conta cumulativo pra cada active flow stage + breakdown por canal
+      // 4) Conta cada active flow stage + breakdown por canal
+      // Modo CUMULATIVE (default): conta deals que passaram pela etapa ou além
+      // Modo SNAPSHOT: conta APENAS deals atualmente PARADOS nesta etapa
       const overrides = getTagOverrides();
       const activeStages = activeFlow.map(stage => {
         let count = 0, value = 0;
-        const dealsHere = [];  // deals que contam pra essa etapa (pra fazer breakdown)
+        const dealsHere = [];
         if (wonTerminalIds.has(stage.id)) {
-          // Terminal positivo: conta SÓ os deals ganhos AQUI
+          // Terminal positivo: conta SÓ os deals ganhos AQUI (igual em ambos os modos)
           for (const d of dealsToCount) {
             if (d.stageId === stage.id && d.status === 'won') {
               count++;
@@ -4723,8 +4745,17 @@
               dealsHere.push(d);
             }
           }
+        } else if (mode === 'snapshot') {
+          // SNAPSHOT: deals atualmente na etapa (stageId exatamente igual)
+          for (const d of dealsToCount) {
+            if (d.stageId === stage.id) {
+              count++;
+              value += d.total || 0;
+              dealsHere.push(d);
+            }
+          }
         } else {
-          // Cumulativo: deals cuja etapa atual >= esta
+          // CUMULATIVE: deals cuja etapa atual >= esta
           for (const d of dealsToCount) {
             const idx = d.stageIndex ?? -1;
             if (idx >= stage.index) {
@@ -4799,10 +4830,9 @@
       document.getElementById('globalFunnelSummary').textContent =
         `${fmtInt(totalDeals)} deals · ${fmtInt(won)} ganhos · ${fmtInt(lost)} perdidos · ${overallConv.toFixed(1)}% conv. ganho/perdido`;
 
-      // 🧠 USA O HELPER CUMULATIVO (em vez de contar por etapa atual)
-      // Pega TODOS os deals do pipeline (não só os filtrados por período pra contagem)
-      // mas mantém o filtro pra que o usuário veja só o que filtrou.
-      const cumulativeFunnel = buildCumulativeFunnel(pipelineStages, deals);
+      // 🧠 USA O HELPER (cumulativo ou snapshot conforme escolha do usuário)
+      const funnelMode = getFunnelMode();
+      const cumulativeFunnel = buildCumulativeFunnel(pipelineStages, deals, funnelMode);
       stages = cumulativeFunnel.activeStages;
       const lostStagesData = cumulativeFunnel.lostStages;
 
@@ -4843,10 +4873,18 @@
         }
       }
 
+      const isSnapshot = (funnelMode === 'snapshot');
       const stagesHTML = stages.map((s, i) => {
         const widthPct = 30 + (s.count / maxCount * 70);
         let convLabel = '';
-        if (i > 0) {
+        if (isSnapshot) {
+          // Modo snapshot: não tem conversão entre etapas (são fotos independentes)
+          if (i === 0) {
+            convLabel = '<span class="text-[9px] uppercase tracking-widest font-bold text-slate-400 mt-0.5 block">parados agora</span>';
+          } else {
+            convLabel = '<span class="text-[9px] uppercase tracking-widest font-bold text-slate-400 mt-0.5 block">parados agora</span>';
+          }
+        } else if (i > 0) {
           const prevCount = stages[i - 1].count;
           const conv = prevCount > 0 ? (s.count / prevCount * 100) : 0;
           const drop = (100 - conv).toFixed(0);
@@ -4859,7 +4897,7 @@
         } else {
           convLabel = '<span class="text-[9px] uppercase tracking-widest font-bold text-[#00A859]/70 mt-0.5 block">entrada</span>';
         }
-        const isBottleneckStage = hasBottleneck && i === bottleneckIdx;
+        const isBottleneckStage = !isSnapshot && hasBottleneck && i === bottleneckIdx;
         const ringClass = isBottleneckStage ? 'ring-2 ring-red-400 ring-offset-1' : '';
         const wonBadge = s.isWonTerminal ? '<span class="absolute -top-2 -right-2 text-base">🏆</span>' : '';
 
@@ -4979,20 +5017,63 @@
     }
     function setFunnelView(view) {
       try { localStorage.setItem(FUNNEL_VIEW_STORAGE, view); } catch {}
-      // Atualiza visual dos botões
       document.querySelectorAll('.funnel-view-btn').forEach(b => {
         const active = b.dataset.funnelView === view;
         b.className = active
           ? 'funnel-view-btn px-3 py-1 rounded-md text-[11px] font-bold transition bg-white text-[#041227] shadow-sm'
           : 'funnel-view-btn px-3 py-1 rounded-md text-[11px] font-bold transition text-slate-600 hover:bg-white/50';
       });
-      // Re-renderiza o funil
       if (typeof renderGlobalFunnel === 'function' && biState.raw) renderGlobalFunnel();
     }
     document.querySelectorAll('.funnel-view-btn').forEach(btn => {
       btn.addEventListener('click', () => setFunnelView(btn.dataset.funnelView));
     });
-    setTimeout(() => setFunnelView(getFunnelView()), 100);
+
+    // Toggle MODO (Cumulativo passaram × Snapshot estão hoje)
+    const FUNNEL_MODE_STORAGE = 'dc_funnel_mode_v1';
+    function getFunnelMode() {
+      try { return localStorage.getItem(FUNNEL_MODE_STORAGE) || 'cumulative'; }
+      catch { return 'cumulative'; }
+    }
+    function setFunnelMode(mode) {
+      try { localStorage.setItem(FUNNEL_MODE_STORAGE, mode); } catch {}
+      document.querySelectorAll('.funnel-mode-btn').forEach(b => {
+        const active = b.dataset.funnelMode === mode;
+        b.className = active
+          ? 'funnel-mode-btn px-3 py-1 rounded-md text-[11px] font-bold transition bg-white text-[#041227] shadow-sm'
+          : 'funnel-mode-btn px-3 py-1 rounded-md text-[11px] font-bold transition text-slate-600 hover:bg-white/50';
+      });
+      // Atualiza hint
+      const hint = document.getElementById('funnelModeHint');
+      if (hint) {
+        if (mode === 'snapshot') {
+          hint.classList.remove('hidden');
+          hint.innerHTML = `<strong>📍 Modo Atual:</strong> cada barra mostra quantos deals estão <strong>parados agora</strong> nesta etapa. Útil pra ver gargalos operacionais. As % de conversão NÃO se aplicam neste modo.`;
+        } else {
+          hint.classList.remove('hidden');
+          hint.innerHTML = `<strong>📈 Modo Cumulativo:</strong> cada barra mostra quantos deals <strong>já passaram</strong> por esta etapa (atuais + os que avançaram). É o padrão de funil de vendas — permite calcular taxa de conversão real entre etapas.`;
+        }
+      }
+      if (typeof renderGlobalFunnel === 'function' && biState.raw) renderGlobalFunnel();
+    }
+    document.querySelectorAll('.funnel-mode-btn').forEach(btn => {
+      btn.addEventListener('click', () => setFunnelMode(btn.dataset.funnelMode));
+    });
+    // Botão info abre/fecha o hint
+    const modeInfoBtn = document.getElementById('funnelModeInfo');
+    if (modeInfoBtn) {
+      modeInfoBtn.addEventListener('click', () => {
+        const hint = document.getElementById('funnelModeHint');
+        hint.classList.toggle('hidden');
+      });
+    }
+
+    setTimeout(() => {
+      setFunnelView(getFunnelView());
+      setFunnelMode(getFunnelMode());
+      // Esconde hint inicialmente (já foi mostrado pelo setFunnelMode acima — fechamos pra não poluir)
+      document.getElementById('funnelModeHint')?.classList.add('hidden');
+    }, 100);
 
     // ---------- BANNER DE COMPARAÇÃO MENSAL ----------
     let lastComparison = null; // guarda pra exportar
@@ -5658,7 +5739,7 @@
       } else {
         pipelineStages = biState.raw?.pipelines?.find(p => p.id === pipeline)?.stages || [];
       }
-      const cumulativeFunnel = buildCumulativeFunnel(pipelineStages, deals);
+      const cumulativeFunnel = buildCumulativeFunnel(pipelineStages, deals, getFunnelMode());
       const stages = cumulativeFunnel.activeStages;
 
       const ctx = document.getElementById('funnelChart').getContext('2d');
