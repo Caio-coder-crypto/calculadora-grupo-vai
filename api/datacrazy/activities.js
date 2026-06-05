@@ -11,7 +11,7 @@ const { dcGetAll, send, sendError, getValidatedKey, handleOptions } = require('.
 // Heurística de categorização por palavra-chave no title/description
 const ACTIVITY_CATEGORIES = [
   { key: 'proposal',  pattern: /proposta|orçamento|orcamento|cota[çc][ãa]o|pedido/i,                label: 'Proposta',  emoji: '📋' },
-  { key: 'meeting',   pattern: /reuni[ãa]o|meeting|encontro|visita|agendad/i,                       label: 'Reunião',   emoji: '🗓️' },
+  { key: 'meeting',   pattern: /reuni[ãa]o|meeting|encontro|visita|agendad|marcad|remarcad/i,         label: 'Reunião',   emoji: '🗓️' },
   { key: 'followup',  pattern: /follow|follow-?up|retorno|cobrar|aguardando|insistir|tentar de novo/i, label: 'Follow-up', emoji: '🔄' },
   { key: 'call',      pattern: /liga[çc][ãa]o|telefone|chamada|call|telefonar/i,                    label: 'Ligação',   emoji: '📞' },
   { key: 'message',   pattern: /mensagem|whats|whatsapp|enviar|responder/i,                         label: 'Mensagem',  emoji: '💬' },
@@ -25,6 +25,11 @@ function categorize(activity) {
   }
   return 'other';
 }
+
+// Item 5 — separação fina de reuniões + detecção de 1º contato (palavras-chave)
+const MEETING_SCHEDULED = /agendad|marcad|remarcad|agendar/i;
+const MEETING_HELD      = /realizad|feit[ao]|conclu[íi]d|aconteceu|compareceu|ocorreu/i;
+const FIRST_CONTACT     = /liga[çc][ãa]o|contato|mensagem|whats|atend|abordagem|primeiro contato/i;
 
 module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return handleOptions(res);
@@ -75,6 +80,30 @@ module.exports = async function handler(req, res) {
       byDay[day].byCategory[a.category] = (byDay[day].byCategory[a.category] || 0) + 1;
     }
 
+    // ===== Item 5 — métricas de gestão por vendedor =====
+    // - leadsContacted: nº de LEADS distintos que receberam pelo menos 1 atividade de contato
+    //   (denominador da Taxa de Atendimento = leadsContacted / leadsRecebidos[att], calculado no front)
+    // - meetingsScheduled / meetingsHeld: reuniões agendadas vs efetivamente realizadas
+    const byAttendant = {};
+    const contactedLeadsByAtt = {}; // attId -> Set(leadId)
+    for (const a of normalized) {
+      const att = a.attendantId || 'sem_vendedor';
+      if (!byAttendant[att]) {
+        byAttendant[att] = { attendantId: a.attendantId, attendantName: a.attendantName, meetingsScheduled: 0, meetingsHeld: 0, leadsContacted: 0 };
+      }
+      const text = ((a.title || '') + ' ' + (a.description || '')).toLowerCase();
+      if (a.category === 'meeting') {
+        if (MEETING_HELD.test(text) || (a.isCompleted && !MEETING_SCHEDULED.test(text))) byAttendant[att].meetingsHeld++;
+        else if (MEETING_SCHEDULED.test(text)) byAttendant[att].meetingsScheduled++;
+      }
+      if (FIRST_CONTACT.test(text) && a.leadId) {
+        (contactedLeadsByAtt[att] = contactedLeadsByAtt[att] || new Set()).add(a.leadId);
+      }
+    }
+    for (const att of Object.keys(byAttendant)) {
+      byAttendant[att].leadsContacted = contactedLeadsByAtt[att] ? contactedLeadsByAtt[att].size : 0;
+    }
+
     send(res, 200, {
       total: count,
       sampled: normalized.length,
@@ -85,6 +114,7 @@ module.exports = async function handler(req, res) {
         count: byCategory[c.key] || 0
       })),
       byDay: Object.values(byDay).sort((a, b) => b.day.localeCompare(a.day)),
+      byAttendant: Object.values(byAttendant),  // Item 5
       data: normalized,
       fetchedAt: new Date().toISOString()
     });

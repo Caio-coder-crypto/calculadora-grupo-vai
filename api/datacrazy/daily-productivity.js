@@ -34,6 +34,11 @@ function categorizeActivity(activity) {
   return 'other';
 }
 
+// Item 5 — separação fina de reuniões + detecção de 1º contato
+const MEETING_SCHEDULED = /agendad|marcad|remarcad|agendar/i;
+const MEETING_HELD      = /realizad|feit[ao]|conclu[íi]d|aconteceu|compareceu|ocorreu/i;
+const FIRST_CONTACT     = /liga[çc][ãa]o|contato|mensagem|whats|atend|abordagem|primeiro contato/i;
+
 function inDateRange(timestamp, startTs, endTs) {
   if (!timestamp) return false;
   const t = new Date(timestamp).getTime();
@@ -85,8 +90,13 @@ module.exports = async function handler(req, res) {
           proposals:     0,  // movimentos pra etapa "Proposta" no período (estimativa via lastMovedAt + nome da etapa)
           followups:     0,  // atividades de follow-up no período
           meetings:      0,  // atividades de reunião no período
+          meetingsScheduled: 0,  // item 5 — reuniões AGENDADAS
+          meetingsHeld:      0,  // item 5 — reuniões REALIZADAS
           calls:         0,  // atividades de ligação no período
           conversations: 0,  // deals com lastSendedMessageDate no período (interação enviada)
+          leadsReceived:  0, // item 5 — leads recebidos (deals criados no período)
+          leadsContacted: 0, // item 5 — desses, quantos tiveram 1º contato
+          serviceRate:    0, // item 5 — taxa de atendimento (0..1)
           totalActivities: 0
         };
       }
@@ -94,6 +104,9 @@ module.exports = async function handler(req, res) {
     };
 
     // ---- Processa BUSINESSES (deals) ----
+    const receivedLeads = {};   // item 5: attId -> Set(leadId) recebidos no período
+    const contactedLeadsGlobal = new Set();  // item 5: leadId com 1º contato (qualquer vendedor) — evita mismatch de attId entre businesses e activities
+    let totalMeetingsScheduled = 0, totalMeetingsHeld = 0;  // item 5
     let totalNewLeads = 0, totalProposals = 0, totalConversations = 0;
     for (const b of businessesRes.data) {
       const attId   = b.attendantId;
@@ -105,6 +118,9 @@ module.exports = async function handler(req, res) {
       if (inDateRange(b.createdAt, startTs, endTs)) {
         bucket.newLeads++;
         totalNewLeads++;
+        // item 5 — registra o lead como "recebido" pelo vendedor (denominador da taxa de atendimento)
+        const lid = b.leadId || b.lead?.id;
+        if (lid) (receivedLeads[attId] = receivedLeads[attId] || new Set()).add(lid);
       }
 
       // 2) Proposta — deal em etapa com "proposta" no nome E movido no período
@@ -135,15 +151,41 @@ module.exports = async function handler(req, res) {
       const attName = a.lead?.attendant?.name || a.assignedTo?.name;
       const bucket  = ensure(attId, attName);
       if (!bucket) continue;
+      const aText = ((a.title || '') + ' ' + (a.description || '')).toLowerCase();
+      const aLeadId = a.lead?.id || a.leadId;
       bucket.totalActivities++;
       if (cat === 'followup') { bucket.followups++; totalFollowups++; }
-      else if (cat === 'meeting')  { bucket.meetings++;  totalMeetings++; }
+      else if (cat === 'meeting')  {
+        bucket.meetings++;  totalMeetings++;
+        // item 5 — reunião agendada vs realizada (palavra-chave + flag isCompleted como desempate)
+        if (MEETING_HELD.test(aText) || (a.isCompleted && !MEETING_SCHEDULED.test(aText))) { bucket.meetingsHeld++; totalMeetingsHeld++; }
+        else if (MEETING_SCHEDULED.test(aText)) { bucket.meetingsScheduled++; totalMeetingsScheduled++; }
+      }
       else if (cat === 'call')     { bucket.calls++;     totalCalls++; }
       else if (cat === 'proposal' && bucket.proposals === 0) {
         // Se já não contamos via stage, conta a atividade como proposta
         bucket.proposals++;
         totalProposals++;
       }
+      // item 5 — marca 1º contato do lead (global por leadId; atribuído ao DONO do lead no pós-processo)
+      if (aLeadId && (cat === 'call' || FIRST_CONTACT.test(aText))) {
+        contactedLeadsGlobal.add(aLeadId);
+      }
+    }
+
+    // ---- Item 5 — Taxa de Atendimento por vendedor (leads recebidos que foram contatados) ----
+    // Atribui o contato ao DONO do lead recebido (business.attendantId), não ao att da atividade →
+    // robusto a divergência de attId entre /businesses e /activities.
+    let totalReceived = 0, totalContacted = 0;
+    for (const id of Object.keys(stats)) {
+      const recv = receivedLeads[id] || new Set();
+      let contactedAmongReceived = 0;
+      for (const lid of recv) if (contactedLeadsGlobal.has(lid)) contactedAmongReceived++;
+      stats[id].leadsReceived  = recv.size;
+      stats[id].leadsContacted = contactedAmongReceived;
+      stats[id].serviceRate    = recv.size > 0 ? +(contactedAmongReceived / recv.size).toFixed(3) : 0;
+      totalReceived  += recv.size;
+      totalContacted += contactedAmongReceived;
     }
 
     // ---- Ordena ranking ----
@@ -163,8 +205,11 @@ module.exports = async function handler(req, res) {
         proposals:     totalProposals,
         followups:     totalFollowups,
         meetings:      totalMeetings,
+        meetingsScheduled: totalMeetingsScheduled,  // item 5
+        meetingsHeld:      totalMeetingsHeld,        // item 5
         calls:         totalCalls,
         conversations: totalConversations,
+        serviceRate:   totalReceived > 0 ? +(totalContacted / totalReceived).toFixed(3) : 0,  // item 5 (equipe)
         attendantsActive: ranking.filter(r => (r.newLeads + r.proposals + r.followups + r.conversations) > 0).length
       },
       ranking,
@@ -175,7 +220,9 @@ module.exports = async function handler(req, res) {
         followups:     'Atividades cadastradas no CRM cujo título/descrição contém "follow/retorno/cobrar".',
         meetings:      'Atividades cujo título/descrição contém "reunião/meeting/encontro/visita".',
         calls:         'Atividades cujo título/descrição contém "ligação/telefone/chamada".',
-        conversations: 'Deals onde o contato do lead enviou ou recebeu mensagem no WhatsApp/canal no período.'
+        conversations: 'Deals onde o contato do lead enviou ou recebeu mensagem no WhatsApp/canal no período.',
+        serviceRate:   'Taxa de Atendimento = leads recebidos no período (deals criados) que tiveram ao menos 1 atividade de contato (ligação/mensagem/abordagem) ÷ total de leads recebidos.',
+        meetingsSplit: 'Reuniões: Realizadas (palavra "realizad/feita/concluída" ou atividade marcada como concluída) vs Agendadas (palavra "agendad/marcad").'
       },
       counts: {
         businessesScanned: businessesRes.data.length,

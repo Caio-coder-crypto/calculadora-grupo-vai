@@ -232,6 +232,31 @@
       <!-- Conteúdo -->
       <div id="biContent" class="hidden space-y-5">
 
+        <!-- ===== BARRA DE CONFIGURAÇÃO (topo absoluto do BI — item 3) ===== -->
+        <div class="bg-white rounded-xl border border-slate-200 p-3 shadow-sm flex items-center justify-between flex-wrap gap-2">
+          <div class="text-[11px] text-slate-500">
+            <span id="rolesConfigStatus">Sem papéis configurados</span>
+            <span class="mx-1.5 text-slate-300">|</span>
+            <span id="goalsConfigStatus">Sem metas configuradas</span>
+            <span class="mx-1.5 text-slate-300">|</span>
+            <span id="tagsConfigStatus">Tags classificadas automaticamente</span>
+          </div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <button id="rolesOpenBtn" type="button"
+                    class="inline-flex items-center gap-1.5 text-xs font-semibold text-[#041227] bg-[#7c3aed]/10 hover:bg-[#7c3aed]/20 ring-1 ring-[#7c3aed]/40 px-3 py-1.5 rounded-lg transition">
+              👥 Papéis (SDR/Closer)
+            </button>
+            <button id="tagsOpenBtn" type="button"
+                    class="inline-flex items-center gap-1.5 text-xs font-semibold text-[#041227] bg-[#00A859]/10 hover:bg-[#00A859]/20 ring-1 ring-[#00A859]/40 px-3 py-1.5 rounded-lg transition">
+              🏷️ Configurar Canais
+            </button>
+            <button id="goalsOpenBtn" type="button"
+                    class="inline-flex items-center gap-1.5 text-xs font-semibold text-[#041227] bg-[#FFB81C]/15 hover:bg-[#FFB81C]/25 ring-1 ring-[#FFB81C]/40 px-3 py-1.5 rounded-lg transition">
+              🎯 Configurar Metas
+            </button>
+          </div>
+        </div>
+
         <!-- ===== FILTROS GLOBAIS ===== -->
         <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm sticky top-0 z-30">
           <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 items-end">
@@ -284,31 +309,13 @@
             <div class="text-xs text-slate-500 flex flex-col justify-end">
               <p>Resultado:</p>
               <p class="font-bold text-[#041227]" id="biFilterCount">— deals</p>
-            </div>
-          </div>
-          <div class="mt-3 pt-3 border-t border-slate-200 flex items-center justify-between flex-wrap gap-2">
-            <div class="text-[11px] text-slate-500">
-              <span id="rolesConfigStatus">Sem papéis configurados</span>
-              <span class="mx-1.5 text-slate-300">|</span>
-              <span id="goalsConfigStatus">Sem metas configuradas</span>
-              <span class="mx-1.5 text-slate-300">|</span>
-              <span id="tagsConfigStatus">Tags classificadas automaticamente</span>
-            </div>
-            <div class="flex items-center gap-2 flex-wrap">
-              <button id="rolesOpenBtn" type="button"
-                      class="inline-flex items-center gap-1.5 text-xs font-semibold text-[#041227] bg-[#7c3aed]/10 hover:bg-[#7c3aed]/20 ring-1 ring-[#7c3aed]/40 px-3 py-1.5 rounded-lg transition">
-                👥 Papéis (SDR/Closer)
-              </button>
-              <button id="tagsOpenBtn" type="button"
-                      class="inline-flex items-center gap-1.5 text-xs font-semibold text-[#041227] bg-[#00A859]/10 hover:bg-[#00A859]/20 ring-1 ring-[#00A859]/40 px-3 py-1.5 rounded-lg transition">
-                🏷️ Configurar Canais
-              </button>
-              <button id="goalsOpenBtn" type="button"
-                      class="inline-flex items-center gap-1.5 text-xs font-semibold text-[#041227] bg-[#FFB81C]/15 hover:bg-[#FFB81C]/25 ring-1 ring-[#FFB81C]/40 px-3 py-1.5 rounded-lg transition">
-                🎯 Configurar Metas
+              <button id="biUntaggedToggle" type="button" title="Isola os negócios que não têm nenhuma etiqueta (auditoria de tagueamento)"
+                      class="mt-1 self-start inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-600 bg-slate-100 hover:bg-amber-100 ring-1 ring-slate-200 px-2.5 py-1 rounded-lg transition">
+                🏷️ Sem tag: <span id="biUntaggedCount" class="font-extrabold">—</span>
               </button>
             </div>
           </div>
+          <!-- (botões de configuração movidos para o topo do #biContent — item 3) -->
         </div>
 
         <!-- ===== BANNER DE COMPARAÇÃO MENSAL (só no modo compare) ===== -->
@@ -707,7 +714,7 @@
             <!-- Conteúdo -->
             <div id="productivityContent" class="hidden space-y-5">
               <!-- KPIs globais -->
-              <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+              <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-3">
                 <div class="bg-white rounded-lg p-3 border border-slate-200" title="Negócios criados no período (1 lead = 1 deal novo)">
                   <p class="text-[9px] font-bold uppercase tracking-widest text-slate-500">📞 Leads Novos</p>
                   <p class="text-2xl font-extrabold text-[#041227] mt-1" id="prod_newLeads">0</p>
@@ -732,6 +739,14 @@
                   <p class="text-[9px] font-bold uppercase tracking-widest text-[#00754d]">👥 Ativos</p>
                   <p class="text-2xl font-extrabold text-[#00754d] mt-1" id="prod_activeAttendants">0</p>
                 </div>
+                <div class="bg-white rounded-lg p-3 border border-slate-200" title="Taxa de Atendimento da equipe (item 5): leads recebidos contatados ÷ recebidos">
+                  <p class="text-[9px] font-bold uppercase tracking-widest text-slate-500">🎯 Taxa Atend.</p>
+                  <p class="text-2xl font-extrabold text-[#041227] mt-1" id="prod_serviceRate">—</p>
+                </div>
+                <div class="bg-white rounded-lg p-3 border border-slate-200" title="Reuniões realizadas / agendadas no período (item 5)">
+                  <p class="text-[9px] font-bold uppercase tracking-widest text-slate-500">🤝 Reun. R/A</p>
+                  <p class="text-2xl font-extrabold text-[#041227] mt-1" id="prod_meetingsRA">—</p>
+                </div>
               </div>
 
               <!-- Tabela por vendedor -->
@@ -752,6 +767,8 @@
                         <th class="px-3 py-2 text-right" title="Atividades de reunião">🗓️ Reuniões</th>
                         <th class="px-3 py-2 text-right" title="Atividades de ligação">📞 Ligações</th>
                         <th class="px-3 py-2 text-right" title="Deals com mensagem enviada no período (WhatsApp)">💬 Atendimentos</th>
+                        <th class="px-3 py-2 text-right" title="Reuniões realizadas / agendadas (item 5)">🤝 Real./Agend.</th>
+                        <th class="px-3 py-2 text-right" title="Taxa de atendimento: leads recebidos que foram contatados (item 5)">🎯 Taxa atend.</th>
                         <th class="px-3 py-2 text-right" title="Soma de tudo">🏆 Total</th>
                       </tr>
                     </thead>
@@ -790,6 +807,32 @@
               💡 <strong>Como funciona:</strong> os valores AUTOMÁTICOS (receita, custo WhatsApp, comissões) vêm do BI.
               Você só lança os <strong>gastos manuais</strong> (tráfego, equipe, ferramentas) e o sistema calcula
               <strong>todas as métricas que importam pro empresário</strong>: ROAS, ROI, CAC, Payback, Margem.
+            </div>
+
+            <!-- ===== Item 2 — Conexão Meta Ads (gasto automático) ===== -->
+            <div class="bg-white rounded-xl border-2 border-[#1877F2]/40 p-5 shadow-sm">
+              <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
+                <h4 class="text-sm font-bold text-[#041227] flex items-center gap-2">📘 Meta Ads — investimento automático</h4>
+                <span id="metaStatus" class="text-[11px] font-semibold text-slate-400">não conectado</span>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div class="sm:col-span-2">
+                  <label class="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Access Token (Business Manager)</label>
+                  <input id="metaToken" type="password" placeholder="EAAB..." autocomplete="off"
+                         class="w-full px-2.5 py-2 text-sm rounded border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#1877F2]" />
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Ad Account ID</label>
+                  <input id="metaAccount" type="text" placeholder="act_1234567890"
+                         class="w-full px-2.5 py-2 text-sm rounded border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#1877F2] font-mono" />
+                </div>
+              </div>
+              <div class="flex items-center gap-2 flex-wrap mt-3">
+                <button id="metaSaveBtn" type="button" class="text-xs font-semibold text-white bg-[#1877F2] hover:bg-[#0e5fc0] px-3 py-1.5 rounded-lg transition">💾 Salvar credenciais</button>
+                <button id="metaFetchBtn" type="button" class="text-xs font-semibold text-[#1877F2] bg-[#1877F2]/10 hover:bg-[#1877F2]/20 ring-1 ring-[#1877F2]/40 px-3 py-1.5 rounded-lg transition">⬇️ Buscar gasto do período</button>
+                <span id="metaResult" class="text-[11px] text-slate-500"></span>
+              </div>
+              <p class="text-[10px] text-slate-400 mt-2">Ao buscar, o campo "📘 Meta ADS" abaixo é preenchido sozinho e ROAS/CAC recalculam. CPL (com leads do CRM) e consumo diário aparecem aqui.</p>
             </div>
 
             <!-- Formulário de gastos manuais -->
@@ -3987,7 +4030,7 @@
       filtered: null,               // deals após aplicar filtros
       activeTab: 'overview',
       charts: { funnel: null, originRevenue: null, originConversion: null },
-      filters: { period: '30', pipeline: '__all__', attendant: '__all__', customStart: null, customEnd: null }
+      filters: { period: '30', pipeline: '__all__', attendant: '__all__', customStart: null, customEnd: null, untaggedOnly: false }
     };
 
     function setBiView(view) {
@@ -4167,21 +4210,32 @@
       return deals;
     }
 
-    // Filtra deals por período (suporta rolling days, mês-calendário, comparação e range customizado)
-    function filterByPeriod(deals, period) {
+    // 🔑 FIX "Criado em" × "Ganho em" (item 1):
+    //   - dealStampTime: negócio GANHO → data de FECHAMENTO (statusChangedAt → lastMovedAt → createdAt);
+    //     demais status → data de CRIAÇÃO (createdAt).
+    //   - `filterByPeriod` recebe um `stampFn` OPCIONAL. SEM ele, usa SEMPRE createdAt (semântica original
+    //     de "deals criados no período" — usada por biState.filtered: KPIs de novos, vendedores, timeline).
+    //     COM `dealStampTime`, enquadra ganhos pelo fechamento — usado SÓ pelo funil (biState.filteredClose),
+    //     pra a "Venda Ganha" do funil bater com a data de ganho do CRM sem contaminar as contagens de criação.
+    function dealStampTime(d) {
+      const stamp = isWon(d) ? (d.statusChangedAt || d.lastMovedAt || d.createdAt) : d.createdAt;
+      return new Date(stamp).getTime();
+    }
+    function filterByPeriod(deals, period, stampFn) {
+      const stamp = stampFn || (d => new Date(d.createdAt).getTime());
       if (period === 'all') return deals;
       if (period === 'this_month') {
         const r = calendarMonthRange(0);
-        return deals.filter(d => { const t = new Date(d.createdAt).getTime(); return t >= r.start && t < r.end; });
+        return deals.filter(d => { const t = stamp(d); return t >= r.start && t < r.end; });
       }
       if (period === 'last_month') {
         const r = calendarMonthRange(1);
-        return deals.filter(d => { const t = new Date(d.createdAt).getTime(); return t >= r.start && t < r.end; });
+        return deals.filter(d => { const t = stamp(d); return t >= r.start && t < r.end; });
       }
       if (period === 'compare') {
         // No modo comparação, "filtered" = mês atual (banner mostra os dois)
         const r = calendarMonthRange(0);
-        return deals.filter(d => { const t = new Date(d.createdAt).getTime(); return t >= r.start && t < r.end; });
+        return deals.filter(d => { const t = stamp(d); return t >= r.start && t < r.end; });
       }
       if (period === 'custom') {
         const { customStart, customEnd } = biState.filters;
@@ -4189,24 +4243,36 @@
         const startTs = new Date(customStart + 'T00:00:00').getTime();
         const endTs   = new Date(customEnd   + 'T23:59:59').getTime();
         return deals.filter(d => {
-          const t = new Date(d.createdAt).getTime();
+          const t = stamp(d);
           return t >= startTs && t <= endTs;
         });
       }
       // Rolling days
       const days = parseInt(period, 10);
       const cutoff = Date.now() - days * 86400000;
-      return deals.filter(d => new Date(d.createdAt).getTime() >= cutoff);
+      return deals.filter(d => stamp(d) >= cutoff);
     }
 
     function applyBiFilters() {
       if (!biState.raw) return;
       const { period } = biState.filters;
 
-      let deals = applyPipelineAttendantFilters(biState.raw.deals);
-      deals = filterByPeriod(deals, period);
-
+      const scoped = applyPipelineAttendantFilters(biState.raw.deals);
+      let deals = filterByPeriod(scoped, period);                          // CRIADOS no período (createdAt)
       biState.filtered = deals;
+      // Item 1 — dataset do FUNIL: ganhos enquadrados pela data de FECHAMENTO (dealStampTime)
+      let closeDeals = filterByPeriod(scoped, period, dealStampTime);
+
+      // Item 4 — contagem e isolamento de leads SEM TAG (leadTags.length === 0)
+      const untaggedDeals = biState.filtered.filter(d => !d.leadTags || d.leadTags.length === 0);
+      const untaggedCountEl = document.getElementById('biUntaggedCount');
+      if (untaggedCountEl) untaggedCountEl.textContent = fmtInt(untaggedDeals.length);
+      if (biState.filters.untaggedOnly) {
+        biState.filtered = untaggedDeals;
+        deals = untaggedDeals;   // reflete na label "X deals" abaixo
+        closeDeals = closeDeals.filter(d => !d.leadTags || d.leadTags.length === 0);
+      }
+      biState.filteredClose = closeDeals;
 
       // Label do resultado
       let periodLabel = '';
@@ -4278,6 +4344,68 @@
       setRoiExpenses(all);
     }
 
+    // ===== Item 2 — Meta Ads (gasto automático via /api/meta/insights) =====
+    const META_TOKEN_KEY = 'dc_meta_token_v1';
+    const META_ACCT_KEY  = 'dc_meta_account_v1';
+    function getMetaCreds() {
+      return { token: localStorage.getItem(META_TOKEN_KEY) || '', account: localStorage.getItem(META_ACCT_KEY) || '' };
+    }
+    function updateMetaStatus() {
+      const { token, account } = getMetaCreds();
+      const el = document.getElementById('metaStatus');
+      if (el) el.textContent = (token && account) ? '✅ conectado' : 'não conectado';
+      const t = document.getElementById('metaToken'), a = document.getElementById('metaAccount');
+      if (t && token) t.placeholder = '•••••••• (token salvo — recole pra trocar)';  // não reidrata o token no DOM
+      if (a && !a.value) a.value = account;
+    }
+    function saveMetaCreds() {
+      const token = document.getElementById('metaToken')?.value.trim();
+      const account = document.getElementById('metaAccount')?.value.trim();
+      if (token)   localStorage.setItem(META_TOKEN_KEY, token);
+      if (account) localStorage.setItem(META_ACCT_KEY, account);
+      const el = document.getElementById('metaResult');
+      if (el) el.textContent = '💾 credenciais salvas.';
+      updateMetaStatus();
+    }
+    async function fetchMetaSpendForRoiPeriod() {
+      const { token, account } = getMetaCreds();
+      const resultEl = document.getElementById('metaResult');
+      if (!token || !account) { if (resultEl) resultEl.textContent = '⚠️ salve token + ad account primeiro.'; return; }
+      const monthsAgo = parseInt(document.getElementById('roiPeriod').value || '0', 10);
+      const r = calendarMonthRange(monthsAgo);
+      // YYYY-MM-DD a partir dos componentes LOCAIS (não passa por UTC → robusto a fuso)
+      const ymd = (ts) => { const d = new Date(ts); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+      const since = ymd(r.start);
+      const until = ymd(r.end - 86400000);  // último dia do mês selecionado
+      if (resultEl) resultEl.textContent = '⏳ consultando Meta…';
+      try {
+        const url = `/api/meta/insights?account=${encodeURIComponent(account)}&since=${since}&until=${until}&level=campaign`;
+        const res = await fetch(url, { headers: { 'X-Meta-Token': token } });
+        const data = await res.json();
+        if (!res.ok || data.error || typeof data.spend !== 'number') {
+          if (resultEl) resultEl.textContent = '❌ ' + (data.message || `resposta inesperada (HTTP ${res.status})`);
+          return;  // não sobrescreve o gasto manual com 0 por resposta inválida
+        }
+        // Preenche o campo "Meta ADS" e persiste no MESMO storage dos gastos manuais (dc_expenses_v1)
+        saveRoiExpenseField('ads_meta', data.spend);
+        const input = document.getElementById('roi_ads_meta');
+        if (input) input.value = data.spend;
+        // CPL com leads do CRM (mais confiável que o pixel) — deals criados no período
+        const leadsCrm = (biState.raw?.deals || []).filter(d => {
+          const t = new Date(d.createdAt).getTime();
+          return t >= r.start && t < r.end;
+        }).length;
+        const cpl = leadsCrm > 0 ? (data.spend / leadsCrm) : null;
+        if (resultEl) resultEl.innerHTML =
+          `✅ ${fmtBRL(data.spend)} no período · média ${fmtBRL(data.dailyAvgSpend)}/dia` +
+          (cpl != null ? ` · CPL ${fmtBRL(cpl)} (${fmtInt(leadsCrm)} leads CRM)` : '') +
+          (data.metaLeads ? ` · ${fmtInt(data.metaLeads)} leads (pixel)` : '');
+        renderRoi();  // recalcula ROAS/ROI/CAC com o novo gasto automático
+      } catch (err) {
+        if (resultEl) resultEl.textContent = '❌ ' + (err.message || 'falha de rede');
+      }
+    }
+
     // Classificação de saúde de cada métrica
     function roiClassify(metric, value) {
       const rules = {
@@ -4306,6 +4434,7 @@
       const monthsAgo = parseInt(document.getElementById('roiPeriod').value || '0', 10);
       const r = calendarMonthRange(monthsAgo);
       document.getElementById('roiPeriodLabel').textContent = '· ' + r.label;
+      updateMetaStatus();  // item 2 — reflete credenciais Meta salvas
 
       // 2) Carrega valores salvos no formulário
       const saved = getRoiExpensesForCurrentPeriod();
@@ -4475,6 +4604,9 @@
 
     // Wire up dos inputs e seletor
     document.getElementById('roiPeriod').addEventListener('change', renderRoi);
+    // Item 2 — botões da conexão Meta Ads
+    document.getElementById('metaSaveBtn')?.addEventListener('click', saveMetaCreds);
+    document.getElementById('metaFetchBtn')?.addEventListener('click', fetchMetaSpendForRoiPeriod);
     document.querySelectorAll('.roi-input').forEach(inp => {
       inp.addEventListener('input', (e) => {
         const field = e.target.id.replace('roi_', '');
@@ -4519,12 +4651,17 @@
         document.getElementById('prod_meetings').textContent       = fmtInt(data.kpis.meetings);
         document.getElementById('prod_calls').textContent          = fmtInt(data.kpis.calls);
         document.getElementById('prod_activeAttendants').textContent = fmtInt(data.kpis.attendantsActive);
+        // item 5 — KPIs de equipe (taxa de atendimento + reuniões realizadas/agendadas)
+        const srEl = document.getElementById('prod_serviceRate');
+        if (srEl) srEl.textContent = (data.kpis.serviceRate != null) ? Math.round(data.kpis.serviceRate * 100) + '%' : '—';
+        const raEl = document.getElementById('prod_meetingsRA');
+        if (raEl) raEl.textContent = `${fmtInt(data.kpis.meetingsHeld || 0)}/${fmtInt(data.kpis.meetingsScheduled || 0)}`;
 
         // Tabela
         const rows = data.ranking || [];
         const tbody = document.getElementById('prodTable');
         if (rows.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="9" class="text-center text-slate-400 py-6 text-sm">Sem atividades no período. Tente aumentar o intervalo.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="11" class="text-center text-slate-400 py-6 text-sm">Sem atividades no período. Tente aumentar o intervalo.</td></tr>';
         } else {
           tbody.innerHTML = rows.map((r, i) => {
             const total = r.newLeads + r.proposals + r.followups + r.meetings + r.calls + r.conversations;
@@ -4538,6 +4675,8 @@
                 <td class="px-3 py-2 text-right">${fmtInt(r.meetings)}</td>
                 <td class="px-3 py-2 text-right">${fmtInt(r.calls)}</td>
                 <td class="px-3 py-2 text-right">${fmtInt(r.conversations)}</td>
+                <td class="px-3 py-2 text-right" title="${fmtInt(r.meetingsHeld || 0)} realizadas / ${fmtInt(r.meetingsScheduled || 0)} agendadas">${fmtInt(r.meetingsHeld || 0)}/${fmtInt(r.meetingsScheduled || 0)}</td>
+                <td class="px-3 py-2 text-right font-semibold ${(r.serviceRate||0) >= 0.7 ? 'text-[#00754d]' : (r.serviceRate||0) >= 0.4 ? 'text-[#7a5400]' : 'text-red-500'}" title="${fmtInt(r.leadsContacted||0)} contatados de ${fmtInt(r.leadsReceived||0)} recebidos">${r.leadsReceived ? Math.round((r.serviceRate||0)*100) + '%' : '—'}</td>
                 <td class="px-3 py-2 text-right font-bold text-[#041227]">${fmtInt(total)}</td>
               </tr>`;
           }).join('');
@@ -4545,7 +4684,7 @@
 
         // Metodologia
         const methHtml = Object.entries(data.methodology || {}).map(([key, expl]) => {
-          const labels = { newLeads: '📞 Leads Novos', proposals: '📋 Propostas', followups: '🔄 Follow-ups', meetings: '🗓️ Reuniões', calls: '📞 Ligações', conversations: '💬 Atendimentos' };
+          const labels = { newLeads: '📞 Leads Novos', proposals: '📋 Propostas', followups: '🔄 Follow-ups', meetings: '🗓️ Reuniões', calls: '📞 Ligações', conversations: '💬 Atendimentos', serviceRate: '🎯 Taxa de Atendimento', meetingsSplit: '🤝 Reuniões (Real./Agend.)' };
           return `<div><strong>${labels[key] || key}:</strong> ${escapeHTML(expl)}</div>`;
         }).join('');
         document.getElementById('prodMethodology').innerHTML = methHtml;
@@ -4573,10 +4712,10 @@
     document.getElementById('productivityReload').addEventListener('click', () => renderProductivity(true));
     document.getElementById('prodExport').addEventListener('click', () => {
       if (!productivityData?.ranking) return;
-      const rows = [['Vendedor', 'Leads Novos', 'Propostas', 'Follow-ups', 'Reuniões', 'Ligações', 'Atendimentos', 'Total']];
+      const rows = [['Vendedor', 'Leads Novos', 'Propostas', 'Follow-ups', 'Reuniões', 'Ligações', 'Atendimentos', 'Reuniões Realiz.', 'Reuniões Agend.', 'Taxa Atend. %', 'Total']];
       productivityData.ranking.forEach(r => {
         const total = r.newLeads + r.proposals + r.followups + r.meetings + r.calls + r.conversations;
-        rows.push([r.name, r.newLeads, r.proposals, r.followups, r.meetings, r.calls, r.conversations, total]);
+        rows.push([r.name, r.newLeads, r.proposals, r.followups, r.meetings, r.calls, r.conversations, r.meetingsHeld || 0, r.meetingsScheduled || 0, Math.round((r.serviceRate || 0) * 100), total]);
       });
       const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
       const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
@@ -4802,7 +4941,8 @@
 
     // ---------- FUNIL GLOBAL (formato funil de verdade, acima das abas) ----------
     function renderGlobalFunnel() {
-      const deals = biState.filtered || [];
+      // Item 1 — funil usa o dataset com ganhos pela data de FECHAMENTO (fallback: filtered)
+      const deals = biState.filteredClose || biState.filtered || [];
       const { pipeline } = biState.filters;
 
       // ===== Pega TODAS as etapas do pipeline (mesmo as vazias) =====
@@ -5711,7 +5851,8 @@
 
     // ---------- FUNIL ----------
     function renderFunnel() {
-      const deals = biState.filtered || [];
+      // Item 1 — funil usa o dataset com ganhos pela data de FECHAMENTO (fallback: filtered)
+      const deals = biState.filteredClose || biState.filtered || [];
 
       const won  = getWonInFilteredPeriod();    // GANHOS no período (statusChangedAt)
       const lost = getLostInFilteredPeriod();   // PERDIDOS no período (statusChangedAt)
@@ -6203,6 +6344,15 @@
     });
     document.getElementById('biFilterAttendant').addEventListener('change', (e) => {
       biState.filters.attendant = e.target.value; applyBiFilters();
+    });
+    // Item 4 — toggle "Sem tag" (isola leadTags.length === 0)
+    document.getElementById('biUntaggedToggle')?.addEventListener('click', (e) => {
+      biState.filters.untaggedOnly = !biState.filters.untaggedOnly;
+      const on = biState.filters.untaggedOnly;
+      e.currentTarget.classList.toggle('bg-amber-200', on);
+      e.currentTarget.classList.toggle('ring-amber-400', on);
+      e.currentTarget.classList.toggle('text-amber-900', on);
+      applyBiFilters();
     });
 
     // ======================================================================
