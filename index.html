@@ -3483,14 +3483,34 @@
       }
     }
 
+    // Nº de dias que o período representa (pra normalizar a meta MENSAL).
+    // FIX do "NaN%": parseInt('this_month'/'last_month'/'compare'/'custom') dava NaN.
+    // Mês-calendário e 'all' → 30 dias → monthlyPace ≈ receita do período = comparação
+    // DIRETA receita × meta mensal (ex.: R$ 48.000 / R$ 50.000 = 96%). Nunca retorna NaN.
+    function periodDaysCount(period) {
+      if (period === 'all' || period === 'this_month' || period === 'last_month' || period === 'compare') return 30;
+      if (period === 'custom') {
+        const { customStart, customEnd } = biState.filters;
+        if (customStart && customEnd) {
+          const s = new Date(customStart + 'T00:00:00').getTime();
+          const e = new Date(customEnd   + 'T23:59:59').getTime();
+          return Math.max(1, Math.round((e - s) / 86400000));
+        }
+        return 30;
+      }
+      const n = parseInt(period, 10);
+      return (isNaN(n) || n <= 0) ? 30 : n;
+    }
+
     // Calcula progresso de meta dado período filtrado
     // Como a meta é MENSAL, normaliza pelo nº de dias do período
     function calculateGoalProgress(revenueInPeriod, monthlyGoal, periodDays) {
       if (!monthlyGoal || monthlyGoal <= 0) return null;
-      const days = periodDays === 'all' ? 30 : parseInt(periodDays, 10);
+      const days = periodDaysCount(periodDays);
       // Pace: receita por dia × 30 = projeção mensal
       const monthlyPace = (revenueInPeriod / days) * 30;
-      const pct = (monthlyPace / monthlyGoal) * 100;
+      let pct = (monthlyPace / monthlyGoal) * 100;
+      if (!isFinite(pct)) pct = 0;  // blindagem final contra NaN/Infinity
       return {
         goal: monthlyGoal,
         actual: revenueInPeriod,
@@ -5673,7 +5693,7 @@
       // Soma da meta consolidada
       const totalGoal = sellersWithGoal.reduce((a, id) => a + goals[id].revenue, 0);
       // Soma da receita normalizada pra ritmo mensal (apenas vendedores COM meta)
-      const periodDays = biState.filters.period === 'all' ? 30 : parseInt(biState.filters.period, 10);
+      const periodDays = periodDaysCount(biState.filters.period);  // FIX NaN% (mês-calendário)
       let totalActualMonthly = 0;
       let totalActualRaw = 0;
       const leaders = [];
@@ -5707,9 +5727,14 @@
       bar.style.width = Math.min(100, aggregatePct).toFixed(0) + '%';
       bar.style.background = color;
 
-      const periodLabel = biState.filters.period === 'all'
+      const _p = biState.filters.period;
+      const periodLabel = _p === 'all'
         ? 'considerando todo histórico (normalizado pra mês)'
-        : `extrapolado do ritmo dos últimos ${biState.filters.period} dias`;
+        : (_p === 'this_month' || _p === 'last_month' || _p === 'compare')
+          ? 'receita do mês vs meta mensal'
+          : _p === 'custom'
+            ? 'receita do período vs meta mensal'
+            : `extrapolado do ritmo dos últimos ${_p} dias`;
       document.getElementById('teamGoalCaption').textContent =
         `${fmtBRL(totalActualMonthly)}/mês de ritmo projetado vs meta de ${fmtBRL(totalGoal)} · ${periodLabel}`;
 
