@@ -11,7 +11,7 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
 
   <style>
     :root { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
@@ -47,6 +47,8 @@
     *::-webkit-scrollbar-track { background: transparent; }
     /* Foco com a cor da marca */
     :focus-visible { outline: 2px solid #00A859; outline-offset: 2px; border-radius: 6px; }
+    /* Tipografia DISPLAY condensada (igual à apresentação premium do Grupo VAI) */
+    .font-display { font-family: 'Anton', 'Inter', system-ui, sans-serif; font-weight: 400; letter-spacing: .015em; }
   </style>
 </head>
 <body class="text-slate-800 min-h-screen antialiased" style="background: radial-gradient(900px 520px at 85% -8%, rgba(0,168,89,.045), transparent 60%), radial-gradient(720px 520px at 0% 0%, rgba(4,18,39,.045), transparent 55%), linear-gradient(180deg, #f7f9fc 0%, #eef2f6 100%); background-attachment: fixed;">
@@ -118,42 +120,50 @@
 
   <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-14">
 
-    <!-- Header da página -->
-    <header class="mb-8 lg:mb-10">
-      <div class="flex items-center justify-between gap-4 mb-6">
-        <div class="flex items-center gap-3">
-          <div class="rounded-xl overflow-hidden shadow-md ring-1 ring-[#041227]/10 bg-[#041227] flex items-center justify-center w-[104px] h-[42px] sm:w-[140px] sm:h-[56px]">
-            <img id="brandIcon" src="vai-icon.png" alt="Grupo VAI"
-                 class="max-h-full max-w-full object-contain block"
-                 onerror="this.onerror=null;this.src='logo-icon.png';" />
-          </div>
-          <div class="leading-tight">
-            <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-[#00A859]">Grupo VAI</p>
-            <p class="text-sm font-bold text-[#041227]">RevOps · Soluções WhatsApp</p>
-          </div>
-        </div>
-        <div class="flex items-center gap-2">
-          <button id="configBtn" type="button"
-                  class="inline-flex items-center gap-2 text-[11px] font-semibold text-[#041227] bg-white border border-slate-200 hover:border-[#00A859] hover:bg-[#00A859]/5 px-3 py-1.5 rounded-full transition shadow-sm">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-            <span id="configBtnLabel" class="hidden sm:inline">Conectar meu CRM</span>
-            <span id="configStatus" class="w-2 h-2 rounded-full bg-slate-300 transition" title="Não configurado"></span>
-          </button>
-          <button id="helpBtn" type="button" title="Ajuda — o que cada coisa significa"
-                  class="inline-flex items-center justify-center w-8 h-8 text-sm font-bold text-[#041227] bg-white border border-slate-200 hover:border-[#FFB81C] hover:bg-[#FFB81C]/10 rounded-full transition shadow-sm shrink-0">❓</button>
-          <span class="hidden sm:inline-flex items-center text-[11px] font-semibold tracking-widest text-[#00A859] uppercase bg-[#00A859]/10 px-3 py-1.5 rounded-full ring-1 ring-[#00A859]/30">
-            <span class="w-1.5 h-1.5 rounded-full bg-[#00A859] mr-2"></span>
-            WhatsApp Business API
-          </span>
-        </div>
+    <!-- Header da página — hero navy executivo (identidade do pitch Grupo VAI) -->
+    <header class="mb-8 lg:mb-10 relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-[#0b1b3a] via-[#0a1730] to-[#050c1a] text-white shadow-xl ring-1 ring-white/5">
+      <!-- watermark do logo ao fundo -->
+      <img src="vai-icon.png" alt="" aria-hidden="true" class="pointer-events-none select-none absolute -left-10 -top-12 w-72 sm:w-[28rem] opacity-[0.045]" onerror="this.style.display='none'" />
+      <!-- faixa de acento (verde + dourado da marca) -->
+      <div class="absolute top-0 left-0 right-0 h-1 flex">
+        <span class="w-20 bg-[#00A859]"></span><span class="w-8 bg-[#FFB81C]"></span><span class="flex-1 bg-white/5"></span>
       </div>
+      <div class="relative p-6 sm:p-8 lg:p-10">
+        <div class="flex items-center justify-between gap-4 mb-7 sm:mb-9">
+          <div class="flex items-center gap-3">
+            <div class="rounded-xl overflow-hidden ring-1 ring-white/10 bg-white/5 flex items-center justify-center w-[104px] h-[42px] sm:w-[140px] sm:h-[56px]">
+              <img id="brandIcon" src="vai-icon.png" alt="Grupo VAI"
+                   class="max-h-full max-w-full object-contain block"
+                   onerror="this.onerror=null;this.src='logo-icon.png';" />
+            </div>
+            <div class="leading-tight">
+              <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-[#00A859]">Grupo VAI</p>
+              <p class="text-sm font-semibold text-slate-300">RevOps · Soluções WhatsApp</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="configBtn" type="button"
+                    class="inline-flex items-center gap-2 text-[11px] font-semibold text-white bg-white/10 border border-white/15 hover:border-[#00A859] hover:bg-white/15 px-3 py-1.5 rounded-full transition">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              <span id="configBtnLabel" class="hidden sm:inline">Conectar meu CRM</span>
+              <span id="configStatus" class="w-2 h-2 rounded-full bg-slate-400 transition" title="Não configurado"></span>
+            </button>
+            <button id="helpBtn" type="button" title="Ajuda — o que cada coisa significa"
+                    class="inline-flex items-center justify-center w-8 h-8 text-sm font-bold text-white bg-white/10 border border-white/15 hover:border-[#FFB81C] hover:bg-white/15 rounded-full transition shrink-0">❓</button>
+            <span class="hidden sm:inline-flex items-center text-[11px] font-semibold tracking-widest text-[#00A859] uppercase bg-[#00A859]/15 px-3 py-1.5 rounded-full ring-1 ring-[#00A859]/30">
+              <span class="w-1.5 h-1.5 rounded-full bg-[#00A859] mr-2 animate-pulse"></span>
+              WhatsApp Business API
+            </span>
+          </div>
+        </div>
 
-      <h1 class="text-3xl sm:text-4xl lg:text-5xl font-bold text-[#041227] tracking-tight">
-        BI Comercial &amp; Calculadora WhatsApp
-      </h1>
-      <p class="mt-3 text-slate-600 text-base sm:text-lg max-w-2xl">
-        BI executivo do seu CRM + dashboard de gastos da API Oficial do WhatsApp + calculadora de campanhas — tudo em tempo real.
-      </p>
+        <h1 class="font-display text-4xl sm:text-5xl lg:text-6xl text-white uppercase leading-[0.95]">
+          BI Comercial <span class="text-[#00A859]">&amp;</span> Calculadora
+        </h1>
+        <p class="mt-4 text-slate-300 text-base sm:text-lg max-w-2xl">
+          BI executivo do seu CRM + gastos da API Oficial do WhatsApp + calculadora de campanhas — tudo em tempo real, na palma da mão.
+        </p>
+      </div>
     </header>
 
     <!-- Barra de cotação -->
@@ -220,7 +230,7 @@
         <div class="flex items-center justify-between gap-4 flex-wrap relative">
           <div>
             <p class="text-[11px] font-bold uppercase tracking-[0.3em] text-[#FFB81C] mb-1">Inteligência Comercial</p>
-            <h2 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight flex items-center gap-2">
+            <h2 class="font-display uppercase text-3xl sm:text-4xl text-white tracking-tight flex items-center gap-2">
               <span class="text-3xl">📊</span> BI CRM
             </h2>
             <p class="text-sm text-slate-300 mt-2 max-w-xl">Análise completa: funil de vendas, ranking de vendedores, ROI por canal, atendimento. Dados em tempo real do DataCrazy.</p>
@@ -1120,7 +1130,7 @@
         <div class="flex items-center justify-between gap-4 flex-wrap relative">
           <div>
             <p class="text-[11px] font-bold uppercase tracking-[0.3em] text-[#FFB81C] mb-1">Custo Realizado × Projetado</p>
-            <h2 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight flex items-center gap-2">
+            <h2 class="font-display uppercase text-3xl sm:text-4xl text-white tracking-tight flex items-center gap-2">
               <span class="text-3xl">💬</span> Dashboard WhatsApp
             </h2>
             <p class="text-sm text-white/90 mt-2 max-w-xl">Quanto sua empresa está gastando na API Oficial do WhatsApp Business este mês — e quanto vai gastar até o fim do mês.</p>
@@ -1428,7 +1438,7 @@
       </div>
       <div class="relative">
         <p class="text-[11px] font-bold uppercase tracking-[0.3em] text-[#041227] mb-1">Simulador de Campanhas</p>
-        <h2 class="text-2xl sm:text-3xl font-extrabold text-[#041227] tracking-tight flex items-center gap-2">
+        <h2 class="font-display uppercase text-3xl sm:text-4xl text-[#041227] tracking-tight flex items-center gap-2">
           <span class="text-3xl">🧮</span> Calculadora WhatsApp Business
         </h2>
         <p class="text-sm text-[#041227]/80 mt-2 max-w-xl">Simule o custo de uma campanha antes de executar. Tarifas oficiais da Meta para o Brasil, cotação USD/BRL em tempo real.</p>
