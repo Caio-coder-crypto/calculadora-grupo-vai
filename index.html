@@ -380,6 +380,7 @@
             <button data-bi-tab="productivity" class="bi-tab whitespace-nowrap px-4 sm:px-5 py-3 text-sm font-semibold text-slate-500 hover:text-[#041227] hover:bg-slate-50 transition border-b-2 border-transparent">⚡ Produtividade</button>
             <button data-bi-tab="roi" class="bi-tab whitespace-nowrap px-4 sm:px-5 py-3 text-sm font-semibold text-slate-500 hover:text-[#041227] hover:bg-slate-50 transition border-b-2 border-transparent">💰 Gastos & ROI</button>
             <button data-bi-tab="origin" class="bi-tab whitespace-nowrap px-4 sm:px-5 py-3 text-sm font-semibold text-slate-500 hover:text-[#041227] hover:bg-slate-50 transition border-b-2 border-transparent">🎯 Origem</button>
+            <button data-bi-tab="geo" class="bi-tab whitespace-nowrap px-4 sm:px-5 py-3 text-sm font-semibold text-slate-500 hover:text-[#041227] hover:bg-slate-50 transition border-b-2 border-transparent">🗺️ Geografia</button>
             <button data-bi-tab="service" class="bi-tab whitespace-nowrap px-4 sm:px-5 py-3 text-sm font-semibold text-slate-500 hover:text-[#041227] hover:bg-slate-50 transition border-b-2 border-transparent">💬 Atendimento</button>
           </nav>
             <!-- dica de scroll (só mobile): mostra que há mais abas pro lado -->
@@ -1044,6 +1045,66 @@
             </div>
 
             <p class="text-[10px] text-slate-400 text-center" id="roi_footer"></p>
+          </div>
+
+          <!-- ===== ABA: GEOGRAFIA ===== -->
+          <div data-bi-content="geo" class="bi-content hidden p-6 space-y-5">
+            <div class="flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <h3 class="text-lg font-bold text-[#041227] flex items-center gap-2">🗺️ Geografia — de onde vêm seus leads</h3>
+                <p class="text-xs text-slate-500 mt-0.5">Estado detectado pelo DDD do telefone do lead — 100% automático, sem ler endereço.</p>
+              </div>
+              <div class="flex items-center gap-1 bg-slate-100 rounded-lg p-0.5">
+                <button data-geo-metric="leads" class="geo-metric-btn px-3 py-1 rounded-md text-[11px] font-bold transition bg-white text-[#041227] shadow-sm">👥 Leads</button>
+                <button data-geo-metric="revenue" class="geo-metric-btn px-3 py-1 rounded-md text-[11px] font-bold transition text-slate-600 hover:bg-white/50">💰 Receita</button>
+                <button data-geo-metric="conv" class="geo-metric-btn px-3 py-1 rounded-md text-[11px] font-bold transition text-slate-600 hover:bg-white/50">⚡ Conversão</button>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div class="bg-white rounded-xl border border-slate-200 p-4">
+                <h4 class="text-sm font-bold text-[#041227] mb-1">Mapa de calor por estado</h4>
+                <p class="text-[11px] text-slate-500 mb-3">Mais escuro = mais (pela métrica). Toque num estado pra ver os negócios.</p>
+                <div id="geoMap" class="grid gap-1.5 mx-auto" style="grid-template-columns: repeat(7, minmax(0,1fr)); max-width: 440px;"></div>
+                <div class="flex items-center justify-center gap-2 mt-3 text-[10px] text-slate-400">
+                  <span>menos</span>
+                  <span class="inline-block w-24 h-2 rounded-full" style="background:linear-gradient(90deg,#eef3f0,#9fd6b8,#00A859,#00603a)"></span>
+                  <span>mais</span>
+                </div>
+              </div>
+              <div class="space-y-4">
+                <div class="bg-white rounded-xl border border-slate-200 p-4">
+                  <h4 class="text-sm font-bold text-[#041227] mb-3">Por região</h4>
+                  <div class="h-44"><canvas id="geoRegionChart"></canvas></div>
+                </div>
+                <div class="bg-white rounded-xl border border-slate-200 p-4">
+                  <h4 class="text-sm font-bold text-[#041227] mb-3">Por canal de aquisição</h4>
+                  <div class="h-44"><canvas id="geoChannelChart"></canvas></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+              <div class="px-4 py-3 border-b border-slate-200">
+                <h4 class="text-sm font-bold text-[#041227]">Ranking de estados</h4>
+                <p class="text-[11px] text-slate-500 mt-0.5">Ordenado pela métrica selecionada. Clique numa linha pra ver os negócios.</p>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full min-w-[480px] text-sm">
+                  <thead class="bg-slate-50 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                    <tr>
+                      <th class="px-4 py-2 text-left">#</th>
+                      <th class="px-4 py-2 text-left">Estado</th>
+                      <th class="px-4 py-2 text-right">👥 Leads</th>
+                      <th class="px-4 py-2 text-right">🏆 Ganhos</th>
+                      <th class="px-4 py-2 text-right">💰 Receita</th>
+                      <th class="px-4 py-2 text-right">⚡ Conv.</th>
+                    </tr>
+                  </thead>
+                  <tbody id="geoRankBody"></tbody>
+                </table>
+              </div>
+            </div>
           </div>
 
           <!-- ===== ABA: ATENDIMENTO ===== -->
@@ -3424,7 +3485,7 @@
     // ===== Item 7 — Buckets de Canal de Aquisição (alto nível, pros chips do funil) =====
     const ACQ_BUCKETS = [
       { key: 'paid',         label: 'Tráfego Pago',      color: '#1877F2', icon: '📣' },
-      { key: 'partner',      label: 'Parceiro',          color: '#10B981', icon: '🤝' },
+      { key: 'partner',      label: 'Parceiro',          color: '#14B8A6', icon: '🤝' },
       { key: 'events',       label: 'Eventos / Network', color: '#7c3aed', icon: '👥' },
       { key: 'reactivation', label: 'Reativação',        color: '#F59E0B', icon: '🔄' },
       { key: 'referral',     label: 'Indicação',         color: '#EAB308', icon: '⭐' },
@@ -4591,6 +4652,7 @@
       else if (tab === 'funnel') renderFunnel();
       else if (tab === 'sellers') renderSellers();
       else if (tab === 'origin') renderOrigin();
+      else if (tab === 'geo') renderGeography();
       else if (tab === 'service') renderService();
       else if (tab === 'productivity') renderProductivity();
       else if (tab === 'roi') renderRoi();
@@ -5027,6 +5089,126 @@
       }
       return (h >>> 0) / 4294967295;  // 0..1
     }
+
+    // ======================================================================
+    // ABA GEOGRAFIA — mapa de calor por estado (via DDD do telefone) + donuts
+    // Estático: DDD→UF (sem API externa). Estado vem do lead.phone (55+DDD+num).
+    // ======================================================================
+    const DDD_UF = (() => {
+      const m = {}; const add = (uf, ...ds) => ds.forEach(d => m[String(d)] = uf);
+      add('SP',11,12,13,14,15,16,17,18,19); add('RJ',21,22,24); add('ES',27,28);
+      add('MG',31,32,33,34,35,37,38); add('PR',41,42,43,44,45,46); add('SC',47,48,49);
+      add('RS',51,53,54,55); add('DF',61); add('GO',62,64); add('TO',63); add('MT',65,66); add('MS',67);
+      add('AC',68); add('RO',69); add('BA',71,73,74,75,77); add('SE',79); add('PE',81,87); add('AL',82);
+      add('PB',83); add('RN',84); add('CE',85,88); add('PI',86,89);
+      add('PA',91,93,94); add('AM',92,97); add('RR',95); add('AP',96); add('MA',98,99);
+      return m;
+    })();
+    const UF_META = {
+      RR:{n:'Roraima',reg:'Norte',r:0,c:2}, AP:{n:'Amapá',reg:'Norte',r:0,c:3},
+      AM:{n:'Amazonas',reg:'Norte',r:1,c:1}, PA:{n:'Pará',reg:'Norte',r:1,c:2}, MA:{n:'Maranhão',reg:'Nordeste',r:1,c:3}, CE:{n:'Ceará',reg:'Nordeste',r:1,c:4}, RN:{n:'Rio G. do Norte',reg:'Nordeste',r:1,c:5},
+      AC:{n:'Acre',reg:'Norte',r:2,c:0}, RO:{n:'Rondônia',reg:'Norte',r:2,c:1}, TO:{n:'Tocantins',reg:'Norte',r:2,c:2}, PI:{n:'Piauí',reg:'Nordeste',r:2,c:3}, PB:{n:'Paraíba',reg:'Nordeste',r:2,c:5}, PE:{n:'Pernambuco',reg:'Nordeste',r:2,c:6},
+      MT:{n:'Mato Grosso',reg:'Centro-Oeste',r:3,c:2}, GO:{n:'Goiás',reg:'Centro-Oeste',r:3,c:3}, BA:{n:'Bahia',reg:'Nordeste',r:3,c:4}, AL:{n:'Alagoas',reg:'Nordeste',r:3,c:5}, SE:{n:'Sergipe',reg:'Nordeste',r:3,c:6},
+      DF:{n:'Distrito Federal',reg:'Centro-Oeste',r:4,c:3}, MG:{n:'Minas Gerais',reg:'Sudeste',r:4,c:4}, ES:{n:'Espírito Santo',reg:'Sudeste',r:4,c:5},
+      MS:{n:'Mato G. do Sul',reg:'Centro-Oeste',r:5,c:2}, SP:{n:'São Paulo',reg:'Sudeste',r:5,c:4}, RJ:{n:'Rio de Janeiro',reg:'Sudeste',r:5,c:5},
+      PR:{n:'Paraná',reg:'Sul',r:6,c:4}, SC:{n:'Santa Catarina',reg:'Sul',r:7,c:4}, RS:{n:'Rio G. do Sul',reg:'Sul',r:8,c:4}
+    };
+    const REGION_COLORS = { 'Norte':'#0891B2', 'Nordeste':'#FFB81C', 'Centro-Oeste':'#7c3aed', 'Sudeste':'#1877F2', 'Sul':'#00A859' };
+    function dealUF(d) {
+      let ph = (d.leadPhone || '').replace(/\D/g, '');
+      if (!ph) return null;
+      if (ph.length >= 12 && ph.startsWith('55')) ph = ph.slice(2);  // remove código do país
+      if (ph.length < 10) return null;  // telefone BR válido = DDD(2)+8/9 dígitos — evita falso-positivo de lixo/curto
+      return DDD_UF[ph.slice(0, 2)] || null;
+    }
+    function geoHeatColor(t) { // t 0..1 → claro→verde
+      if (t <= 0) return '#f1f5f9';
+      const a = Math.max(0.14, Math.min(1, t));
+      return `rgb(${Math.round(238 + (0 - 238) * a)},${Math.round(243 + (168 - 243) * a)},${Math.round(240 + (89 - 240) * a)})`;
+    }
+    function geoShort(n) { if (n >= 1e6) return (n / 1e6).toFixed(1).replace('.0', '') + 'M'; if (n >= 1e3) return Math.round(n / 1e3) + 'k'; return String(Math.round(n)); }
+
+    let geoMetric = 'leads';
+    function renderGeography() {
+      if (!biState.raw) return;
+      const leads = biState.filtered || [];
+      const won = getWonInFilteredPeriod();
+      const byUF = {};
+      const ens = u => byUF[u] || (byUF[u] = { leads: 0, won: 0, rev: 0, convWon: 0 });
+      for (const d of leads) { const u = dealUF(d); if (u) { const a = ens(u); a.leads++; if (isWon(d)) a.convWon++; } }
+      for (const d of won) { const u = dealUF(d); if (u) { const a = ens(u); a.won++; a.rev += (d.total || 0); } }
+      // conversão = ganhos DENTRO da mesma safra de leads criados no período → sempre <= 100%
+      const convPct = a => a.leads ? Math.min(100, a.convWon / a.leads * 100) : 0;
+      const valOf = a => geoMetric === 'revenue' ? a.rev : geoMetric === 'conv' ? convPct(a) : a.leads;
+      const maxVal = Math.max(1, ...Object.keys(byUF).map(u => valOf(byUF[u])));
+
+      // ----- Mapa de tiles -----
+      const mapEl = document.getElementById('geoMap');
+      mapEl.innerHTML = Object.keys(UF_META).map(uf => {
+        const meta = UF_META[uf], a = byUF[uf], v = a ? valOf(a) : 0;
+        const t = v > 0 ? v / maxVal : 0;
+        const bg = geoHeatColor(t), txt = t > 0.55 ? '#fff' : '#475569';
+        const lbl = a ? (geoMetric === 'revenue' ? 'R$' + geoShort(a.rev) : geoMetric === 'conv' ? Math.round(convPct(a)) + '%' : fmtInt(a.leads)) : '';
+        return `<button class="geo-tile rounded-md flex flex-col items-center justify-center aspect-square ${a ? 'cursor-pointer hover:ring-2 hover:ring-[#00A859]' : 'opacity-70'}" data-uf="${uf}" title="${meta.n}${a ? ' — ' + fmtInt(a.leads) + ' leads · ' + fmtBRL(a.rev) + ' · ' + Math.round(convPct(a)) + '% conv' : ' — sem dados'}" style="grid-column:${meta.c + 1};grid-row:${meta.r + 1};background:${bg};color:${txt}">
+            <span class="text-[10px] font-extrabold leading-none">${uf}</span>
+            <span class="text-[8px] font-semibold leading-none mt-0.5">${lbl}</span>
+          </button>`;
+      }).join('');
+      mapEl.querySelectorAll('.geo-tile[data-uf]').forEach(el => el.addEventListener('click', () => {
+        const uf = el.getAttribute('data-uf'); const ds = leads.filter(d => dealUF(d) === uf);
+        if (ds.length) openDrillDown(`Estado: ${UF_META[uf].n}`, `${ds.length} leads no período`, ds);
+      }));
+
+      // ----- Donut por região -----
+      const srcRev = geoMetric === 'revenue';
+      const byReg = {};
+      for (const uf in byUF) { const reg = UF_META[uf].reg; byReg[reg] = (byReg[reg] || 0) + (srcRev ? byUF[uf].rev : byUF[uf].leads); }
+      const regLabels = Object.keys(byReg).sort((a, b) => byReg[b] - byReg[a]);
+      if (biState.charts.geoRegion) { biState.charts.geoRegion.destroy(); biState.charts.geoRegion = null; }
+      if (regLabels.length) biState.charts.geoRegion = new Chart(document.getElementById('geoRegionChart').getContext('2d'), {
+        type: 'doughnut',
+        data: { labels: regLabels, datasets: [{ data: regLabels.map(r => Math.round(byReg[r])), backgroundColor: regLabels.map(r => REGION_COLORS[r] || '#94a3b8'), borderWidth: 2, borderColor: '#fff' }] },
+        options: { responsive: true, maintainAspectRatio: false, cutout: '62%', plugins: { legend: { position: 'right', labels: { font: { family: 'Inter', size: 11 }, boxWidth: 12 } } } }
+      });
+
+      // ----- Donut por canal de aquisição -----
+      const srcDeals = srcRev ? won : leads;
+      const byChan = {};
+      for (const d of srcDeals) { const b = getDealAcqBucket(d); const lbl = (ACQ_BUCKETS.find(x => x.key === b) || {}).label || b; byChan[lbl] = (byChan[lbl] || 0) + (srcRev ? (d.total || 0) : 1); }
+      const chanLabels = Object.keys(byChan).sort((a, b) => byChan[b] - byChan[a]);
+      const chanColorByLabel = l => (ACQ_BUCKETS.find(x => x.label === l) || {}).color || '#94a3b8';
+      if (biState.charts.geoChannel) { biState.charts.geoChannel.destroy(); biState.charts.geoChannel = null; }
+      if (chanLabels.length) biState.charts.geoChannel = new Chart(document.getElementById('geoChannelChart').getContext('2d'), {
+        type: 'doughnut',
+        data: { labels: chanLabels, datasets: [{ data: chanLabels.map(l => Math.round(byChan[l])), backgroundColor: chanLabels.map(chanColorByLabel), borderWidth: 2, borderColor: '#fff' }] },
+        options: { responsive: true, maintainAspectRatio: false, cutout: '62%', plugins: { legend: { position: 'right', labels: { font: { family: 'Inter', size: 11 }, boxWidth: 12 } } } }
+      });
+
+      // ----- Ranking -----
+      const ranking = Object.keys(byUF).map(uf => ({ uf, n: UF_META[uf].n, ...byUF[uf], conv: convPct(byUF[uf]) })).sort((a, b) => valOf(b) - valOf(a));
+      const rb = document.getElementById('geoRankBody');
+      rb.innerHTML = ranking.length ? ranking.map((r, i) => `<tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer" data-uf="${r.uf}">
+          <td class="px-4 py-2 font-mono text-xs text-slate-500">${i + 1}</td>
+          <td class="px-4 py-2 font-semibold text-[#041227]">${r.uf} · ${escapeHTML(r.n)}</td>
+          <td class="px-4 py-2 text-right">${fmtInt(r.leads)}</td>
+          <td class="px-4 py-2 text-right">${fmtInt(r.won)}</td>
+          <td class="px-4 py-2 text-right">${fmtBRL(r.rev)}</td>
+          <td class="px-4 py-2 text-right font-semibold ${r.conv >= 30 ? 'text-[#00754d]' : 'text-slate-600'}">${r.conv.toFixed(0)}%</td>
+        </tr>`).join('') : '<tr><td colspan="6" class="text-center text-slate-400 py-8 text-sm">Sem leads com DDD identificável no período. (O estado vem do telefone do lead.)</td></tr>';
+      rb.querySelectorAll('tr[data-uf]').forEach(el => el.addEventListener('click', () => {
+        const uf = el.getAttribute('data-uf'); const ds = leads.filter(d => dealUF(d) === uf);
+        if (ds.length) openDrillDown(`Estado: ${UF_META[uf].n}`, `${ds.length} leads no período`, ds);
+      }));
+    }
+    function setGeoMetric(m) {
+      geoMetric = m;
+      document.querySelectorAll('.geo-metric-btn').forEach(b => {
+        const on = b.dataset.geoMetric === m;
+        b.className = on ? 'geo-metric-btn px-3 py-1 rounded-md text-[11px] font-bold transition bg-white text-[#041227] shadow-sm' : 'geo-metric-btn px-3 py-1 rounded-md text-[11px] font-bold transition text-slate-600 hover:bg-white/50';
+      });
+      renderGeography();
+    }
+    document.querySelectorAll('.geo-metric-btn').forEach(b => b.addEventListener('click', () => setGeoMetric(b.dataset.geoMetric)));
 
     function renderService() {
       if (!biState.raw) return;

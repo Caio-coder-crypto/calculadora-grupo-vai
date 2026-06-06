@@ -79,6 +79,8 @@ module.exports = async function handler(req, res) {
       attendantName: b.attendant?.name || 'Sem atendente',
       leadId: b.leadId,
       leadName: b.lead?.name || '',
+      leadPhone: b.lead?.phone || '',   // ex.: "558592804369" (55 + DDD + número) — usado no mapa por estado
+      leadSource: b.lead?.source || '', // origem nativa do CRM (além das tags)
       leadTags: (b.lead?.tags || []).map(t => t.name).filter(Boolean),
       total: b.total || 0,
       status: b.status,
