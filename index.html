@@ -991,6 +991,38 @@
               <div id="roi_cost_breakdown" class="space-y-2"></div>
             </div>
 
+            <!-- ===== Item 6 — Economia por Canal de Aquisição ===== -->
+            <div class="bg-white rounded-xl border-2 border-[#00A859]/30 p-5">
+              <div class="flex items-center justify-between flex-wrap gap-2 mb-1">
+                <h4 class="text-sm font-bold text-[#041227] flex items-center gap-2">💰 Economia por Canal de Aquisição</h4>
+                <span class="text-[10px] text-slate-400">CPL · CAC · ROAS · ROI por canal</span>
+              </div>
+              <p class="text-[11px] text-slate-500 mb-3">Cruza o gasto de cada plataforma com leads/clientes/receita daquele canal. Gasto: Meta (automático) + Google/TikTok/Outros (manuais, lá em cima). <strong>Leads</strong> = criados no período; <strong>Clientes</strong> = fechados no período.</p>
+              <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                  <thead class="bg-slate-50 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                    <tr>
+                      <th class="px-3 py-2 text-left">Canal</th>
+                      <th class="px-3 py-2 text-right" title="Investimento na plataforma">💸 Gasto</th>
+                      <th class="px-3 py-2 text-right" title="Leads/deals criados no período">👥 Leads</th>
+                      <th class="px-3 py-2 text-right" title="Custo por Lead = gasto ÷ leads">🎯 CPL</th>
+                      <th class="px-3 py-2 text-right" title="Clientes (deals ganhos no período)">🏆 Clientes</th>
+                      <th class="px-3 py-2 text-right" title="Custo de Aquisição = gasto ÷ clientes">💵 CAC</th>
+                      <th class="px-3 py-2 text-right" title="Receita dos ganhos do canal">📈 Receita</th>
+                      <th class="px-3 py-2 text-right" title="Retorno sobre ad = receita ÷ gasto">🚀 ROAS</th>
+                      <th class="px-3 py-2 text-right" title="ROI = (receita − gasto) ÷ gasto">📊 ROI</th>
+                    </tr>
+                  </thead>
+                  <tbody id="roi_channel_table"></tbody>
+                </table>
+              </div>
+              <details class="mt-3 bg-slate-50 border border-slate-200 rounded-lg p-3">
+                <summary class="cursor-pointer text-xs font-bold text-[#041227]">⚙️ Mapear canais → plataforma (de-para)</summary>
+                <p class="text-[11px] text-slate-500 mt-2 mb-2">Diga de qual plataforma cada tag veio. Ex.: a tag <strong>"Sales Hunter"</strong> é uma campanha do <strong>Meta</strong>. Canais já reconhecidos (Meta ADS, Google ADS…) são mapeados sozinhos.</p>
+                <div id="roi_channel_map" class="space-y-1.5"></div>
+              </details>
+            </div>
+
             <p class="text-[10px] text-slate-400 text-center" id="roi_footer"></p>
           </div>
 
@@ -3285,6 +3317,158 @@
     }
 
     // ======================================================================
+    // Item 6 — ECONOMIA POR CANAL DE AQUISIÇÃO (CPL/CAC/ROAS/ROI por canal)
+    // De-para manual: cada tag → plataforma de ads. Auto-seed dos canais já
+    // reconhecidos (Meta ADS, Google ADS...). Gasto vem dos 4 campos de ads.
+    // ======================================================================
+    const CHANNEL_PLATFORM_STORAGE = 'dc_channel_platform_v1';
+    const AD_PLATFORMS = [
+      { key: 'meta',    label: '📘 Meta ADS',   field: 'ads_meta' },
+      { key: 'google',  label: '🟢 Google ADS', field: 'ads_google' },
+      { key: 'tiktok',  label: '⬛ TikTok ADS',  field: 'ads_tiktok' },
+      { key: 'other',   label: '📱 Outros Ads',  field: 'ads_other' },
+      { key: 'organic', label: '🌱 Orgânico',    field: null }
+    ];
+    function getChannelPlatformMap() {
+      try { return JSON.parse(localStorage.getItem(CHANNEL_PLATFORM_STORAGE) || '{}'); }
+      catch { return {}; }
+    }
+    function setChannelPlatformMap(map) {
+      try { localStorage.setItem(CHANNEL_PLATFORM_STORAGE, JSON.stringify(map)); } catch {}
+    }
+    // Auto-detecta a plataforma de uma tag JÁ reconhecida como canal (Meta ADS→meta, etc.)
+    function autoPlatformForTag(tag) {
+      if (classifyTag(tag).category !== 'channel') return null;
+      const n = (tag || '').toLowerCase();
+      if (/meta|facebook|fb\s*ads|instagram\s*ads/.test(n)) return 'meta';
+      if (/google|gads|adwords/.test(n))                    return 'google';
+      if (/tiktok/.test(n))                                 return 'tiktok';
+      if (/linkedin|youtube/.test(n))                       return 'other';
+      if (/org[âa]nico|organic|indica|site|outbound|prospec|email/.test(n)) return 'organic';
+      return null;
+    }
+    // Plataforma de um deal: 1) de-para manual (tag), 2) auto por canal,
+    // 3) sem tag = orgânico, 4) tem tag 'other' (provável campanha) = não mapeado.
+    function getDealPlatform(deal, map) {
+      map = map || getChannelPlatformMap();
+      const tags = deal.leadTags || [];
+      const PAID = ['meta', 'google', 'tiktok', 'other'];
+      let organicSeen = false;
+      for (const t of tags) {
+        const p = map[t] || autoPlatformForTag(t);   // de-para manual vence o auto NA MESMA tag
+        if (!p) continue;
+        if (PAID.includes(p)) return p;               // canal PAGO sempre vence (independe da ordem das tags)
+        if (p === 'organic') organicSeen = true;
+      }
+      if (organicSeen) return 'organic';
+      if (tags.length === 0) return 'organic';
+      return tags.some(t => classifyTag(t).category === 'other') ? 'unmapped' : 'organic';
+    }
+
+    // Renderiza a tabela Economia por Canal + o de-para. adsByPlatform = {ads_meta, ads_google, ads_tiktok, ads_other}.
+    function renderChannelEconomics(r, adsByPlatform) {
+      const tbody = document.getElementById('roi_channel_table');
+      const mapEl = document.getElementById('roi_channel_map');
+      if (!tbody || !biState.raw) return;
+      const map = getChannelPlatformMap();
+      const deals = biState.raw.deals || [];
+
+      const inCreated = (d) => { const t = new Date(d.createdAt).getTime(); return t >= r.start && t < r.end; };
+      const inWon = (d) => { if (!isWon(d)) return false; const s = d.statusChangedAt || d.lastMovedAt || d.createdAt; if (!s) return false; const t = new Date(s).getTime(); return t >= r.start && t < r.end; };
+
+      const acc = {};
+      const ensure = (p) => acc[p] || (acc[p] = { leads: 0, won: 0, revenue: 0 });
+      for (const d of deals) {
+        const p = getDealPlatform(d, map);
+        if (inCreated(d)) ensure(p).leads++;
+        if (inWon(d)) { const a = ensure(p); a.won++; a.revenue += (d.total || 0); }
+      }
+
+      const rows = [];
+      for (const plat of AD_PLATFORMS) {
+        const a = acc[plat.key] || { leads: 0, won: 0, revenue: 0 };
+        const spend = plat.field ? (adsByPlatform[plat.field] || 0) : 0;
+        if (plat.key !== 'organic' && spend === 0 && a.leads === 0 && a.won === 0) continue;
+        rows.push({ label: plat.label, spend, leads: a.leads, won: a.won, revenue: a.revenue });
+      }
+      const un = acc['unmapped'];
+      if (un && (un.leads || un.won)) rows.push({ label: '⚠️ Não mapeado', spend: 0, leads: un.leads, won: un.won, revenue: un.revenue });
+
+      if (rows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-slate-400 py-6 text-sm">Sem dados. Lance os gastos acima e/ou mapeie os canais abaixo.</td></tr>';
+      } else {
+        tbody.innerHTML = rows.map(row => {
+          const cpl  = row.spend > 0 ? (row.leads > 0 ? fmtBRL(row.spend / row.leads) : '∞') : '—';
+          const cac  = row.spend > 0 ? (row.won   > 0 ? fmtBRL(row.spend / row.won)   : '∞') : '—';
+          const roas = row.spend > 0 ? (row.revenue / row.spend) : null;
+          const roi  = row.spend > 0 ? ((row.revenue - row.spend) / row.spend * 100) : null;
+          const roasStr = roas != null ? roas.toFixed(2) + 'x' : '—';
+          const roiStr  = roi  != null ? ((roi >= 0 ? '+' : '') + roi.toFixed(0) + '%') : '—';
+          const roasColor = roas == null ? 'text-slate-400' : roas >= 3 ? 'text-[#00754d]' : roas >= 1 ? 'text-[#7a5400]' : 'text-red-500';
+          const roiColor  = roi  == null ? 'text-slate-400' : roi  >= 0 ? 'text-[#00754d]' : 'text-red-500';
+          return `<tr class="border-t border-slate-100">
+                <td class="px-3 py-2 font-semibold text-[#041227]">${escapeHTML(row.label)}</td>
+                <td class="px-3 py-2 text-right">${row.spend > 0 ? fmtBRL(row.spend) : '—'}</td>
+                <td class="px-3 py-2 text-right">${fmtInt(row.leads)}</td>
+                <td class="px-3 py-2 text-right font-semibold">${cpl}</td>
+                <td class="px-3 py-2 text-right">${fmtInt(row.won)}</td>
+                <td class="px-3 py-2 text-right font-semibold">${cac}</td>
+                <td class="px-3 py-2 text-right">${row.revenue > 0 ? fmtBRL(row.revenue) : '—'}</td>
+                <td class="px-3 py-2 text-right font-bold ${roasColor}">${roasStr}</td>
+                <td class="px-3 py-2 text-right font-bold ${roiColor}">${roiStr}</td>
+              </tr>`;
+        }).join('');
+        // Linha de TOTAL (reconcilia com o card principal e revela má atribuição)
+        const tot = rows.reduce((a, x) => ({ spend: a.spend + x.spend, leads: a.leads + x.leads, won: a.won + x.won, revenue: a.revenue + x.revenue }), { spend: 0, leads: 0, won: 0, revenue: 0 });
+        const tCpl  = tot.spend > 0 ? (tot.leads > 0 ? fmtBRL(tot.spend / tot.leads) : '∞') : '—';
+        const tCac  = tot.spend > 0 ? (tot.won   > 0 ? fmtBRL(tot.spend / tot.won)   : '∞') : '—';
+        const tRoas = tot.spend > 0 ? (tot.revenue / tot.spend).toFixed(2) + 'x' : '—';
+        const tRoi  = tot.spend > 0 ? ((tot.revenue - tot.spend) / tot.spend * 100).toFixed(0) + '%' : '—';
+        tbody.innerHTML += `<tr class="border-t-2 border-slate-300 bg-slate-50 font-bold text-[#041227]">
+                <td class="px-3 py-2">TOTAL</td>
+                <td class="px-3 py-2 text-right">${tot.spend > 0 ? fmtBRL(tot.spend) : '—'}</td>
+                <td class="px-3 py-2 text-right">${fmtInt(tot.leads)}</td>
+                <td class="px-3 py-2 text-right">${tCpl}</td>
+                <td class="px-3 py-2 text-right">${fmtInt(tot.won)}</td>
+                <td class="px-3 py-2 text-right">${tCac}</td>
+                <td class="px-3 py-2 text-right">${tot.revenue > 0 ? fmtBRL(tot.revenue) : '—'}</td>
+                <td class="px-3 py-2 text-right">${tRoas}</td>
+                <td class="px-3 py-2 text-right">${tRoi}</td>
+              </tr>`;
+      }
+
+      // De-para: tags 'other' (prováveis campanhas) + as já mapeadas manualmente
+      const tagCounts = {};
+      for (const d of deals) for (const t of (d.leadTags || [])) tagCounts[t] = (tagCounts[t] || 0) + 1;
+      let candidates = Object.keys(tagCounts).filter(t => map[t] || classifyTag(t).category === 'other');
+      candidates.sort((a, b) => tagCounts[b] - tagCounts[a]);
+      const capped = candidates.slice(0, 25);
+
+      if (capped.length === 0) {
+        mapEl.innerHTML = '<p class="text-[11px] text-slate-400">Todos os canais reconhecidos automaticamente — nada pra mapear. 🎉</p>';
+      } else {
+        const optList = [['', '— (ignorar / orgânico)']].concat(AD_PLATFORMS.map(p => [p.key, p.label]));
+        mapEl.innerHTML = capped.map(t => {
+          const cur = map[t] || '';
+          const opts = optList.map(([v, l]) => `<option value="${v}" ${v === cur ? 'selected' : ''}>${l}</option>`).join('');
+          return `<div class="flex items-center justify-between gap-2">
+                <span class="text-[12px] text-slate-700 truncate" title="${escapeHTML(t)}">${escapeHTML(t)} <span class="text-slate-400">(${tagCounts[t]})</span></span>
+                <select data-map-tag="${escapeHTML(t)}" class="roi-map-select text-[11px] rounded border border-slate-200 bg-white px-2 py-1">${opts}</select>
+              </div>`;
+        }).join('') + (candidates.length > 25 ? `<p class="text-[10px] text-slate-400 mt-1">+${candidates.length - 25} tags (mostrando as 25 mais frequentes)</p>` : '');
+        mapEl.querySelectorAll('.roi-map-select').forEach(sel => {
+          sel.addEventListener('change', (e) => {
+            const tag = e.target.getAttribute('data-map-tag');
+            const m = getChannelPlatformMap();
+            if (e.target.value) m[tag] = e.target.value; else delete m[tag];
+            setChannelPlatformMap(m);
+            renderRoi();
+          });
+        });
+      }
+    }
+
+    // ======================================================================
     // MODAL CONFIGURAR CANAIS — UI pra ver/editar classificação de tags
     // ======================================================================
     const CATEGORY_LABELS = {
@@ -4483,9 +4667,14 @@
       const newCustomers = wonInMonth.length;
       const avgTicket = newCustomers > 0 ? (monthRevenue / newCustomers) : 0;
 
-      // Custo WhatsApp = vem do dashboard (se foi sincronizado)
+      // Custo WhatsApp = vem do dashboard (por mês, via monthlySeries).
+      // FIX: antes só pegava o mês atual (monthsAgo===0); agora casa o mês certo, corrigindo ROI/CAC histórico.
       let whatsappCost = 0;
-      if (dashState.lastData?.kpis?.thisMonth?.costBRL && monthsAgo === 0) {
+      const wppMonthKey = new Date(r.start).getFullYear() + '-' + String(new Date(r.start).getMonth() + 1).padStart(2, '0');
+      const wppHit = (dashState.lastData?.monthlySeries || []).find(m => m.month === wppMonthKey);
+      if (wppHit && typeof wppHit.costBRL === 'number') {
+        whatsappCost = wppHit.costBRL;
+      } else if (monthsAgo === 0 && dashState.lastData?.kpis?.thisMonth?.costBRL) {
         whatsappCost = dashState.lastData.kpis.thisMonth.costBRL;
       }
 
@@ -4620,6 +4809,9 @@
       // Footer
       document.getElementById('roi_footer').textContent =
         `Período: ${r.label} · ${newCustomers} novo${newCustomers === 1 ? '' : 's'} cliente${newCustomers === 1 ? '' : 's'} · Última atualização: ${new Date().toLocaleString('pt-BR')}`;
+
+      // Item 6 — economia por canal de aquisição (CPL/CAC/ROAS/ROI por canal)
+      renderChannelEconomics(r, { ads_meta: adsM, ads_google: adsG, ads_tiktok: adsT, ads_other: adsO });
     }
 
     // Wire up dos inputs e seletor
