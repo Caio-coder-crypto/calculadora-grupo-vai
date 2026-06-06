@@ -98,7 +98,7 @@
     <header class="mb-8 lg:mb-10">
       <div class="flex items-center justify-between gap-4 mb-6">
         <div class="flex items-center gap-3">
-          <div class="rounded-xl overflow-hidden shadow-md ring-1 ring-[#041227]/10 bg-[#041227] flex items-center justify-center" style="width: 140px; height: 56px;">
+          <div class="rounded-xl overflow-hidden shadow-md ring-1 ring-[#041227]/10 bg-[#041227] flex items-center justify-center w-[104px] h-[42px] sm:w-[140px] sm:h-[56px]">
             <img id="brandIcon" src="vai-icon.png" alt="Grupo VAI"
                  class="max-h-full max-w-full object-contain block"
                  onerror="this.onerror=null;this.src='logo-icon.png';" />
@@ -112,9 +112,11 @@
           <button id="configBtn" type="button"
                   class="inline-flex items-center gap-2 text-[11px] font-semibold text-[#041227] bg-white border border-slate-200 hover:border-[#00A859] hover:bg-[#00A859]/5 px-3 py-1.5 rounded-full transition shadow-sm">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-            <span id="configBtnLabel">Configurar DataCrazy</span>
+            <span id="configBtnLabel" class="hidden sm:inline">Conectar meu CRM</span>
             <span id="configStatus" class="w-2 h-2 rounded-full bg-slate-300 transition" title="Não configurado"></span>
           </button>
+          <button id="helpBtn" type="button" title="Ajuda — o que cada coisa significa"
+                  class="inline-flex items-center justify-center w-8 h-8 text-sm font-bold text-[#041227] bg-white border border-slate-200 hover:border-[#FFB81C] hover:bg-[#FFB81C]/10 rounded-full transition shadow-sm shrink-0">❓</button>
           <span class="hidden sm:inline-flex items-center text-[11px] font-semibold tracking-widest text-[#00A859] uppercase bg-[#00A859]/10 px-3 py-1.5 rounded-full ring-1 ring-[#00A859]/30">
             <span class="w-1.5 h-1.5 rounded-full bg-[#00A859] mr-2"></span>
             WhatsApp Business API
@@ -258,8 +260,8 @@
         </div>
 
         <!-- ===== FILTROS GLOBAIS ===== -->
-        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm sticky top-0 z-30">
-          <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 items-end">
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm static sm:sticky sm:top-0 z-30">
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
             <div>
               <label class="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Período</label>
               <select id="biFilterPeriod" class="w-full text-sm rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-[#041227] font-medium focus:outline-none focus:ring-2 focus:ring-[#00A859] focus:border-[#00A859]">
@@ -336,15 +338,21 @@
 
         <!-- ===== TABS ===== -->
         <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <nav class="flex overflow-x-auto border-b border-slate-200" id="biTabs">
-            <button data-bi-tab="overview" class="bi-tab whitespace-nowrap px-5 py-3 text-sm font-semibold text-[#041227] bg-[#00A859]/5 transition border-b-2 border-[#00A859]">📊 Visão Geral</button>
-            <button data-bi-tab="funnel" class="bi-tab whitespace-nowrap px-5 py-3 text-sm font-semibold text-slate-500 hover:text-[#041227] hover:bg-slate-50 transition border-b-2 border-transparent">🔁 Funil de Vendas</button>
-            <button data-bi-tab="sellers" class="bi-tab whitespace-nowrap px-5 py-3 text-sm font-semibold text-slate-500 hover:text-[#041227] hover:bg-slate-50 transition border-b-2 border-transparent">👥 Vendedores</button>
-            <button data-bi-tab="productivity" class="bi-tab whitespace-nowrap px-5 py-3 text-sm font-semibold text-slate-500 hover:text-[#041227] hover:bg-slate-50 transition border-b-2 border-transparent">⚡ Produtividade</button>
-            <button data-bi-tab="roi" class="bi-tab whitespace-nowrap px-5 py-3 text-sm font-semibold text-slate-500 hover:text-[#041227] hover:bg-slate-50 transition border-b-2 border-transparent">💰 Gastos & ROI</button>
-            <button data-bi-tab="origin" class="bi-tab whitespace-nowrap px-5 py-3 text-sm font-semibold text-slate-500 hover:text-[#041227] hover:bg-slate-50 transition border-b-2 border-transparent">🎯 Origem</button>
-            <button data-bi-tab="service" class="bi-tab whitespace-nowrap px-5 py-3 text-sm font-semibold text-slate-500 hover:text-[#041227] hover:bg-slate-50 transition border-b-2 border-transparent">💬 Atendimento</button>
+          <div class="relative">
+          <nav class="flex overflow-x-auto border-b border-slate-200 scroll-smooth" id="biTabs">
+            <button data-bi-tab="overview" class="bi-tab whitespace-nowrap px-4 sm:px-5 py-3 text-sm font-semibold text-[#041227] bg-[#00A859]/5 transition border-b-2 border-[#00A859]">📊 Visão Geral</button>
+            <button data-bi-tab="funnel" class="bi-tab whitespace-nowrap px-4 sm:px-5 py-3 text-sm font-semibold text-slate-500 hover:text-[#041227] hover:bg-slate-50 transition border-b-2 border-transparent">🔁 Funil de Vendas</button>
+            <button data-bi-tab="sellers" class="bi-tab whitespace-nowrap px-4 sm:px-5 py-3 text-sm font-semibold text-slate-500 hover:text-[#041227] hover:bg-slate-50 transition border-b-2 border-transparent">👥 Vendedores</button>
+            <button data-bi-tab="productivity" class="bi-tab whitespace-nowrap px-4 sm:px-5 py-3 text-sm font-semibold text-slate-500 hover:text-[#041227] hover:bg-slate-50 transition border-b-2 border-transparent">⚡ Produtividade</button>
+            <button data-bi-tab="roi" class="bi-tab whitespace-nowrap px-4 sm:px-5 py-3 text-sm font-semibold text-slate-500 hover:text-[#041227] hover:bg-slate-50 transition border-b-2 border-transparent">💰 Gastos & ROI</button>
+            <button data-bi-tab="origin" class="bi-tab whitespace-nowrap px-4 sm:px-5 py-3 text-sm font-semibold text-slate-500 hover:text-[#041227] hover:bg-slate-50 transition border-b-2 border-transparent">🎯 Origem</button>
+            <button data-bi-tab="service" class="bi-tab whitespace-nowrap px-4 sm:px-5 py-3 text-sm font-semibold text-slate-500 hover:text-[#041227] hover:bg-slate-50 transition border-b-2 border-transparent">💬 Atendimento</button>
           </nav>
+            <!-- dica de scroll (só mobile): mostra que há mais abas pro lado -->
+            <div class="pointer-events-none absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-white via-white/80 to-transparent sm:hidden flex items-center justify-end pr-1.5">
+              <span class="text-slate-400 text-lg font-bold animate-pulse">›</span>
+            </div>
+          </div>
 
           <!-- ===== ABA: VISÃO GERAL ===== -->
           <div data-bi-content="overview" class="bi-content p-6 space-y-5">
@@ -597,7 +605,7 @@
                 </div>
               </div>
               <div class="overflow-x-auto">
-                <table class="w-full text-sm">
+                <table class="w-full min-w-[680px] text-sm">
                   <thead class="bg-slate-50 text-[10px] font-bold uppercase tracking-widest text-slate-500">
                     <tr>
                       <th class="px-4 py-2 text-left">#</th>
@@ -635,7 +643,7 @@
                 <p class="text-[11px] text-slate-500 mt-0.5">Soma deals dos leads com cada tag/source. Ordenado por receita.</p>
               </div>
               <div class="overflow-x-auto">
-                <table class="w-full text-sm">
+                <table class="w-full min-w-[680px] text-sm">
                   <thead class="bg-slate-50 text-[10px] font-bold uppercase tracking-widest text-slate-500">
                     <tr>
                       <th class="px-4 py-2 text-left">Origem</th>
@@ -734,7 +742,7 @@
                   <button id="prodExport" type="button" class="text-[10px] font-semibold text-[#00A859] hover:underline">📥 Exportar CSV</button>
                 </div>
                 <div class="overflow-x-auto">
-                  <table class="w-full text-sm">
+                  <table class="w-full min-w-[680px] text-sm">
                     <thead class="bg-slate-50 text-[10px] font-bold uppercase tracking-widest text-slate-500">
                       <tr>
                         <th class="px-3 py-2 text-left">#</th>
@@ -977,7 +985,7 @@
               </div>
               <p class="text-[11px] text-slate-500 mb-3">Cruza o gasto de cada plataforma com leads/clientes/receita daquele canal. Gasto: Meta (automático) + Google/TikTok/Outros (manuais, lá em cima). <strong>Leads</strong> = criados no período; <strong>Clientes</strong> = fechados no período.</p>
               <div class="overflow-x-auto">
-                <table class="w-full text-sm">
+                <table class="w-full min-w-[680px] text-sm">
                   <thead class="bg-slate-50 text-[10px] font-bold uppercase tracking-widest text-slate-500">
                     <tr>
                       <th class="px-3 py-2 text-left">Canal</th>
@@ -1040,7 +1048,7 @@
                 <p class="text-[11px] text-slate-500 mt-0.5">Quem responde rápido converte mais — fórmula clássica de inside sales.</p>
               </div>
               <div class="overflow-x-auto">
-                <table class="w-full text-sm">
+                <table class="w-full min-w-[680px] text-sm">
                   <thead class="bg-slate-50 text-[10px] font-bold uppercase tracking-widest text-slate-500">
                     <tr>
                       <th class="px-4 py-2 text-left">#</th>
@@ -1604,7 +1612,7 @@
 
       <!-- Lista -->
       <div class="flex-1 overflow-auto" id="tagsList">
-        <table class="w-full text-sm">
+        <table class="w-full min-w-[300px] text-sm">
           <thead class="bg-slate-50 text-[10px] font-bold uppercase tracking-widest text-slate-500 sticky top-0">
             <tr>
               <th class="px-4 py-2 text-left">Tag</th>
@@ -1774,6 +1782,42 @@
   <!-- ============================================================ -->
   <!-- MODAL DRILL-DOWN reutilizável (lista detalhada de deals)      -->
   <!-- ============================================================ -->
+  <!-- ===== MODAL AJUDA / GLOSSÁRIO (linguagem simples pro empresário) ===== -->
+  <div id="helpModal" class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[#041227]/80 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[88vh] flex flex-col overflow-hidden">
+      <div class="flex items-center justify-between px-5 py-4 bg-[#041227] text-white flex-shrink-0">
+        <h3 class="text-base font-bold flex items-center gap-2">❓ Ajuda rápida — o que cada coisa significa</h3>
+        <button id="helpCloseBtn" class="text-white/70 hover:text-white text-2xl leading-none">&times;</button>
+      </div>
+      <div class="p-5 overflow-y-auto space-y-3 text-sm text-slate-700">
+        <div class="bg-[#00A859]/5 border border-[#00A859]/30 rounded-lg p-3">
+          <p class="font-bold text-[#00754d] mb-1">👋 Como começar (3 passos)</p>
+          <p class="text-[13px]">1) <strong>Conectar meu CRM</strong> (botão no topo) → cola a chave. 2) <strong>Carregar BI</strong> → os números aparecem. 3) <strong>Metas</strong> e <strong>Papéis</strong> (opcional).</p>
+        </div>
+        <p class="font-bold text-[#041227] pt-1">💸 Dinheiro de anúncio</p>
+        <ul class="space-y-1.5 text-[13px] list-none">
+          <li><strong>CPL</strong> — Custo por Lead. Quanto você pagou por cada pessoa interessada. <em>Menor é melhor.</em></li>
+          <li><strong>CAC</strong> — Custo de Aquisição. Quanto custou pra conquistar 1 cliente que comprou. <em>Menor é melhor.</em></li>
+          <li><strong>ROAS</strong> — Retorno dos Anúncios. Cada R$ 1 no anúncio voltou quanto? (ex.: 4x = voltou R$ 4). <em>Acima de 3x é saudável.</em></li>
+          <li><strong>ROI</strong> — Retorno do Investimento. O lucro em %, contando TODOS os custos. <em>Acima de 0% você lucrou.</em></li>
+          <li><strong>Ticket Médio</strong> — valor médio de cada venda.</li>
+        </ul>
+        <p class="font-bold text-[#041227] pt-1">📊 Vendas e funil</p>
+        <ul class="space-y-1.5 text-[13px] list-none">
+          <li><strong>Lead</strong> = pessoa interessada que chegou. <strong>Negócio</strong> = uma oportunidade de venda.</li>
+          <li><strong>Funil</strong> = o caminho do lead até a venda. A <strong>conversão</strong> mostra quantos % passam de uma etapa pra outra.</li>
+          <li><strong>Cumulativo</strong> = tudo que já passou pela etapa. <strong>Atual</strong> = quem está parado nela agora.</li>
+        </ul>
+        <p class="font-bold text-[#041227] pt-1">👥 Equipe & origem</p>
+        <ul class="space-y-1.5 text-[13px] list-none">
+          <li><strong>SDR</strong> = atende e qualifica o lead. <strong>Closer</strong> = fecha a venda.</li>
+          <li><strong>Canal de Aquisição</strong> = de onde o lead veio (Meta/Tráfego Pago, Indicação, Orgânico…).</li>
+        </ul>
+        <p class="text-[12px] text-slate-400 pt-2">💡 No celular: arraste o dedo nas tabelas pra ver todas as colunas, e deslize as abas pro lado. Toque numa etapa do funil pra ver os negócios.</p>
+      </div>
+    </div>
+  </div>
+
   <div id="drillModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#041227]/80 backdrop-blur-sm">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[88vh] overflow-hidden flex flex-col">
       <div class="bg-[#041227] text-white p-5 relative flex-shrink-0">
@@ -1788,7 +1832,7 @@
         <p class="text-sm text-slate-300 mt-1" id="drillSubtitle"></p>
       </div>
       <!-- KPIs do drill-down -->
-      <div class="grid grid-cols-3 gap-3 p-4 bg-slate-50 border-b border-slate-200 flex-shrink-0" id="drillKpis"></div>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 bg-slate-50 border-b border-slate-200 flex-shrink-0" id="drillKpis"></div>
       <!-- Search -->
       <div class="px-4 py-2 border-b border-slate-200 flex-shrink-0">
         <input id="drillSearch" type="text" placeholder="🔍 Buscar por lead, vendedor ou etapa…"
@@ -1796,7 +1840,7 @@
       </div>
       <!-- Tabela -->
       <div class="flex-1 overflow-auto">
-        <table class="w-full text-sm">
+        <table class="w-full min-w-[680px] text-sm">
           <thead class="bg-slate-50 text-[10px] font-bold uppercase tracking-widest text-slate-500 sticky top-0">
             <tr>
               <th class="px-4 py-2 text-left">#</th>
@@ -2295,12 +2339,12 @@
       const hasKey = !!getDcKey();
       if (hasKey) {
         dot.className = 'w-2 h-2 rounded-full bg-[#00A859] transition animate-pulse';
-        dot.title = 'Conectado ao DataCrazy';
-        label.textContent = 'DataCrazy conectado';
+        dot.title = 'Conectado ao seu CRM';
+        label.textContent = 'CRM conectado';
       } else {
         dot.className = 'w-2 h-2 rounded-full bg-slate-300 transition';
-        dot.title = 'Não configurado';
-        label.textContent = 'Configurar DataCrazy';
+        dot.title = 'Não conectado';
+        label.textContent = 'Conectar meu CRM';
       }
     }
 
@@ -6575,6 +6619,16 @@
     initChart();
     recalc();
     fetchQuote();
+
+    // Ajuda / glossário (tocável — funciona no celular, onde o tooltip de hover não aparece)
+    document.getElementById('helpBtn')?.addEventListener('click', () => document.getElementById('helpModal').classList.remove('hidden'));
+    document.getElementById('helpCloseBtn')?.addEventListener('click', () => document.getElementById('helpModal').classList.add('hidden'));
+    document.getElementById('helpModal')?.addEventListener('click', (e) => { if (e.target.id === 'helpModal') e.target.classList.add('hidden'); });
+
+    // Palma da mão: se já está conectado ao CRM, carrega o BI sozinho (dados na tela sem precisar clicar)
+    if (typeof getDcKey === 'function' && getDcKey() && typeof loadBi === 'function') {
+      try { loadBi(); } catch (e) { console.warn('[auto-load BI]', e); }
+    }
   </script>
 </body>
 </html>
