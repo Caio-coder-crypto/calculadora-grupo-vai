@@ -332,53 +332,7 @@
           <div class="p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3" id="comparisonCards"></div>
         </div>
 
-        <!-- ===== FUNIL GLOBAL (visível em todas as abas) ===== -->
-        <div id="globalFunnel" class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <button id="globalFunnelToggle" class="w-full flex items-center justify-between px-5 py-3 hover:bg-slate-50 transition">
-            <h3 class="text-sm font-bold text-[#041227] flex items-center gap-2">🔻 Funil de Conversão</h3>
-            <div class="flex items-center gap-3">
-              <span class="text-[11px] text-slate-500" id="globalFunnelSummary">—</span>
-              <svg id="globalFunnelChevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4 text-slate-400 transition-transform"><polyline points="6 9 12 15 18 9"/></svg>
-            </div>
-          </button>
-          <div id="globalFunnelBody" class="px-5 pb-5 pt-1">
-            <!-- Toggles do funil -->
-            <div class="flex items-center justify-between mb-3 flex-wrap gap-3 pb-2 border-b border-slate-100">
-              <!-- Toggle modo: cumulativo (passaram) vs snapshot (estão hoje) -->
-              <div class="flex items-center gap-2 flex-wrap">
-                <p class="text-[10px] uppercase tracking-widest font-bold text-slate-500">Contagem:</p>
-                <div class="flex items-center gap-1 bg-slate-100 rounded-lg p-0.5">
-                  <button data-funnel-mode="cumulative" class="funnel-mode-btn px-3 py-1 rounded-md text-[11px] font-bold transition bg-white text-[#041227] shadow-sm" title="Conta TODOS os deals que passaram por esta etapa (padrão de funil de vendas)">
-                    📈 Cumulativo
-                  </button>
-                  <button data-funnel-mode="snapshot" class="funnel-mode-btn px-3 py-1 rounded-md text-[11px] font-bold transition text-slate-600 hover:bg-white/50" title="Conta APENAS deals atualmente parados nesta etapa (foto do momento)">
-                    📍 Atual
-                  </button>
-                </div>
-                <!-- Tooltip explicativo -->
-                <button id="funnelModeInfo" type="button" class="text-[14px] text-slate-400 hover:text-[#041227] transition" title="Clique pra entender a diferença">ℹ️</button>
-              </div>
-              <!-- Toggle visualização: etapa única vs por canal -->
-              <div class="flex items-center gap-2">
-                <p class="text-[10px] uppercase tracking-widest font-bold text-slate-500">Cores:</p>
-                <div class="flex items-center gap-1 bg-slate-100 rounded-lg p-0.5">
-                  <button data-funnel-view="standard" class="funnel-view-btn px-3 py-1 rounded-md text-[11px] font-bold transition bg-white text-[#041227] shadow-sm">
-                    📊 Etapa
-                  </button>
-                  <button data-funnel-view="channel" class="funnel-view-btn px-3 py-1 rounded-md text-[11px] font-bold transition text-slate-600 hover:bg-white/50">
-                    🎨 Por canal
-                  </button>
-                </div>
-              </div>
-            </div>
-            <!-- Aviso de modo (aparece conforme seleção) -->
-            <div id="funnelModeHint" class="hidden mb-2 text-[11px] text-slate-600 bg-[#FFB81C]/10 border border-[#FFB81C]/30 rounded-lg px-3 py-2"></div>
-            <div id="globalFunnelStages" class="space-y-1.5"></div>
-            <!-- Legenda dos canais (só aparece no modo channel) -->
-            <div id="globalFunnelLegend" class="hidden flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-slate-100"></div>
-            <p class="text-[10px] text-slate-400 mt-3 text-center">Clique em qualquer etapa para ver os deals.</p>
-          </div>
-        </div>
+        <!-- (Funil Global removido — virou a aba "Funil de Conversão" dedicada, item 7) -->
 
         <!-- ===== TABS ===== -->
         <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
@@ -586,13 +540,37 @@
               </div>
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <div class="lg:col-span-2 bg-white rounded-lg border border-slate-200 p-4">
-                <h4 class="text-sm font-bold text-[#041227] mb-3">Distribuição por etapa</h4>
-                <div class="h-80"><canvas id="funnelChart"></canvas></div>
-                <p class="text-[10px] text-slate-500 mt-2">Quantidade e valor em cada etapa do funil selecionado.</p>
+            <!-- CANAIS DE AQUISIÇÃO (chips agrupados) -->
+            <div class="bg-white rounded-xl border border-slate-200 p-4">
+              <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-3">Canais de Aquisição</p>
+              <div id="funnelAcqChips" class="flex flex-wrap gap-2"></div>
+            </div>
+
+            <!-- FUNIL DE CONVERSÃO (pirâmide) -->
+            <div class="bg-white rounded-xl border border-slate-200 p-5">
+              <div class="flex items-center justify-between flex-wrap gap-2 mb-4">
+                <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Funil de Conversão</p>
+                <div class="flex items-center gap-1 bg-slate-100 rounded-lg p-0.5">
+                  <button data-funnel-mode="cumulative" class="funnel-mode-btn px-3 py-1 rounded-md text-[11px] font-bold transition bg-white text-[#041227] shadow-sm" title="Conta todos os deals que passaram por esta etapa">📈 Cumulativo</button>
+                  <button data-funnel-mode="snapshot" class="funnel-mode-btn px-3 py-1 rounded-md text-[11px] font-bold transition text-slate-600 hover:bg-white/50" title="Conta só os deals parados na etapa agora">📍 Atual</button>
+                </div>
               </div>
-              <div class="bg-white rounded-lg border border-slate-200 p-4">
+              <div id="funnelPyramid" class="max-w-2xl mx-auto space-y-0.5"></div>
+              <div id="funnelLostBlock" class="mt-4 max-w-2xl mx-auto"></div>
+              <p class="text-[10px] text-slate-400 mt-4 text-center">Clique em qualquer etapa pra ver os deals.</p>
+            </div>
+
+            <!-- FATURAMENTO + TICKET + MOTIVOS DE PERDA -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div class="bg-[#00A859]/5 rounded-xl border border-[#00A859]/30 p-4 flex flex-col justify-center items-center text-center">
+                <p class="text-[10px] font-bold uppercase tracking-widest text-[#00754d]">💰 Faturamento</p>
+                <p class="text-2xl font-extrabold text-[#00754d] mt-1" id="funnelRevenue">R$ 0</p>
+              </div>
+              <div class="bg-[#00A859]/5 rounded-xl border border-[#00A859]/30 p-4 flex flex-col justify-center items-center text-center">
+                <p class="text-[10px] font-bold uppercase tracking-widest text-[#00754d]">🎫 Ticket Médio</p>
+                <p class="text-2xl font-extrabold text-[#00754d] mt-1" id="funnelTicket">R$ 0</p>
+              </div>
+              <div class="lg:col-span-2 bg-white rounded-xl border border-slate-200 p-4">
                 <h4 class="text-sm font-bold text-[#041227] mb-3">Top 5 motivos de perda</h4>
                 <div id="lossReasonsList" class="space-y-2"></div>
               </div>
@@ -3365,6 +3343,29 @@
       return tags.some(t => classifyTag(t).category === 'other') ? 'unmapped' : 'organic';
     }
 
+    // ===== Item 7 — Buckets de Canal de Aquisição (alto nível, pros chips do funil) =====
+    const ACQ_BUCKETS = [
+      { key: 'paid',         label: 'Tráfego Pago',      color: '#1877F2', icon: '📣' },
+      { key: 'partner',      label: 'Parceiro',          color: '#10B981', icon: '🤝' },
+      { key: 'events',       label: 'Eventos / Network', color: '#7c3aed', icon: '👥' },
+      { key: 'reactivation', label: 'Reativação',        color: '#F59E0B', icon: '🔄' },
+      { key: 'referral',     label: 'Indicação',         color: '#EAB308', icon: '⭐' },
+      { key: 'organic',      label: 'Orgânico',          color: '#10B981', icon: '🌱' },
+      { key: 'unmapped',     label: 'Não mapeado',       color: '#94A3B8', icon: '⚠️' }
+    ];
+    function getDealAcqBucket(deal) {
+      const plat = getDealPlatform(deal);
+      if (['meta', 'google', 'tiktok', 'other'].includes(plat)) return 'paid';  // reusa o de-para (Sales Hunter→Meta vira Tráfego Pago)
+      for (const t of (deal.leadTags || [])) {
+        const n = (t || '').toLowerCase();
+        if (/indica|referral/.test(n)) return 'referral';
+        if (/reativa/.test(n))         return 'reactivation';
+        if (/parceir|partner/.test(n)) return 'partner';
+        if (/evento|network/.test(n))  return 'events';
+      }
+      return plat === 'unmapped' ? 'unmapped' : 'organic';
+    }
+
     // Renderiza a tabela Economia por Canal + o de-para. adsByPlatform = {ads_meta, ads_google, ads_tiktok, ads_other}.
     function renderChannelEconomics(r, adsByPlatform) {
       const tbody = document.getElementById('roi_channel_table');
@@ -4497,8 +4498,7 @@
       // Banner de comparação (só no modo compare)
       renderComparisonBanner();
 
-      // Funil global (sempre visível acima das abas)
-      renderGlobalFunnel();
+      // (funil agora é a aba dedicada "Funil de Conversão" — renderizada via renderActiveTab)
 
       // Re-render aba ativa + footer
       renderActiveTab();
@@ -5048,111 +5048,97 @@
     //
     // Lost terminals saem do funil principal e ficam num bloco separado embaixo.
     // ============================================================
-    function buildCumulativeFunnel(allPipelineStages, dealsToCount, mode) {
+    function buildCumulativeFunnel(allPipelineStages, dealsToCount, mode, detectionDeals) {
       mode = mode || 'cumulative';  // 'cumulative' | 'snapshot'
-      // 1) Estatísticas por stage pra detecção de terminais
-      const stageStats = {};
-      for (const d of dealsToCount) {
+      // normaliza índice (_idx sempre numérico) e ordena
+      const sorted = (allPipelineStages || []).slice()
+        .map(s => ({ ...s, _idx: s.index ?? 999 }))
+        .sort((a, b) => a._idx - b._idx);
+      const lastIdx = sorted.length ? sorted[sorted.length - 1]._idx : 0;
+
+      // 1) Classificação MUTUAMENTE EXCLUSIVA por etapa, sobre o DATASET INTEIRO (estável, não oscila por período):
+      //    nome vence (/ganh/ → ganho; /perd/ → perda); senão razão de status (>=70%, min 3) SÓ no terço/metade
+      //    final do pipeline (evita falso-positivo numa etapa inicial de alta conversão).
+      const detSet = detectionDeals || dealsToCount;
+      const stats = {};
+      for (const d of detSet) {
         if (!d.stageId) continue;
-        if (!stageStats[d.stageId]) stageStats[d.stageId] = { won: 0, lost: 0, inProcess: 0, total: 0 };
-        const s = stageStats[d.stageId];
-        s.total++;
-        if (d.status === 'won') s.won++;
-        else if (d.status === 'lost') s.lost++;
-        else s.inProcess++;
+        (stats[d.stageId] = stats[d.stageId] || { won: 0, lost: 0, total: 0 });
+        stats[d.stageId].total++;
+        if (d.status === 'won') stats[d.stageId].won++;
+        else if (d.status === 'lost') stats[d.stageId].lost++;
       }
-      const wonTerminalIds = new Set();
-      const lostTerminalIds = new Set();
-      for (const [id, st] of Object.entries(stageStats)) {
-        if (st.total < 3) continue; // base estatística pequena demais — não classifica
-        if (st.won  / st.total >= 0.7) wonTerminalIds.add(id);
-        if (st.lost / st.total >= 0.7) lostTerminalIds.add(id);
+      const wonTerminalIds = new Set(), lostTerminalIds = new Set();
+      for (const stage of sorted) {
+        const name = stage.name || '';
+        if (/ganh/i.test(name)) { wonTerminalIds.add(stage.id); continue; }
+        if (/perd/i.test(name)) { lostTerminalIds.add(stage.id); continue; }
+        const st = stats[stage.id] || { won: 0, lost: 0, total: 0 };
+        const lateEnough = stage._idx >= lastIdx * 0.5;  // só metade final do pipeline
+        if (st.total >= 3 && lateEnough) {
+          if (st.won / st.total >= 0.7) wonTerminalIds.add(stage.id);
+          else if (st.lost / st.total >= 0.7) lostTerminalIds.add(stage.id);
+        }
       }
 
-      // 2) Stages ordenados pelo index do pipeline
-      const sorted = (allPipelineStages || []).slice().sort((a, b) => (a.index ?? 999) - (b.index ?? 999));
-      const activeFlow = sorted.filter(s => !lostTerminalIds.has(s.id));
-      const lostStages = sorted.filter(s =>  lostTerminalIds.has(s.id));
+      // 2) 1º terminal de ganho. Tudo APÓS ele (pós-venda, ex.: "Lojas do Interior", e won-terminals extras) sai do funil.
+      const wonIdxs = sorted.filter(s => wonTerminalIds.has(s.id)).map(s => s._idx);
+      const firstWonIdx = wonIdxs.length ? Math.min(...wonIdxs) : null;
+      const lostStages = sorted.filter(s => lostTerminalIds.has(s.id) && (firstWonIdx === null || s._idx <= firstWonIdx));
+      const postSale = [];
+      let activeFlow = sorted.filter(s => !lostTerminalIds.has(s.id));
+      if (firstWonIdx !== null) {
+        activeFlow = activeFlow.filter(s => {
+          if (s._idx > firstWonIdx) { postSale.push(s); return false; }  // tudo após o ganho = pós-venda
+          return true;
+        });
+      }
 
-      // 3) Pra cada deal: qual a "maior etapa que chegou"
-      //    - Se won: chegou até o stage atual (que é terminal positivo)
-      //    - Se lost: chegou até o stage atual (que é terminal negativo) — mas trataremos especialmente
-      //    - Se in_process: chegou até o stage atual
-      //    Pra cumulativo, assumimos que se está na etapa X, passou pelas etapas 0..X (fluxo natural)
-
-      // 4) Conta cada active flow stage + breakdown por canal
-      // Modo CUMULATIVE (default): conta deals que passaram pela etapa ou além
-      // Modo SNAPSHOT: conta APENAS deals atualmente PARADOS nesta etapa
+      // 3) Conta cada etapa do fluxo ativo. SÓ a etapa em firstWonIdx é a terminal de ganho (sem duplicar).
       const overrides = getTagOverrides();
       const activeStages = activeFlow.map(stage => {
+        const isWonStage = firstWonIdx !== null && stage._idx === firstWonIdx;
         let count = 0, value = 0;
         const dealsHere = [];
-        if (wonTerminalIds.has(stage.id)) {
-          // Terminal positivo: conta SÓ os deals ganhos AQUI (igual em ambos os modos)
+        if (isWonStage) {
+          // GANHO: deals com status 'won' (posição-independente)
           for (const d of dealsToCount) {
-            if (d.stageId === stage.id && d.status === 'won') {
-              count++;
-              value += d.total || 0;
-              dealsHere.push(d);
-            }
+            if (d.status === 'won') { count++; value += d.total || 0; dealsHere.push(d); }
           }
         } else if (mode === 'snapshot') {
-          // SNAPSHOT: deals atualmente na etapa (stageId exatamente igual)
           for (const d of dealsToCount) {
-            if (d.stageId === stage.id) {
-              count++;
-              value += d.total || 0;
-              dealsHere.push(d);
-            }
+            if (d.stageId === stage.id) { count++; value += d.total || 0; dealsHere.push(d); }
           }
         } else {
-          // CUMULATIVE: deals cuja etapa atual >= esta
+          // CUMULATIVO: chegou nesta etapa (stageIndex >= idx) OU é ganho (won chegou em TODAS as etapas
+          // até o ganho) → garante monotonicidade (conversão nunca > 100%).
           for (const d of dealsToCount) {
-            const idx = d.stageIndex ?? -1;
-            if (idx >= stage.index) {
-              count++;
-              value += d.total || 0;
-              dealsHere.push(d);
-            }
+            const reached = (d.stageIndex ?? -1) >= stage._idx || (d.status === 'won' && firstWonIdx !== null && stage._idx <= firstWonIdx);
+            if (reached) { count++; value += d.total || 0; dealsHere.push(d); }
           }
         }
-        // Breakdown por canal (com mesmas regras de composeChannel já usadas no resto do BI)
-        const byChannel = breakdownByChannel(dealsHere, overrides);
         return {
-          id:    stage.id,
-          name:  stage.name,
-          color: stage.color || '#94a3b8',
-          index: stage.index,
-          count,
-          value,
-          byChannel,
-          isWonTerminal: wonTerminalIds.has(stage.id)
+          id: stage.id, name: stage.name, color: stage.color || '#94a3b8', index: stage._idx,
+          count, value, deals: dealsHere, byChannel: breakdownByChannel(dealsHere, overrides),
+          isWonTerminal: isWonStage
         };
       });
 
-      // 5) Lost stages (mostrados separadamente embaixo do funil)
+      // 4) Lost stages (bloco separado embaixo do funil)
       const lostStagesData = lostStages.map(stage => {
-        let count = 0, value = 0;
-        for (const d of dealsToCount) {
-          if (d.stageId === stage.id) {
-            count++;
-            value += d.total || 0;
-          }
-        }
+        const dealsHere = dealsToCount.filter(d => d.stageId === stage.id);
         return {
-          id:    stage.id,
-          name:  stage.name,
-          color: stage.color || '#dc2626',
-          count,
-          value
+          id: stage.id, name: stage.name, color: stage.color || '#dc2626',
+          count: dealsHere.length, value: dealsHere.reduce((a, d) => a + (d.total || 0), 0), deals: dealsHere
         };
       });
 
-      return { activeStages, lostStages: lostStagesData, wonTerminalIds, lostTerminalIds };
+      return { activeStages, lostStages: lostStagesData, postSale, wonTerminalIds, lostTerminalIds };
     }
 
     // ---------- FUNIL GLOBAL (formato funil de verdade, acima das abas) ----------
     function renderGlobalFunnel() {
+      if (!document.getElementById('globalFunnelStages')) return;  // funil global removido (virou aba) — no-op defensivo
       // Item 1 — funil usa o dataset com ganhos pela data de FECHAMENTO (fallback: filtered)
       const deals = biState.filteredClose || biState.filtered || [];
       const { pipeline } = biState.filters;
@@ -5353,13 +5339,7 @@
       });
     }
 
-    // Toggle do funil global (collapse)
-    let globalFunnelCollapsed = false;
-    document.getElementById('globalFunnelToggle').addEventListener('click', () => {
-      globalFunnelCollapsed = !globalFunnelCollapsed;
-      document.getElementById('globalFunnelBody').style.display = globalFunnelCollapsed ? 'none' : 'block';
-      document.getElementById('globalFunnelChevron').style.transform = globalFunnelCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)';
-    });
+    // (toggle do funil global removido — funil virou aba dedicada "Funil de Conversão")
 
     // Toggle visualização (Etapa cor única × Por canal stacked)
     const FUNNEL_VIEW_STORAGE = 'dc_funnel_view_v1';
@@ -5375,7 +5355,7 @@
           ? 'funnel-view-btn px-3 py-1 rounded-md text-[11px] font-bold transition bg-white text-[#041227] shadow-sm'
           : 'funnel-view-btn px-3 py-1 rounded-md text-[11px] font-bold transition text-slate-600 hover:bg-white/50';
       });
-      if (typeof renderGlobalFunnel === 'function' && biState.raw) renderGlobalFunnel();
+      if (biState.raw) renderFunnel();
     }
     document.querySelectorAll('.funnel-view-btn').forEach(btn => {
       btn.addEventListener('click', () => setFunnelView(btn.dataset.funnelView));
@@ -5406,7 +5386,7 @@
           hint.innerHTML = `<strong>📈 Modo Cumulativo:</strong> cada barra mostra quantos deals <strong>já passaram</strong> por esta etapa (atuais + os que avançaram). É o padrão de funil de vendas — permite calcular taxa de conversão real entre etapas.`;
         }
       }
-      if (typeof renderGlobalFunnel === 'function' && biState.raw) renderGlobalFunnel();
+      if (biState.raw) renderFunnel();
     }
     document.querySelectorAll('.funnel-mode-btn').forEach(btn => {
       btn.addEventListener('click', () => setFunnelMode(btn.dataset.funnelMode));
@@ -6089,64 +6069,78 @@
       const conv = denominator > 0 ? (won.length / denominator * 100) : 0;
       document.getElementById('funnelConversion').textContent = conv.toFixed(1) + '%';
 
-      // 🧠 USA O HELPER CUMULATIVO (mesma lógica do funil global)
+      // ===== Item 7 — Chips de Canal de Aquisição (buckets de alto nível) =====
+      const acqSource = biState.filtered || [];   // leads = deals criados no período
+      const acqTotal = acqSource.length || 1;
+      const acqCounts = {};
+      for (const d of acqSource) { const b = getDealAcqBucket(d); acqCounts[b] = (acqCounts[b] || 0) + 1; }
+      const chipsEl = document.getElementById('funnelAcqChips');
+      const acqItems = ACQ_BUCKETS.filter(b => acqCounts[b.key]).sort((a, b) => acqCounts[b.key] - acqCounts[a.key]);
+      chipsEl.innerHTML = acqItems.length ? acqItems.map(b => {
+        const c = acqCounts[b.key], pct = (c / acqTotal * 100).toFixed(1);
+        return `<div class="inline-flex items-center gap-2 rounded-xl px-3 py-2 border" style="background:${b.color}14; border-color:${b.color}55">
+            <span class="text-base">${b.icon}</span>
+            <div class="leading-tight">
+              <p class="text-[9px] font-bold uppercase tracking-widest text-slate-500">${escapeHTML(b.label)}</p>
+              <p class="text-sm font-extrabold text-[#041227]">${fmtInt(c)} <span class="text-[10px] font-semibold text-slate-400">(${pct}%)</span></p>
+            </div>
+          </div>`;
+      }).join('') : '<p class="text-xs text-slate-400">Sem leads no período.</p>';
+
+      // ===== Funil em PIRÂMIDE (rework cumulativo: detecção estável + corte pós-venda) =====
       const { pipeline } = biState.filters;
       let pipelineStages = [];
-      if (pipeline === '__all__') {
-        pipelineStages = biState.raw?.pipelines?.[0]?.stages || [];
+      if (pipeline === '__all__') pipelineStages = biState.raw?.pipelines?.[0]?.stages || [];
+      else pipelineStages = biState.raw?.pipelines?.find(p => p.id === pipeline)?.stages || [];
+      const detDeals = applyPipelineAttendantFilters(biState.raw?.deals || []);  // dataset inteiro do escopo (detecção estável)
+      const funnelData = buildCumulativeFunnel(pipelineStages, deals, getFunnelMode(), detDeals);
+      const stages = funnelData.activeStages;
+      const pyramidEl = document.getElementById('funnelPyramid');
+      const maxCount = Math.max(...stages.map(s => s.count), 1);
+      if (stages.length === 0) {
+        pyramidEl.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">Sem etapas no pipeline selecionado.</p>';
       } else {
-        pipelineStages = biState.raw?.pipelines?.find(p => p.id === pipeline)?.stages || [];
-      }
-      const cumulativeFunnel = buildCumulativeFunnel(pipelineStages, deals, getFunnelMode());
-      const stages = cumulativeFunnel.activeStages;
-
-      const ctx = document.getElementById('funnelChart').getContext('2d');
-      if (biState.charts.funnel) biState.charts.funnel.destroy();
-      biState.charts.funnel = new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels: stages.map(s => s.name),
-          datasets: [{
-            label: 'Negócios',
-            data: stages.map(s => s.count),
-            backgroundColor: stages.map(s => s.color || '#041227'),
-            borderRadius: 6
-          }]
-        },
-        options: {
-          indexAxis: 'y',
-          responsive: true,
-          maintainAspectRatio: false,
-          animation: false,
-          onClick: (evt, elements) => {
-            if (elements.length > 0) {
-              const idx = elements[0].index;
-              const stageName = stages[idx].name;
-              const stageDeals = deals.filter(d => d.stageName === stageName);
-              openDrillDown(`Etapa: ${stageName}`, `${stageDeals.length} deals · ${fmtBRL(stages[idx].value)}`, stageDeals);
-            }
-          },
-          onHover: (evt, elements) => {
-            evt.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default';
-          },
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              backgroundColor: '#041227',
-              callbacks: {
-                label: (ctx) => {
-                  const s = stages[ctx.dataIndex];
-                  return [`${s.count} negócios`, `${fmtBRL(s.value)}`, 'clique pra ver detalhes →'];
-                }
-              }
-            }
-          },
-          scales: {
-            x: { beginAtZero: true, ticks: { font: { family: 'Inter', size: 10 }, color: '#64748b' }, grid: { color: '#e2e8f0' } },
-            y: { ticks: { font: { family: 'Inter', size: 10 }, color: '#041227' }, grid: { display: false } }
+        pyramidEl.innerHTML = stages.map((s, i) => {
+          const widthPct = Math.max(22, (s.count / maxCount) * 100);
+          const depth = stages.length > 1 ? i / (stages.length - 1) : 0;
+          const bg = `hsl(221, ${Math.round(72 - depth * 8)}%, ${Math.round(56 - depth * 22)}%)`;
+          let conv = '';
+          if (i > 0 && getFunnelMode() === 'cumulative') {
+            const prev = stages[i - 1].count;
+            const cp = prev > 0 ? Math.min(100, s.count / prev * 100) : 0;
+            conv = `<p class="text-[10px] text-slate-400 text-center py-0.5">${escapeHTML(stages[i - 1].name)} → ${escapeHTML(s.name)}: ${cp.toFixed(1)}%</p>`;
           }
-        }
+          return conv + `<div class="funnel-stage mx-auto rounded text-white text-center py-2.5 cursor-pointer hover:brightness-110 transition" data-stage-idx="${i}" style="width:${widthPct}%; background:${bg}">
+              <div class="text-[11px] font-bold uppercase tracking-wide opacity-90">${escapeHTML(s.name)}${s.isWonTerminal ? ' 🏆' : ''}</div>
+              <div class="text-xl font-extrabold leading-tight">${fmtInt(s.count)}</div>
+            </div>`;
+        }).join('');
+        pyramidEl.querySelectorAll('.funnel-stage').forEach(el => {
+          el.addEventListener('click', () => {
+            const s = stages[parseInt(el.getAttribute('data-stage-idx'), 10)];
+            if (s) openDrillDown(`Etapa: ${s.name}`, `${s.count} deals · ${fmtBRL(s.value)}`, s.deals || []);
+          });
+        });
+      }
+
+      // Bloco de etapas de PERDA (terminais de perda, separados do funil)
+      const lostEl = document.getElementById('funnelLostBlock');
+      const lostStagesAll = funnelData.lostStages || [];
+      const lostData = lostStagesAll.filter(s => s.count > 0);
+      lostEl.innerHTML = lostData.length ? `<div class="border-t border-slate-100 pt-3">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-red-400 mb-1.5 text-center">Saíram do funil (perdas)</p>
+          <div class="flex flex-wrap justify-center gap-2">${lostData.map(s => `<button class="funnel-lost text-[11px] font-semibold bg-red-50 text-red-700 border border-red-200 rounded-lg px-2.5 py-1 hover:bg-red-100" data-lost-idx="${lostStagesAll.indexOf(s)}">${escapeHTML(s.name)}: ${fmtInt(s.count)}</button>`).join('')}</div>
+        </div>` : '';
+      lostEl.querySelectorAll('.funnel-lost').forEach(el => {
+        el.addEventListener('click', () => {
+          const s = lostStagesAll[parseInt(el.getAttribute('data-lost-idx'), 10)];
+          if (s) openDrillDown(`Perda: ${s.name}`, `${s.count} deals`, s.deals || []);
+        });
       });
+
+      // Faturamento + Ticket Médio (ganhos no período)
+      document.getElementById('funnelRevenue').textContent = fmtBRL(wonVal);
+      document.getElementById('funnelTicket').textContent = fmtBRL(won.length > 0 ? wonVal / won.length : 0);
 
       // Top motivos de perda
       const lossMap = {};
