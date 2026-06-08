@@ -85,7 +85,21 @@ module.exports = async function handler(req, res) {
       total: b.total || 0,
       status: b.status,
       lossReasonId: b.lossReasonId,
-      productsCount: b.productsCount || 0
+      productsCount: b.productsCount || 0,
+      // Itens do pedido (só clientes com catálogo de produtos populam isto).
+      // Cada linha: nome/SKU do produto + quantidade + preço unitário praticado + total da linha.
+      // unitPrice = preço cobrado neste deal; catalogPrice = preço de tabela do produto (p/ detectar desconto).
+      products: (b.products || []).map(p => ({
+        id: p.product?.id || p.id || null,
+        sku: p.product?.id_sku || '',
+        name: p.product?.name || 'Produto sem nome',
+        // Number(...) blinda contra a API mandar string ("3") — evita concatenação/NaN na soma do front.
+        // Mantém fração de propósito (ex.: produto vendido por peso/kg).
+        quantity: Number(p.quantity) || 0,
+        unitPrice: Number(p.price ?? p.product?.price) || 0,
+        catalogPrice: Number(p.product?.price) || 0,
+        total: Number(p.total) || 0
+      }))
     }));
 
     // ---- Payload final ----

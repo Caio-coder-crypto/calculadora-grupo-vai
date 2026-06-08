@@ -695,6 +695,89 @@
                 </table>
               </div>
             </div>
+
+            <!-- ===== SEÇÃO PRODUTOS (só aparece p/ clientes com catálogo no CRM) ===== -->
+            <div id="productsSection" class="hidden space-y-4 pt-2">
+              <div class="flex items-center justify-between gap-3 flex-wrap border-t border-slate-200 pt-5">
+                <div>
+                  <h4 class="text-sm font-bold text-[#041227] flex items-center gap-2">🛒 Análise de Produtos</h4>
+                  <p class="text-[11px] text-slate-500 mt-0.5">Receita somada dos itens do pedido (sem frete/acréscimo/desconto). <span id="productsScopeNote" class="font-semibold text-[#00754d]"></span></p>
+                </div>
+                <div class="flex items-center gap-2 flex-wrap">
+                  <!-- Toggle dataset -->
+                  <div class="inline-flex rounded-lg border border-slate-200 overflow-hidden text-[11px] font-semibold">
+                    <button type="button" data-prod-dataset="won" class="prod-dataset-btn px-3 py-1.5 transition bg-[#00A859] text-white">✅ Vendidos</button>
+                    <button type="button" data-prod-dataset="open" class="prod-dataset-btn px-3 py-1.5 transition text-slate-500 hover:bg-slate-50">📂 Em aberto</button>
+                  </div>
+                  <!-- Toggle métrica -->
+                  <div class="inline-flex rounded-lg border border-slate-200 overflow-hidden text-[11px] font-semibold">
+                    <button type="button" data-prod-metric="revenue" class="prod-metric-btn px-3 py-1.5 transition bg-[#041227] text-white">💰 Receita</button>
+                    <button type="button" data-prod-metric="units" class="prod-metric-btn px-3 py-1.5 transition text-slate-500 hover:bg-slate-50">📦 Unidades</button>
+                    <button type="button" data-prod-metric="deals" class="prod-metric-btn px-3 py-1.5 transition text-slate-500 hover:bg-slate-50">🧾 Pedidos</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- KPIs de produtos -->
+              <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                <div class="bg-[#041227] text-white rounded-lg p-3 relative overflow-hidden">
+                  <div class="absolute top-0 left-0 w-full h-1 bg-[#00A859]"></div>
+                  <p class="text-[9px] font-bold uppercase tracking-widest text-[#FFB81C]">💰 Receita em produtos</p>
+                  <p class="text-lg font-bold mt-1 tabular-nums" id="prodKpiRevenue">R$ 0</p>
+                </div>
+                <div class="bg-slate-50 rounded-lg p-3 border border-slate-200">
+                  <p class="text-[9px] font-bold uppercase tracking-widest text-slate-500">🏷️ Produtos distintos</p>
+                  <p class="text-lg font-bold text-[#041227] mt-1 tabular-nums" id="prodKpiDistinct">0</p>
+                </div>
+                <div class="bg-slate-50 rounded-lg p-3 border border-slate-200">
+                  <p class="text-[9px] font-bold uppercase tracking-widest text-slate-500">📦 Unidades vendidas</p>
+                  <p class="text-lg font-bold text-[#041227] mt-1 tabular-nums" id="prodKpiUnits">0</p>
+                </div>
+                <div class="bg-slate-50 rounded-lg p-3 border border-slate-200">
+                  <p class="text-[9px] font-bold uppercase tracking-widest text-slate-500">🧾 Pedidos c/ produto</p>
+                  <p class="text-lg font-bold text-[#041227] mt-1 tabular-nums" id="prodKpiDeals">0</p>
+                  <p class="text-[9px] text-slate-500 mt-0.5" id="prodKpiDealsPct">—</p>
+                </div>
+                <div class="bg-[#00A859]/5 rounded-lg p-3 border border-[#00A859]/30">
+                  <p class="text-[9px] font-bold uppercase tracking-widest text-[#00754d]">💎 Ticket médio/pedido</p>
+                  <p class="text-lg font-bold text-[#041227] mt-1 tabular-nums" id="prodKpiTicket">R$ 0</p>
+                </div>
+                <div class="bg-[#FFB81C]/10 rounded-lg p-3 border border-[#FFB81C]/40">
+                  <p class="text-[9px] font-bold uppercase tracking-widest text-[#7a5400]">📐 Itens por pedido</p>
+                  <p class="text-lg font-bold text-[#041227] mt-1 tabular-nums" id="prodKpiItemsPerDeal">0</p>
+                </div>
+              </div>
+
+              <!-- Gráfico + Tabela -->
+              <div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
+                <div class="lg:col-span-2 bg-white rounded-lg border border-slate-200 p-4">
+                  <h5 class="text-xs font-bold text-[#041227] mb-3" id="prodChartTitle">Top produtos por receita</h5>
+                  <div class="h-80"><canvas id="productsChart"></canvas></div>
+                </div>
+                <div class="lg:col-span-3 bg-white rounded-lg border border-slate-200 overflow-hidden">
+                  <div class="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
+                    <h5 class="text-xs font-bold text-[#041227]">Ranking de produtos</h5>
+                    <span class="text-[10px] text-slate-400" id="prodTableNote"></span>
+                  </div>
+                  <div class="overflow-x-auto max-h-[420px] overflow-y-auto">
+                    <table class="w-full min-w-[640px] text-sm">
+                      <thead class="bg-slate-50 text-[10px] font-bold uppercase tracking-widest text-slate-500 sticky top-0">
+                        <tr>
+                          <th class="px-3 py-2 text-left">#</th>
+                          <th class="px-3 py-2 text-left">Produto</th>
+                          <th class="px-3 py-2 text-right">Pedidos</th>
+                          <th class="px-3 py-2 text-right">Unid.</th>
+                          <th class="px-3 py-2 text-right">Receita</th>
+                          <th class="px-3 py-2 text-right" title="Participação na receita de produtos">% Mix</th>
+                          <th class="px-3 py-2 text-right" title="Preço unitário médio praticado">Preço méd.</th>
+                        </tr>
+                      </thead>
+                      <tbody id="productsTable"></tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- ===== ABA: PRODUTIVIDADE DIÁRIA ===== -->
@@ -4373,8 +4456,10 @@
       raw: null,                    // dataset bruto vindo do bi-data
       filtered: null,               // deals após aplicar filtros
       activeTab: 'overview',
-      charts: { funnel: null, originRevenue: null, originConversion: null },
-      filters: { period: '30', pipeline: '__all__', attendant: '__all__', customStart: null, customEnd: null, untaggedOnly: false }
+      charts: { funnel: null, originRevenue: null, originConversion: null, products: null },
+      filters: { period: '30', pipeline: '__all__', attendant: '__all__', customStart: null, customEnd: null, untaggedOnly: false },
+      productsDataset: 'won',     // 'won' = vendidos (ganhos no período) | 'open' = pipeline em aberto
+      productsMetric: 'revenue'   // 'revenue' | 'units' | 'deals' — métrica do ranking/gráfico
     };
 
     function setBiView(view) {
@@ -6729,8 +6814,145 @@
       document.querySelectorAll('[data-origin-name]').forEach(row => {
         row.addEventListener('click', () => {
           const originName = row.dataset.originName;
-          const originDeals = deals.filter(d => composeChannel(d.leadTags || [], overrides) === originName);
+          // Respeita os filtros ativos da aba (período/pipeline/vendedor) — dealsCreated = biState.filtered
+          const originDeals = dealsCreated.filter(d => composeChannel(d.leadTags || [], overrides) === originName);
           openDrillDown(`Canal: ${originName}`, `${originDeals.length} deals de leads deste canal`, originDeals);
+        });
+      });
+
+      // Produtos (só renderiza/aparece p/ clientes com catálogo no CRM)
+      renderProducts();
+    }
+
+    // ======================================================================
+    // PRODUTOS — análise de catálogo (só clientes que vendem produtos no CRM)
+    // Mora dentro da aba Origem; auto-oculta quando o dataset não tem produtos.
+    // ======================================================================
+
+    // Deals que entram na análise, conforme o toggle dataset:
+    //  'won'  = ganhos no período (receita real)  ·  'open' = pipeline em aberto criado no período
+    function getProductScopeDeals() {
+      if (biState.productsDataset === 'open') {
+        return (biState.filtered || []).filter(d => !isWon(d) && !isLost(d));
+      }
+      return getWonInFilteredPeriod();
+    }
+
+    function renderProducts() {
+      const section = document.getElementById('productsSection');
+      if (!section || !biState.raw) return;
+
+      // Detecção: o cliente TEM produtos em qualquer deal? Se não, esconde a seção inteira.
+      const hasAnyProducts = (biState.raw.deals || []).some(d => (d.products || []).length > 0);
+      if (!hasAnyProducts) { section.classList.add('hidden'); return; }
+      section.classList.remove('hidden');
+
+      const scopeDeals = getProductScopeDeals();
+
+      // Agrega por produto (chave: id → sku → nome)
+      const map = {};
+      let totalRevenue = 0, totalUnits = 0;
+      const dealsWithProd = new Set();
+      for (const d of scopeDeals) {
+        const lines = d.products || [];
+        if (!lines.length) continue;
+        dealsWithProd.add(d.id);
+        for (const ln of lines) {
+          const key = ln.id || ln.sku || ln.name || 'sem-id';
+          const e = map[key] || (map[key] = { key, name: ln.name || 'Produto sem nome', sku: ln.sku, catalogPrice: ln.catalogPrice || 0, units: 0, revenue: 0, deals: new Set() });
+          e.units    += (ln.quantity || 0);
+          e.revenue  += (ln.total || 0);
+          e.deals.add(d.id);
+          totalUnits   += (ln.quantity || 0);
+          totalRevenue += (ln.total || 0);
+        }
+      }
+
+      const metric = biState.productsMetric;
+      const metricVal = (p) => metric === 'units' ? p.units : metric === 'deals' ? p.dealsCount : p.revenue;
+
+      const rows = Object.values(map).map(p => ({
+        key: p.key, name: p.name, sku: p.sku, catalogPrice: p.catalogPrice,
+        units: p.units, revenue: p.revenue, dealsCount: p.deals.size,
+        avgPrice: p.units > 0 ? p.revenue / p.units : 0,
+        share: totalRevenue > 0 ? (p.revenue / totalRevenue * 100) : 0
+      })).sort((a, b) => metricVal(b) - metricVal(a));
+
+      // ---- KPIs ----
+      document.getElementById('prodKpiRevenue').textContent = fmtBRL(totalRevenue);
+      document.getElementById('prodKpiDistinct').textContent = fmtInt(rows.length);
+      document.getElementById('prodKpiUnits').textContent = fmtInt(totalUnits);
+      document.getElementById('prodKpiDeals').textContent = fmtInt(dealsWithProd.size);
+      const scopeTotal = scopeDeals.length;
+      document.getElementById('prodKpiDealsPct').textContent = scopeTotal > 0
+        ? `${(dealsWithProd.size / scopeTotal * 100).toFixed(0)}% dos ${fmtInt(scopeTotal)} pedidos`
+        : 'sem pedidos no período';
+      document.getElementById('prodKpiTicket').textContent = dealsWithProd.size > 0 ? fmtBRL(totalRevenue / dealsWithProd.size) : 'R$ 0';
+      document.getElementById('prodKpiItemsPerDeal').textContent = dealsWithProd.size > 0 ? (totalUnits / dealsWithProd.size).toFixed(1) : '0';
+
+      // ---- Nota de escopo ----
+      const scopeNote = document.getElementById('productsScopeNote');
+      scopeNote.textContent = biState.productsDataset === 'open'
+        ? 'Escopo: pipeline em aberto (deals criados no período, ainda não fechados).'
+        : 'Escopo: vendidos (deals ganhos no período).';
+
+      // ---- Gráfico: top produtos pela métrica ----
+      const metricLabel = metric === 'units' ? 'Unidades' : metric === 'deals' ? 'Pedidos' : 'Receita';
+      document.getElementById('prodChartTitle').textContent = `Top produtos por ${metricLabel.toLowerCase()}`;
+      const top = rows.slice(0, 8);
+      const ctx = document.getElementById('productsChart').getContext('2d');
+      if (biState.charts.products) biState.charts.products.destroy();
+      biState.charts.products = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: top.map(p => p.name.length > 28 ? p.name.slice(0, 27) + '…' : p.name),
+          datasets: [{ data: top.map(metricVal), backgroundColor: '#00A859', borderRadius: 5 }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true, maintainAspectRatio: false, animation: false,
+          plugins: { legend: { display: false }, tooltip: { backgroundColor: '#041227', callbacks: {
+            label: c => metric === 'revenue' ? fmtBRL(c.parsed.x) : `${fmtInt(c.parsed.x)} ${metricLabel.toLowerCase()}`
+          } } },
+          scales: {
+            x: { beginAtZero: true, ticks: { callback: v => metric === 'revenue' ? 'R$ ' + new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0, notation: 'compact' }).format(v) : fmtInt(v), font: { family: 'Inter', size: 10 }, color: '#64748b' }, grid: { color: '#e2e8f0' } },
+            y: { ticks: { font: { family: 'Inter', size: 10 }, color: '#041227' }, grid: { display: false } }
+          }
+        }
+      });
+
+      // ---- Tabela ----
+      const MAX_ROWS = 60;
+      const shown = rows.slice(0, MAX_ROWS);
+      document.getElementById('prodTableNote').textContent = rows.length > MAX_ROWS ? `top ${MAX_ROWS} de ${fmtInt(rows.length)}` : `${fmtInt(rows.length)} produtos`;
+      document.getElementById('productsTable').innerHTML = shown.map((p, i) => `
+        <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer" data-prod-key="${escapeAttr(p.key)}">
+          <td class="px-3 py-2 text-slate-400 font-semibold">${i + 1}</td>
+          <td class="px-3 py-2">
+            <span class="font-semibold text-[#041227]">${escapeHTML(p.name)}</span>
+            ${p.sku ? `<span class="text-[10px] text-slate-400 ml-1">SKU ${escapeHTML(p.sku)}</span>` : ''}
+          </td>
+          <td class="px-3 py-2 text-right tabular-nums">${fmtInt(p.dealsCount)}</td>
+          <td class="px-3 py-2 text-right tabular-nums">${fmtInt(p.units)}</td>
+          <td class="px-3 py-2 text-right font-bold tabular-nums">${fmtBRL(p.revenue)}</td>
+          <td class="px-3 py-2 text-right">
+            <div class="flex items-center justify-end gap-1.5">
+              <div class="w-12 h-1.5 rounded-full bg-slate-100 overflow-hidden hidden sm:block"><div class="h-full bg-[#00A859]" style="width:${Math.max(0, Math.min(100, p.share)).toFixed(0)}%"></div></div>
+              <span class="tabular-nums text-slate-600">${Math.max(0, Math.min(100, p.share)).toFixed(1)}%</span>
+            </div>
+          </td>
+          <td class="px-3 py-2 text-right tabular-nums">${p.avgPrice > 0 ? fmtBRL(p.avgPrice) : '—'}</td>
+        </tr>
+      `).join('') || '<tr><td colspan="7" class="text-center text-slate-400 py-6 text-sm">Sem produtos neste período/escopo</td></tr>';
+
+      // Drill-down: clique no produto → lista os deals que contêm aquele item
+      document.querySelectorAll('[data-prod-key]').forEach(row => {
+        row.addEventListener('click', () => {
+          const k = row.dataset.prodKey;
+          const meta = map[k];
+          const ids = meta && meta.deals;   // Set<dealId> já montado na agregação → O(n) em vez de O(n·m)
+          const prodDeals = ids ? scopeDeals.filter(d => ids.has(d.id)) : [];
+          openDrillDown(`Produto: ${meta ? meta.name : k}`, `${prodDeals.length} pedidos com este produto (${biState.productsDataset === 'open' ? 'em aberto' : 'vendidos'} no período)`, prodDeals);
         });
       });
     }
@@ -6780,6 +7002,28 @@
     // Wire up
     document.getElementById('biSyncBtn').addEventListener('click', () => loadBi(true));
     document.querySelectorAll('.bi-tab').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.biTab)));
+
+    // Toggles da seção Produtos (dataset Vendidos/Em aberto + métrica do ranking)
+    document.querySelectorAll('.prod-dataset-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        biState.productsDataset = btn.dataset.prodDataset;
+        document.querySelectorAll('.prod-dataset-btn').forEach(b => {
+          const on = b.dataset.prodDataset === biState.productsDataset;
+          b.className = 'prod-dataset-btn px-3 py-1.5 transition ' + (on ? 'bg-[#00A859] text-white' : 'text-slate-500 hover:bg-slate-50');
+        });
+        renderProducts();
+      });
+    });
+    document.querySelectorAll('.prod-metric-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        biState.productsMetric = btn.dataset.prodMetric;
+        document.querySelectorAll('.prod-metric-btn').forEach(b => {
+          const on = b.dataset.prodMetric === biState.productsMetric;
+          b.className = 'prod-metric-btn px-3 py-1.5 transition ' + (on ? 'bg-[#041227] text-white' : 'text-slate-500 hover:bg-slate-50');
+        });
+        renderProducts();
+      });
+    });
     document.getElementById('biFilterPeriod').addEventListener('change', (e) => {
       biState.filters.period = e.target.value;
       // Mostra/esconde inputs de data conforme seleção
