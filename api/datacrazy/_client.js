@@ -124,6 +124,33 @@ function throwAuthError(status) {
 }
 
 /**
+ * Retorna o NOME (empresa) cadastrado no painel (Supabase) para a chave dada.
+ * Usado para exibir no cabeçalho do dashboard "qual cliente estou vendo".
+ * Reaproveita o cache de validação quando disponível; senão consulta o Supabase.
+ * Retorna null se: chave ausente, Supabase desativado, chave vinda do env (admin)
+ * ou cliente não encontrado.
+ */
+async function getClientEmpresa(key) {
+  if (!key || !SUPABASE_ENABLED || !supabase) return null;
+
+  // Cache hit (validateApiKey já guarda a empresa para chaves ativas)
+  const cached = authCache.get(key);
+  if (cached && cached.empresa) return cached.empresa;
+
+  try {
+    const { data } = await supabase
+      .from('clients')
+      .select('empresa')
+      .eq('api_key', key)
+      .maybeSingle();
+    return data?.empresa || null;
+  } catch (e) {
+    console.warn('[supabase] getClientEmpresa falhou:', e.message || e);
+    return null;
+  }
+}
+
+/**
  * Helper conveniente: extrai chave + valida + devolve a chave usável.
  * Use este nos handlers em vez de getApiKey() direto.
  */
@@ -188,19 +215,35 @@ async function dcGet(apiKey, path, query = {}) {
 
 /**
  * Paginação automática com delay anti-burst (80ms entre páginas).
+ *
+ * opts.ignoreCount: quando true, NÃO confia no campo `count` da resposta como
+ *   total (alguns endpoints capam o count — ex.: /conversations capa em 999).
+ *   Nesse modo só para quando uma página vem incompleta (fim real) ou ao bater
+ *   maxPages/deadline. O `count` retornado passa a ser o nº de itens realmente lidos.
+ * opts.deadlineMs: teto de tempo (ms) — aborta a paginação antes do timeout serverless.
+ *
+ * Retorna { count, data, truncated }. `truncated=true` indica que parou por
+ * limite (maxPages/deadline) e o total pode ser maior que o lido.
  */
-async function dcGetAll(apiKey, path, baseQuery = {}, pageSize = 200, maxPages = 50) {
+async function dcGetAll(apiKey, path, baseQuery = {}, pageSize = 200, maxPages = 50, opts = {}) {
+  const ignoreCount = !!opts.ignoreCount;
+  const deadline = opts.deadlineMs ? Date.now() + opts.deadlineMs : null;
   const out = [];
   let total = null;
-  for (let page = 0; page < maxPages; page++) {
+  let truncated = false;
+  let page = 0;
+  for (; page < maxPages; page++) {
     if (page > 0) await sleep(80);
+    if (deadline && Date.now() > deadline) { truncated = true; break; }
     const res = await dcGet(apiKey, path, { ...baseQuery, skip: page * pageSize, take: pageSize });
     total = res.count;
     const batch = res.data || [];
     out.push(...batch);
-    if (batch.length < pageSize || out.length >= total) break;
+    if (batch.length < pageSize) break;                              // fim real dos dados
+    if (!ignoreCount && total != null && out.length >= total) break; // parada por count (ok p/ leads, onde count é fiel)
   }
-  return { count: total ?? out.length, data: out };
+  if (page >= maxPages) truncated = true;
+  return { count: ignoreCount ? out.length : (total ?? out.length), data: out, truncated };
 }
 
 function send(res, status, payload) {
@@ -245,6 +288,7 @@ module.exports = {
   sendError,
   getApiKey,           // mantido por compatibilidade (uso interno)
   getValidatedKey,     // novo — use este nos handlers
+  getClientEmpresa,    // nome do cliente (empresa) p/ cabeçalho do painel
   handleOptions,
   API_BASE,
   SUPABASE_ENABLED

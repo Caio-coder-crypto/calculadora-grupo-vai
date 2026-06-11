@@ -167,6 +167,37 @@ Tier grátis suporta milhares de requisições/mês — mais que suficiente pra 
 
 ---
 
+## 🟢 Google Ads — gasto automático (setup único da agência)
+
+O **Meta** o cliente conecta sozinho (cola token + ad account). O **Google Ads é diferente**: a API dele usa OAuth (o token expira a cada 1h) + um *developer token*. Por isso a autenticação é **da agência (Grupo VAI), feita 1 vez**, e cada cliente só informa o **Customer ID** da conta dele no painel. Modelo **MCC**: uma credencial da agência atende todas as contas gerenciadas.
+
+### O que você precisa providenciar (uma vez)
+
+1. **Conta MCC (Manager)** no Google Ads com as contas dos clientes vinculadas. (Provavelmente você já tem como gestor de tráfego.)
+2. **Developer token** — em `ads.google.com` → **Tools → API Center** (no MCC). Peça *Basic access* (aprovação costuma sair em ~1 dia; *Test access* só funciona em contas de teste).
+3. **OAuth client** — em [Google Cloud Console](https://console.cloud.google.com): crie um projeto → ative a **Google Ads API** (APIs e Serviços → Biblioteca) → configure a **Tela de consentimento OAuth** (adicione o escopo `.../auth/adwords` e seu e-mail como *test user*) → **Credenciais → Criar → ID do cliente OAuth** do tipo **Aplicativo da Web**, e adicione `https://developers.google.com/oauthplayground` como **URI de redirecionamento autorizado**. Guarde o **Client ID** e **Client Secret**.
+4. **Refresh token** da agência — no [OAuth Playground](https://developers.google.com/oauthplayground): ⚙️ (canto sup. direito) → marque *Use your own OAuth credentials* → cole Client ID + Secret → no campo de escopo cole `https://www.googleapis.com/auth/adwords` → *Authorize APIs* (logue com a conta que tem acesso ao MCC) → *Exchange authorization code for tokens* → copie o **Refresh token**.
+   > ⚠️ Publique o app na Tela de consentimento (*Publishing status → In production*). Em modo *Testing*, o refresh token expira em ~7 dias.
+
+### Env vars no Vercel (Settings → Environment Variables)
+
+| Variável | Valor |
+|---|---|
+| `GOOGLE_ADS_DEVELOPER_TOKEN` | developer token do MCC |
+| `GOOGLE_ADS_CLIENT_ID` | OAuth client id |
+| `GOOGLE_ADS_CLIENT_SECRET` | OAuth client secret |
+| `GOOGLE_ADS_REFRESH_TOKEN` | refresh token da agência |
+| `GOOGLE_ADS_LOGIN_CUSTOMER_ID` | ID do MCC (só dígitos, sem traços) |
+| `GOOGLE_ADS_API_VERSION` | *(opcional)* ex.: `v24` (versão atual em 2026; o Google mantém ~3 versões ativas, cada uma ~1 ano) |
+
+> Enquanto essas variáveis não estiverem setadas, o botão de buscar gasto do Google retorna um aviso claro (`GOOGLE_NOT_CONFIGURED`) — não quebra o painel.
+
+### Como o cliente usa (depois de configurado)
+
+Aba **💰 Gastos & ROI** → card **🟢 Google Ads** → cola o **Customer ID** da conta (ex.: `123-456-7890`) → **Salvar** → **Buscar gasto do período**. O campo "Google ADS" preenche sozinho e ROAS/CAC recalculam — igual ao Meta.
+
+---
+
 ## 🚀 Próximos passos sugeridos
 
 Quando tiver uns 10+ clientes ativos:

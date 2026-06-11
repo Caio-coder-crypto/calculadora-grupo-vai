@@ -24,6 +24,19 @@ const RATES = {
   service:   0.0000
 };
 
+// Provider/engine que indicam API OFICIAL do WhatsApp (Meta) — ESSAS são cobradas.
+// Evolution/Baileys/etc. NÃO têm custo por conversa da Meta.
+const OFFICIAL_PROVIDERS = new Set([
+  'OFFICIAL_API', 'META_OFFICIAL', 'META_API', 'CLOUD_API',
+  'WHATSAPP_CLOUD_API', 'WABA', 'WHATSAPP_BUSINESS_API', 'WHATSAPP_BSP'
+]);
+function isOfficialInstance(inst) {
+  if (!inst) return false;
+  const p = (inst.provider || '').toUpperCase();
+  const e = (inst.engine   || '').toUpperCase();
+  return OFFICIAL_PROVIDERS.has(p) || OFFICIAL_PROVIDERS.has(e);
+}
+
 // ---- Cache em memória por chave de API ----
 // Usa globalThis pra sobreviver ao hot-reload do dev server (server.js limpa
 // require.cache a cada request). Em produção (Vercel) o módulo é reusado
@@ -78,8 +91,11 @@ module.exports = async function handler(req, res) {
       fromCache = true;
     } else {
       [leadsRes, convsRes] = await Promise.all([
-        dcGetAll(apiKey, '/leads', {}, 200, 10),         // ~2k leads sampled
-        dcGetAll(apiKey, '/conversations', {}, 200, 10)  // ~2k conversas
+        dcGetAll(apiKey, '/leads', {}, 200, 10),  // ~2k leads sampled (count de leads é fiel)
+        // /conversations CAPA o count em 999 — não dá pra confiar nele. Paginamos
+        // pelos DADOS (ignoreCount) até o fim real, com teto de páginas + deadline
+        // pra não estourar o limite de 60s da função serverless.
+        dcGetAll(apiKey, '/conversations', {}, 300, 50, { ignoreCount: true, deadlineMs: 40000 })
       ]);
       cache.set(ck, { at: Date.now(), leadsRes, convsRes });
     }
@@ -125,18 +141,25 @@ module.exports = async function handler(req, res) {
       leadsByEffectiveOrigin['Sem origem identificada'] = leadsWithoutOrigin;
     }
 
-    // ---- Filtro de instâncias oficiais (opcional) ----
-    // Quando o cliente envia ?officialInstances=id1,id2,..., calculamos custo
-    // SOMENTE das conversas dessas instâncias (porque só a Oficial é cobrada
-    // pela Meta — Evolution/Baileys não tem custo Meta).
+    // ---- Conversas COBRÁVEIS = só instâncias OFICIAIS (API Oficial Meta/Cloud) ----
+    // Só a API Oficial é cobrada pela Meta; Evolution/Baileys NÃO têm custo Meta.
+    // Default: detecta automaticamente pelo provider/engine de CADA conversa.
+    // Override manual: se o cliente enviar ?officialInstances=id1,id2, usa esses ids.
     const officialInstancesRaw = q.officialInstances || '';
-    const officialInstanceIds = officialInstancesRaw
+    const manualOfficialIds = officialInstancesRaw
       ? new Set(officialInstancesRaw.split(',').map(s => s.trim()).filter(Boolean))
-      : null;  // null = sem filtro, considera todas
+      : null;
 
-    const filteredConvs = officialInstanceIds
-      ? convsRes.data.filter(c => c.instance?.id && officialInstanceIds.has(c.instance.id))
-      : convsRes.data;
+    const isBillableConv = (c) => manualOfficialIds
+      ? !!(c.instance?.id && manualOfficialIds.has(c.instance.id))
+      : isOfficialInstance(c.instance);
+
+    const filteredConvs = convsRes.data.filter(isBillableConv);
+
+    // Ids das instâncias oficiais efetivamente encontradas (p/ exibir no rodapé)
+    const officialIdsSeen = Array.from(new Set(
+      filteredConvs.map(c => c.instance?.id).filter(Boolean)
+    ));
 
     // ---- Processamento de conversas por mês (últimos 12 meses) ----
     const now = new Date();
@@ -194,7 +217,9 @@ module.exports = async function handler(req, res) {
     send(res, 200, {
       kpis: {
         totalLeads: leadsRes.count,
-        totalConversations: convsRes.count,
+        totalConversations: convsRes.data.length,     // REAL (paginado; ignora o teto de 999 da API)
+        conversationsTruncated: !!convsRes.truncated, // true = parou por limite, total pode ser maior
+        billableConversations: filteredConvs.length,  // conversas em instâncias OFICIAIS (cobráveis)
         thisMonth: {
           billable: thisMonth.billable,
           costBRL: thisMonth.costBRL,
@@ -226,16 +251,18 @@ module.exports = async function handler(req, res) {
         avgCostUSD,
         avgCostBRL: avgCostUSD * usdBrl,
         rates: RATES,
-        // Info do filtro de instâncias aplicado
-        instanceFilter: officialInstanceIds ? {
-          active:           true,
-          officialIds:      Array.from(officialInstanceIds),
+        // Info do filtro de instâncias (auto-detecção por provider, ou override manual)
+        instanceFilter: {
+          active:                  true,
+          mode:                    manualOfficialIds ? 'manual' : 'auto',
+          officialIds:             manualOfficialIds ? Array.from(manualOfficialIds) : officialIdsSeen,
           conversationsConsidered: filteredConvs.length,
           conversationsTotal:      convsRes.data.length,
-          excludedCount:    convsRes.data.length - filteredConvs.length
-        } : {
-          active: false,
-          note: 'Sem filtro — custo calculado com TODAS as conversas. Configure suas instâncias oficiais pra cálculo preciso.'
+          excludedCount:           convsRes.data.length - filteredConvs.length,
+          truncated:               !!convsRes.truncated,
+          note: manualOfficialIds
+            ? 'Custo calculado só das instâncias que você marcou como oficiais.'
+            : 'Custo automático: só instâncias OFICIAIS (API Oficial Meta/Cloud). Evolution/Baileys não são cobradas pela Meta.'
         }
       },
       cached: fromCache,

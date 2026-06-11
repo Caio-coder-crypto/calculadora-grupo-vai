@@ -157,6 +157,15 @@
           </div>
         </div>
 
+        <!-- Cliente em foco — deixa explícito DE QUEM são os dados (evita confusão de quem testa) -->
+        <div id="clientContext" class="hidden mb-4">
+          <span class="inline-flex items-center gap-2 text-xs sm:text-sm font-bold uppercase tracking-widest text-[#041227] bg-[#FFB81C] px-3.5 py-1.5 rounded-full shadow-sm ring-1 ring-[#FFB81C]/40">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            <span class="opacity-70">Cliente:</span>
+            <span id="clientNameBadge">—</span>
+          </span>
+        </div>
+
         <h1 class="font-display text-4xl sm:text-5xl lg:text-6xl text-white uppercase leading-[0.95]">
           BI Comercial <span class="text-[#00A859]">&amp;</span> Calculadora
         </h1>
@@ -939,6 +948,30 @@
               <p class="text-[10px] text-slate-400 mt-2">Ao buscar, o campo "📘 Meta ADS" abaixo é preenchido sozinho e ROAS/CAC recalculam. CPL (com leads do CRM) e consumo diário aparecem aqui.</p>
             </div>
 
+            <!-- ===== Item 3 — Conexão Google Ads (gasto automático) ===== -->
+            <div class="bg-white rounded-xl border-2 border-[#4285F4]/40 p-5 shadow-sm">
+              <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
+                <h4 class="text-sm font-bold text-[#041227] flex items-center gap-2">🟢 Google Ads — investimento automático</h4>
+                <span id="googleStatus" class="text-[11px] font-semibold text-slate-400">não conectado</span>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div class="sm:col-span-2">
+                  <label class="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Customer ID (conta Google Ads)</label>
+                  <input id="googleCustomer" type="text" placeholder="123-456-7890"
+                         class="w-full px-2.5 py-2 text-sm rounded border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#4285F4] font-mono" />
+                </div>
+                <div class="flex items-end">
+                  <p class="text-[10px] text-slate-400 leading-tight">Só o ID da conta. A autenticação do Google é da agência (configurada 1x no servidor).</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2 flex-wrap mt-3">
+                <button id="googleSaveBtn" type="button" class="text-xs font-semibold text-white bg-[#4285F4] hover:bg-[#3367d6] px-3 py-1.5 rounded-lg transition">💾 Salvar Customer ID</button>
+                <button id="googleFetchBtn" type="button" class="text-xs font-semibold text-[#4285F4] bg-[#4285F4]/10 hover:bg-[#4285F4]/20 ring-1 ring-[#4285F4]/40 px-3 py-1.5 rounded-lg transition">⬇️ Buscar gasto do período</button>
+                <span id="googleResult" class="text-[11px] text-slate-500"></span>
+              </div>
+              <p class="text-[10px] text-slate-400 mt-2">Ao buscar, o campo "🟢 Google ADS" abaixo é preenchido sozinho e ROAS/CAC recalculam.</p>
+            </div>
+
             <!-- Formulário de gastos manuais -->
             <div class="bg-white rounded-xl border-2 border-[#FFB81C]/40 p-5 shadow-sm">
               <h4 class="text-sm font-bold text-[#041227] mb-4 flex items-center gap-2">
@@ -1334,7 +1367,7 @@
           <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
             <p class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Conversas (total)</p>
             <p class="text-3xl font-extrabold text-[#041227] mt-2" id="kpiConvs">0</p>
-            <p class="text-xs text-[#00A859] font-semibold mt-1">Histórico completo</p>
+            <p class="text-xs text-[#00A859] font-semibold mt-1" id="kpiConvsSub">Histórico completo</p>
           </div>
           <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm relative overflow-hidden">
             <div class="absolute top-0 left-0 w-full h-1 bg-[#FFB81C]"></div>
@@ -2524,6 +2557,31 @@
         dot.title = 'Não conectado';
         label.textContent = 'Conectar meu CRM';
       }
+      // Atualiza o nome do cliente no cabeçalho (assíncrono, não bloqueia a UI)
+      loadClientName();
+    }
+
+    // Busca o nome do cliente (empresa cadastrada no painel) e exibe no cabeçalho,
+    // pra quem usa a ferramenta saber DE QUEM são os dados na tela.
+    // Silencioso: sem chave ou sem nome, apenas esconde o badge.
+    async function loadClientName() {
+      const wrap  = document.getElementById('clientContext');
+      const badge = document.getElementById('clientNameBadge');
+      if (!wrap || !badge) return;
+      if (!getDcKey()) { wrap.classList.add('hidden'); return; }
+      try {
+        const res  = await dcFetch('/api/datacrazy/whoami');
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data && data.name) {
+          badge.textContent = data.name;
+          wrap.classList.remove('hidden');
+          document.title = `${data.name} · BI Grupo VAI`;
+        } else {
+          wrap.classList.add('hidden');
+        }
+      } catch {
+        wrap.classList.add('hidden');
+      }
     }
 
     // Wrapper de fetch que injeta o header X-DataCrazy-Key automaticamente
@@ -2737,7 +2795,13 @@
     function renderDashboard(data) {
       // KPIs
       document.getElementById('kpiLeads').textContent = fmtInt(data.kpis.totalLeads);
-      document.getElementById('kpiConvs').textContent = fmtInt(data.kpis.totalConversations);
+      const convTrunc = data.kpis.conversationsTruncated;
+      document.getElementById('kpiConvs').textContent =
+        fmtInt(data.kpis.totalConversations) + (convTrunc ? '+' : '');
+      const convsSub = document.getElementById('kpiConvsSub');
+      if (convsSub) convsSub.textContent = convTrunc
+        ? 'amostra parcial (muitos dados)'
+        : 'todas as instâncias · histórico';
       document.getElementById('kpiCostNow').textContent = fmtBRL(data.kpis.thisMonth.costBRL);
       document.getElementById('kpiBillableNow').textContent =
         `${fmtInt(data.kpis.thisMonth.billable)} conversas cobráveis · ${fmtUSD(data.kpis.thisMonth.costUSD)}`;
@@ -4863,7 +4927,8 @@
       const monthsAgo = parseInt(document.getElementById('roiPeriod').value || '0', 10);
       const r = calendarMonthRange(monthsAgo);
       document.getElementById('roiPeriodLabel').textContent = '· ' + r.label;
-      updateMetaStatus();  // item 2 — reflete credenciais Meta salvas
+      updateMetaStatus();    // item 2 — reflete credenciais Meta salvas
+      updateGoogleStatus();  // item 3 — reflete Customer ID do Google salvo
 
       // 2) Carrega valores salvos no formulário
       const saved = getRoiExpensesForCurrentPeriod();
@@ -5041,9 +5106,72 @@
 
     // Wire up dos inputs e seletor
     document.getElementById('roiPeriod').addEventListener('change', renderRoi);
+    // ===== Item 3 — Google Ads (gasto automático via /api/google/insights) =====
+    // OAuth + developer token são da AGÊNCIA (ficam no servidor). O cliente só
+    // informa o Customer ID da conta dele.
+    const GOOGLE_CUSTOMER_KEY = 'dc_google_customer_v1';
+    function getGoogleCustomer() {
+      return localStorage.getItem(GOOGLE_CUSTOMER_KEY) || '';
+    }
+    function updateGoogleStatus() {
+      const el = document.getElementById('googleStatus');
+      const cust = getGoogleCustomer();
+      if (el) el.textContent = cust ? '✅ Customer ID salvo' : 'não conectado';
+      const inp = document.getElementById('googleCustomer');
+      if (inp && !inp.value && cust) inp.value = cust;
+    }
+    function saveGoogleCreds() {
+      const cust = document.getElementById('googleCustomer')?.value.trim();
+      if (cust) localStorage.setItem(GOOGLE_CUSTOMER_KEY, cust);
+      const el = document.getElementById('googleResult');
+      if (el) el.textContent = '💾 Customer ID salvo.';
+      updateGoogleStatus();
+    }
+    async function fetchGoogleSpendForRoiPeriod() {
+      const customer = getGoogleCustomer();
+      const resultEl = document.getElementById('googleResult');
+      if (!customer) { if (resultEl) resultEl.textContent = '⚠️ informe e salve o Customer ID primeiro.'; return; }
+      const monthsAgo = parseInt(document.getElementById('roiPeriod').value || '0', 10);
+      const r = calendarMonthRange(monthsAgo);
+      const ymd = (ts) => { const d = new Date(ts); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+      const since = ymd(r.start);
+      const until = ymd(r.end - 86400000);  // último dia do mês selecionado
+      if (resultEl) resultEl.textContent = '⏳ consultando Google Ads…';
+      try {
+        const url = `/api/google/insights?customerId=${encodeURIComponent(customer)}&since=${since}&until=${until}&level=campaign`;
+        const res = await fetch(url);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data.error || typeof data.spend !== 'number') {
+          if (resultEl) resultEl.textContent = '❌ ' + (data.message || `resposta inesperada (HTTP ${res.status})`);
+          return;  // não sobrescreve o gasto manual com 0 por resposta inválida
+        }
+        // Preenche o campo "Google ADS" e persiste no MESMO storage dos gastos manuais
+        saveRoiExpenseField('ads_google', data.spend);
+        const input = document.getElementById('roi_ads_google');
+        if (input) input.value = data.spend;
+        // CPL com leads do CRM (deals criados no período)
+        const leadsCrm = (biState.raw?.deals || []).filter(d => {
+          const t = new Date(d.createdAt).getTime();
+          return t >= r.start && t < r.end;
+        }).length;
+        const cpl = leadsCrm > 0 ? (data.spend / leadsCrm) : null;
+        if (resultEl) resultEl.innerHTML =
+          `✅ ${fmtBRL(data.spend)} no período · média ${fmtBRL(data.dailyAvgSpend)}/dia` +
+          (cpl != null ? ` · CPL ${fmtBRL(cpl)} (${fmtInt(leadsCrm)} leads CRM)` : '') +
+          (data.conversions ? ` · ${fmtInt(data.conversions)} conv. (Google)` : '');
+        renderRoi();  // recalcula ROAS/ROI/CAC com o novo gasto automático
+      } catch (err) {
+        if (resultEl) resultEl.textContent = '❌ ' + (err.message || 'falha de rede');
+      }
+    }
+
     // Item 2 — botões da conexão Meta Ads
     document.getElementById('metaSaveBtn')?.addEventListener('click', saveMetaCreds);
     document.getElementById('metaFetchBtn')?.addEventListener('click', fetchMetaSpendForRoiPeriod);
+    // Item 3 — botões da conexão Google Ads
+    document.getElementById('googleSaveBtn')?.addEventListener('click', saveGoogleCreds);
+    document.getElementById('googleFetchBtn')?.addEventListener('click', fetchGoogleSpendForRoiPeriod);
+    updateGoogleStatus();
     document.querySelectorAll('.roi-input').forEach(inp => {
       inp.addEventListener('input', (e) => {
         const field = e.target.id.replace('roi_', '');
