@@ -4972,9 +4972,9 @@
       const roles = getRoles();
       let commissionsTotal = 0;
       for (const d of wonInMonth) {
-        // Comissão do closer (attendantId final)
+        // Comissão direta: sobre os negócios que a pessoa fechou (qualquer papel)
         const cfg = roles[d.attendantId];
-        if (cfg && (cfg.role === 'closer' || cfg.role === 'both')) {
+        if (cfg) {
           commissionsTotal += (d.total || 0) * (cfg.commissionPct || 0) / 100;
         }
         // Comissão do SDR via tag
@@ -6691,11 +6691,11 @@
           if (!b.deals.includes(d)) b.deals.push(d);
           b.won++;
           b.revenue += (d.total || 0);
-          // Comissão do Closer (se tiver papel definido)
+          // Comissão direta: paga sobre os negócios que a pessoa FECHOU (qualquer papel).
+          // Antes só creditava closer/both — bug que zerava a comissão de quem está
+          // marcado como SDR mas fecha negócios (caía como "—" no ranking).
           const cfg = getRoleConfigFor(d.attendantId);
-          if (cfg.role === 'closer' || cfg.role === 'both') {
-            b.commission += (d.total || 0) * (cfg.commissionPct || 0) / 100;
-          }
+          b.commission += (d.total || 0) * (cfg.commissionPct || 0) / 100;
         }
         // Crédito da SDR via tag (mesmo sendo outro attendantId final)
         const sdrId = getSdrCreditFor(d.leadTags || []);
