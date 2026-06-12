@@ -4317,12 +4317,12 @@
 
         return `
           <div class="border border-slate-200 rounded-lg p-3 hover:border-slate-300 transition" data-row-id="${a.id}">
-            <div class="flex items-center gap-3 mb-2">
-              <div class="flex-1 min-w-0">
+            <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
+              <div class="w-full sm:flex-1 min-w-0">
                 <p class="text-sm font-semibold text-[#041227] truncate">${escapeHTML(a.name)}</p>
                 <p class="text-[10px] text-slate-500 truncate">${escapeHTML(a.email || '')}</p>
               </div>
-              <div class="flex items-center gap-1.5 flex-wrap">
+              <div class="flex items-center gap-1.5 flex-wrap sm:justify-end">
                 <label class="flex items-center gap-1 cursor-pointer text-xs">
                   <input type="radio" name="role-${a.id}" value="" ${!current ? 'checked' : ''} class="role-radio" data-attendant-id="${a.id}" />
                   <span class="text-slate-500">—</span>
