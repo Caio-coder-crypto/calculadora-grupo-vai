@@ -11,7 +11,7 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800;900&family=Sora:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
   <style>
     :root { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
@@ -49,6 +49,78 @@
     :focus-visible { outline: 2px solid #00A859; outline-offset: 2px; border-radius: 6px; }
     /* Tipografia DISPLAY condensada (igual à apresentação premium do Grupo VAI) */
     .font-display { font-family: 'Anton', 'Inter', system-ui, sans-serif; font-weight: 400; letter-spacing: .015em; }
+  </style>
+  <style id="dh-premium">
+    /* ============================================================
+       DataHub RevOps — Camada Premium (SOMENTE estética).
+       Não altera lógica, dados, IDs nem comportamento.
+       ============================================================ */
+
+    /* Fundo com profundidade — elimina o branco puro */
+    body{
+      background:
+        radial-gradient(1100px 560px at 100% -10%, rgba(0,168,89,.07), transparent 55%),
+        radial-gradient(820px 520px at -8% -6%, rgba(8,27,51,.06), transparent 52%),
+        linear-gradient(180deg,#F8FAFC 0%,#ECF1F6 60%,#E8EEF4 100%) !important;
+      background-attachment:fixed !important;
+    }
+    /* Grão discreto (atmosfera) */
+    body::before{
+      content:""; position:fixed; inset:0; z-index:0; pointer-events:none; opacity:.04;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+    main{ position:relative; z-index:1; }
+
+    /* Sombras premium (tom petróleo, em camadas) */
+    .shadow-sm{ box-shadow:0 1px 2px rgba(8,27,51,.04),0 1px 3px rgba(8,27,51,.05)!important; }
+    .shadow-md{ box-shadow:0 10px 28px -14px rgba(8,27,51,.13),0 2px 6px -3px rgba(8,27,51,.06)!important; }
+    .shadow-lg{ box-shadow:0 22px 48px -20px rgba(8,27,51,.17),0 6px 14px -8px rgba(8,27,51,.08)!important; }
+    .shadow-xl{ box-shadow:0 32px 70px -26px rgba(8,27,51,.22),0 10px 22px -12px rgba(8,27,51,.10)!important; }
+    .shadow-2xl{ box-shadow:0 44px 100px -34px rgba(8,27,51,.30)!important; }
+
+    /* Hairlines suaves + radius maior (Linear/Stripe) */
+    .border-slate-200{ border-color:rgba(8,27,51,.07)!important; }
+    .border-slate-100{ border-color:rgba(8,27,51,.045)!important; }
+    .rounded-lg{ border-radius:12px!important; }
+    .rounded-xl{ border-radius:16px!important; }
+    .rounded-2xl{ border-radius:22px!important; }
+
+    /* Cards elevados: transição + hover-lift */
+    .bg-white.shadow-sm,.bg-white.shadow-md,.bg-white.shadow-lg{
+      transition:transform .3s cubic-bezier(.2,.7,.2,1),box-shadow .3s ease,border-color .3s ease;
+    }
+    .bg-white.shadow-sm:hover,.bg-white.shadow-md:hover{
+      transform:translateY(-2px);
+      box-shadow:0 26px 54px -22px rgba(8,27,51,.20),0 8px 18px -10px rgba(8,27,51,.10)!important;
+    }
+
+    /* Navegação sticky -> vidro executivo */
+    nav#sectionNav{
+      background:rgba(248,250,252,.7)!important;
+      -webkit-backdrop-filter:blur(18px) saturate(160%); backdrop-filter:blur(18px) saturate(160%);
+      border-bottom:.5px solid rgba(8,27,51,.08)!important;
+    }
+
+    /* Hero mais enxuto e executivo */
+    header.mb-8{ margin-bottom:1.5rem!important; }
+    header .relative.p-6{ padding-top:1.6rem!important; padding-bottom:1.6rem!important; }
+    header h1.font-display{ font-size:clamp(1.9rem,4.2vw,3.1rem)!important; line-height:1.04!important; }
+
+    /* Tabelas (Notion + Stripe) */
+    table thead th{ letter-spacing:.045em; }
+    table tbody tr{ transition:background-color .15s ease; }
+    table tbody tr:hover{ background:rgba(8,27,51,.022)!important; }
+
+    /* Microinterações */
+    button{ transition:transform .15s ease,box-shadow .2s ease,background-color .2s ease,opacity .2s ease,border-color .2s ease!important; }
+    button:not(:disabled):active{ transform:scale(.985); }
+    input:focus,select:focus,textarea:focus{ box-shadow:0 0 0 3px rgba(0,168,89,.16)!important; }
+
+    /* Scrollbar premium */
+    *::-webkit-scrollbar{ height:9px;width:9px; }
+    *::-webkit-scrollbar-thumb{ background:rgba(8,27,51,.16);border-radius:999px; }
+    *::-webkit-scrollbar-thumb:hover{ background:rgba(8,27,51,.3); }
+    *::-webkit-scrollbar-track{ background:transparent; }
   </style>
 </head>
 <body class="text-slate-800 min-h-screen antialiased" style="background: radial-gradient(900px 520px at 85% -8%, rgba(0,168,89,.045), transparent 60%), radial-gradient(720px 520px at 0% 0%, rgba(4,18,39,.045), transparent 55%), linear-gradient(180deg, #f7f9fc 0%, #eef2f6 100%); background-attachment: fixed;">
@@ -948,28 +1020,9 @@
               <p class="text-[10px] text-slate-400 mt-2">Ao buscar, o campo "📘 Meta ADS" abaixo é preenchido sozinho e ROAS/CAC recalculam. CPL (com leads do CRM) e consumo diário aparecem aqui.</p>
             </div>
 
-            <!-- ===== Item 3 — Conexão Google Ads (gasto automático) ===== -->
-            <div class="bg-white rounded-xl border-2 border-[#4285F4]/40 p-5 shadow-sm">
-              <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
-                <h4 class="text-sm font-bold text-[#041227] flex items-center gap-2">🟢 Google Ads — investimento automático</h4>
-                <span id="googleStatus" class="text-[11px] font-semibold text-slate-400">não conectado</span>
-              </div>
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div class="sm:col-span-2">
-                  <label class="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Customer ID (conta Google Ads)</label>
-                  <input id="googleCustomer" type="text" placeholder="123-456-7890"
-                         class="w-full px-2.5 py-2 text-sm rounded border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#4285F4] font-mono" />
-                </div>
-                <div class="flex items-end">
-                  <p class="text-[10px] text-slate-400 leading-tight">Só o ID da conta. A autenticação do Google é da agência (configurada 1x no servidor).</p>
-                </div>
-              </div>
-              <div class="flex items-center gap-2 flex-wrap mt-3">
-                <button id="googleSaveBtn" type="button" class="text-xs font-semibold text-white bg-[#4285F4] hover:bg-[#3367d6] px-3 py-1.5 rounded-lg transition">💾 Salvar Customer ID</button>
-                <button id="googleFetchBtn" type="button" class="text-xs font-semibold text-[#4285F4] bg-[#4285F4]/10 hover:bg-[#4285F4]/20 ring-1 ring-[#4285F4]/40 px-3 py-1.5 rounded-lg transition">⬇️ Buscar gasto do período</button>
-                <span id="googleResult" class="text-[11px] text-slate-500"></span>
-              </div>
-              <p class="text-[10px] text-slate-400 mt-2">Ao buscar, o campo "🟢 Google ADS" abaixo é preenchido sozinho e ROAS/CAC recalculam.</p>
+            <!-- Google Ads automático removido (use o campo manual "🟢 Google ADS" abaixo). Meta segue automático. -->
+            <div class="bg-[#4285F4]/5 border border-[#4285F4]/20 rounded-xl px-4 py-3 text-[12px] text-slate-600">
+              🟢 <strong>Google Ads:</strong> lance o gasto manualmente no campo <strong>"🟢 Google ADS"</strong> logo acima. (Conexão automática indisponível — basta digitar quanto gastou.)
             </div>
 
             <!-- Formulário de gastos manuais -->
@@ -4928,7 +4981,6 @@
       const r = calendarMonthRange(monthsAgo);
       document.getElementById('roiPeriodLabel').textContent = '· ' + r.label;
       updateMetaStatus();    // item 2 — reflete credenciais Meta salvas
-      updateGoogleStatus();  // item 3 — reflete Customer ID do Google salvo
 
       // 2) Carrega valores salvos no formulário
       const saved = getRoiExpensesForCurrentPeriod();
@@ -5106,72 +5158,9 @@
 
     // Wire up dos inputs e seletor
     document.getElementById('roiPeriod').addEventListener('change', renderRoi);
-    // ===== Item 3 — Google Ads (gasto automático via /api/google/insights) =====
-    // OAuth + developer token são da AGÊNCIA (ficam no servidor). O cliente só
-    // informa o Customer ID da conta dele.
-    const GOOGLE_CUSTOMER_KEY = 'dc_google_customer_v1';
-    function getGoogleCustomer() {
-      return localStorage.getItem(GOOGLE_CUSTOMER_KEY) || '';
-    }
-    function updateGoogleStatus() {
-      const el = document.getElementById('googleStatus');
-      const cust = getGoogleCustomer();
-      if (el) el.textContent = cust ? '✅ Customer ID salvo' : 'não conectado';
-      const inp = document.getElementById('googleCustomer');
-      if (inp && !inp.value && cust) inp.value = cust;
-    }
-    function saveGoogleCreds() {
-      const cust = document.getElementById('googleCustomer')?.value.trim();
-      if (cust) localStorage.setItem(GOOGLE_CUSTOMER_KEY, cust);
-      const el = document.getElementById('googleResult');
-      if (el) el.textContent = '💾 Customer ID salvo.';
-      updateGoogleStatus();
-    }
-    async function fetchGoogleSpendForRoiPeriod() {
-      const customer = getGoogleCustomer();
-      const resultEl = document.getElementById('googleResult');
-      if (!customer) { if (resultEl) resultEl.textContent = '⚠️ informe e salve o Customer ID primeiro.'; return; }
-      const monthsAgo = parseInt(document.getElementById('roiPeriod').value || '0', 10);
-      const r = calendarMonthRange(monthsAgo);
-      const ymd = (ts) => { const d = new Date(ts); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
-      const since = ymd(r.start);
-      const until = ymd(r.end - 86400000);  // último dia do mês selecionado
-      if (resultEl) resultEl.textContent = '⏳ consultando Google Ads…';
-      try {
-        const url = `/api/google/insights?customerId=${encodeURIComponent(customer)}&since=${since}&until=${until}&level=campaign`;
-        const res = await fetch(url);
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok || data.error || typeof data.spend !== 'number') {
-          if (resultEl) resultEl.textContent = '❌ ' + (data.message || `resposta inesperada (HTTP ${res.status})`);
-          return;  // não sobrescreve o gasto manual com 0 por resposta inválida
-        }
-        // Preenche o campo "Google ADS" e persiste no MESMO storage dos gastos manuais
-        saveRoiExpenseField('ads_google', data.spend);
-        const input = document.getElementById('roi_ads_google');
-        if (input) input.value = data.spend;
-        // CPL com leads do CRM (deals criados no período)
-        const leadsCrm = (biState.raw?.deals || []).filter(d => {
-          const t = new Date(d.createdAt).getTime();
-          return t >= r.start && t < r.end;
-        }).length;
-        const cpl = leadsCrm > 0 ? (data.spend / leadsCrm) : null;
-        if (resultEl) resultEl.innerHTML =
-          `✅ ${fmtBRL(data.spend)} no período · média ${fmtBRL(data.dailyAvgSpend)}/dia` +
-          (cpl != null ? ` · CPL ${fmtBRL(cpl)} (${fmtInt(leadsCrm)} leads CRM)` : '') +
-          (data.conversions ? ` · ${fmtInt(data.conversions)} conv. (Google)` : '');
-        renderRoi();  // recalcula ROAS/ROI/CAC com o novo gasto automático
-      } catch (err) {
-        if (resultEl) resultEl.textContent = '❌ ' + (err.message || 'falha de rede');
-      }
-    }
-
-    // Item 2 — botões da conexão Meta Ads
+    // Item 2 — botões da conexão Meta Ads (Google é manual; auto removido)
     document.getElementById('metaSaveBtn')?.addEventListener('click', saveMetaCreds);
     document.getElementById('metaFetchBtn')?.addEventListener('click', fetchMetaSpendForRoiPeriod);
-    // Item 3 — botões da conexão Google Ads
-    document.getElementById('googleSaveBtn')?.addEventListener('click', saveGoogleCreds);
-    document.getElementById('googleFetchBtn')?.addEventListener('click', fetchGoogleSpendForRoiPeriod);
-    updateGoogleStatus();
     document.querySelectorAll('.roi-input').forEach(inp => {
       inp.addEventListener('input', (e) => {
         const field = e.target.id.replace('roi_', '');
@@ -7218,6 +7207,209 @@
     if (typeof getDcKey === 'function' && getDcKey() && typeof loadBi === 'function') {
       try { loadBi(); } catch (e) { console.warn('[auto-load BI]', e); }
     }
+  </script>
+
+  <!-- ============================================================ -->
+  <!-- Grupo VAI App-Shell (portado do DataHub; só apresentação) -->
+  <!-- ============================================================ -->
+  <style id="dh-shell-css">
+    .dh-shell #sectionNav{ display:none !important; }
+    .dh-shell main > header{ display:none !important; }
+    .dh-shell main{ margin-left:252px !important; max-width:none !important; padding:0 30px 56px !important; }
+
+    #dhSidebar{ position:fixed; left:0; top:0; bottom:0; width:252px; z-index:50;
+      background:linear-gradient(180deg,#081B33 0%,#041227 100%); color:#aeb9c9;
+      display:flex; flex-direction:column; padding:18px 14px; overflow-y:auto;
+      border-right:1px solid rgba(255,255,255,.06); }
+    #dhSidebar .dh-brand{ display:flex; align-items:center; gap:10px; padding:6px 8px 14px; margin-bottom:4px; }
+    #dhSidebar .dh-brand img{ width:30px; height:30px; }
+    #dhSidebar .dh-brand b{ color:#fff; font-family:'Sora',system-ui,sans-serif; font-weight:700; font-size:17px; letter-spacing:-.02em; }
+    #dhSidebar .dh-brand small{ display:block; color:#00A859; font-size:9px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; margin-top:1px; }
+    #dhSidebar .dh-group{ font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:#52627a; margin:16px 12px 6px; }
+    #dhSidebar .dh-item{ display:flex; align-items:center; gap:11px; width:100%; text-align:left;
+      padding:9px 12px; border-radius:10px; color:#aeb9c9; font-family:'Inter',sans-serif; font-size:13.5px; font-weight:500;
+      background:transparent; border:0; cursor:pointer; transition:background .15s,color .15s; }
+    #dhSidebar .dh-item:hover{ background:rgba(255,255,255,.05); color:#fff; }
+    #dhSidebar .dh-item.active{ background:rgba(0,168,89,.15); color:#fff; box-shadow:inset 3px 0 0 #00A859; }
+    #dhSidebar .dh-item .ic{ width:18px; text-align:center; font-size:14px; opacity:.95; }
+    #dhSidebar .dh-foot{ margin-top:auto; padding:12px 10px 4px; border-top:1px solid rgba(255,255,255,.06); font-size:11px; color:#5b6b82; }
+
+    #dhTopbar{ position:sticky; top:0; z-index:40; display:flex; align-items:center; justify-content:space-between; gap:16px;
+      padding:16px 0 14px; margin-bottom:14px; background:linear-gradient(180deg, rgba(248,250,252,.92), rgba(248,250,252,0));
+      -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); }
+    #dhTopbar .t-title{ font-family:'Sora',system-ui,sans-serif; font-weight:700; font-size:21px; color:#041227; letter-spacing:-.02em; line-height:1; }
+    #dhTopbar .t-sub{ font-size:12px; color:#64748B; margin-top:3px; }
+    #dhTopbar .t-actions{ display:flex; align-items:center; gap:9px; }
+    .dh-btn{ display:inline-flex; align-items:center; gap:7px; padding:9px 14px; border-radius:10px; font-size:13px; font-weight:600; cursor:pointer; border:1px solid transparent; transition:all .15s; font-family:'Inter',sans-serif; }
+    .dh-btn-primary{ background:#00A859; color:#041227; }
+    .dh-btn-primary:hover{ background:#00754d; color:#fff; }
+    .dh-btn-ghost{ background:#fff; color:#041227; border-color:rgba(8,27,51,.1); }
+    .dh-btn-ghost:hover{ border-color:#00A859; color:#00754d; }
+    .dh-client{ display:inline-flex; align-items:center; gap:7px; padding:7px 13px; border-radius:999px; background:rgba(0,168,89,.1); border:1px solid rgba(0,168,89,.28); color:#00754d; font-family:'Inter',sans-serif; font-size:12.5px; font-weight:600; }
+    .dh-client .ic{ font-size:12px; }
+    .dh-dot{ width:8px; height:8px; border-radius:999px; background:#CBD5E1; display:inline-block; transition:background .2s ease, box-shadow .2s ease; }
+
+    /* Strip de KPIs unificado (topo) */
+    #dhKpis{ display:grid; grid-template-columns:repeat(6,1fr); gap:12px; margin-bottom:14px; }
+    #dhKpis .k{ background:#fff; border:.5px solid rgba(8,27,51,.08); border-radius:14px; padding:13px 15px; box-shadow:0 1px 2px rgba(8,27,51,.04); }
+    #dhKpis .k .kl{ font-size:10px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:#64748B; }
+    #dhKpis .k .kv{ font-family:'Sora',system-ui,sans-serif; font-size:21px; font-weight:700; color:#041227; letter-spacing:-.02em; margin-top:5px; line-height:1; }
+    #dhKpis .k .kd{ font-size:11px; color:#64748B; margin-top:4px; min-height:14px; }
+    @media (max-width:1200px){ #dhKpis{ grid-template-columns:repeat(3,1fr); } }
+    @media (max-width:640px){ #dhKpis{ grid-template-columns:repeat(2,1fr); } }
+
+    /* Insights Automáticos */
+    #dhInsights{ background:linear-gradient(135deg,#081B33,#041227); border-radius:16px; padding:16px 18px; margin-bottom:18px; box-shadow:0 18px 40px -22px rgba(8,27,51,.45); }
+    #dhInsights .ih{ display:flex; align-items:center; gap:9px; color:#fff; font-family:'Sora',system-ui,sans-serif; font-weight:700; font-size:14px; margin-bottom:12px; }
+    #dhInsights .ih .dot{ width:7px; height:7px; border-radius:99px; background:#00A859; box-shadow:0 0 0 4px rgba(0,168,89,.2); }
+    #dhInsights .ig{ display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:10px; }
+    #dhInsights .ins{ display:flex; gap:10px; align-items:flex-start; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.07); border-radius:11px; padding:11px 13px; }
+    #dhInsights .ins .ie{ font-size:17px; line-height:1.2; }
+    #dhInsights .ins .it{ color:#cdd7e5; font-size:12.5px; line-height:1.45; }
+    #dhInsights .ins .it b{ color:#fff; font-weight:600; }
+
+    #dhToggle{ display:none; }
+    @media (max-width:1024px){
+      #dhSidebar{ transform:translateX(-100%); transition:transform .25s ease; }
+      .dh-shell.dh-open #dhSidebar{ transform:translateX(0); box-shadow:0 24px 70px rgba(4,18,39,.5); }
+      .dh-shell main{ margin-left:0 !important; padding:0 16px 44px !important; }
+      #dhToggle{ display:inline-flex; }
+    }
+  </style>
+  <script>
+  (function(){
+    function boot(){
+      try{
+        var root=document.documentElement, mainEl=document.querySelector('main');
+        if(!mainEl || document.getElementById('dhSidebar')) return;
+        var biSection=document.getElementById('biSection'),
+            dashSection=document.getElementById('dashboardSection'),
+            repHeader=document.getElementById('reportAreaHeader'),
+            repArea=document.getElementById('reportArea');
+
+        if(biSection){ var bh=biSection.querySelector(':scope > .bg-gradient-to-br'); if(bh) bh.style.display='none'; }
+        var biTabs=document.getElementById('biTabs'); if(biTabs) biTabs.style.display='none';
+
+        var NAV=[
+          {g:'Geral'},
+          {t:'Visão Geral', ic:'📊', kind:'bi', key:'overview'},
+          {g:'Vendas'},
+          {t:'Origem dos Leads', ic:'🎯', kind:'bi', key:'origin'},
+          {t:'Funil de Vendas', ic:'🔁', kind:'bi', key:'funnel'},
+          {t:'Gastos & ROI', ic:'💰', kind:'bi', key:'roi'},
+          {t:'Geografia', ic:'🗺️', kind:'bi', key:'geo'},
+          {g:'Equipe'},
+          {t:'Vendedores', ic:'🏆', kind:'bi', key:'sellers'},
+          {t:'Produtividade', ic:'⚡', kind:'bi', key:'productivity'},
+          {t:'Atendimento', ic:'🎧', kind:'bi', key:'service'},
+          {g:'WhatsApp'},
+          {t:'Conversas', ic:'💬', kind:'section', key:'dash'},
+          {t:'Simulador de Receita', ic:'🧮', kind:'section', key:'calc'}
+        ];
+        var aside=document.createElement('aside'); aside.id='dhSidebar';
+        var html='<div class="dh-brand"><img src="vai-icon.png" alt="Grupo VAI"><div><b>Grupo VAI</b><small>RevOps</small></div></div>';
+        NAV.forEach(function(n){
+          if(n.g){ html+='<div class="dh-group">'+n.g+'</div>'; return; }
+          html+='<button class="dh-item" data-kind="'+n.kind+'" data-key="'+n.key+'"><span class="ic">'+n.ic+'</span>'+n.t+'</button>';
+        });
+        html+='<div class="dh-foot">Grupo VAI · RevOps</div>';
+        aside.innerHTML=html;
+        document.body.appendChild(aside);
+
+        var top=document.createElement('div'); top.id='dhTopbar';
+        top.innerHTML='<div><div class="t-title" id="dhViewTitle">Visão Geral</div><div class="t-sub" id="dhViewClient">RevOps · WhatsApp</div></div>'+
+          '<div class="t-actions">'+
+          '<span class="dh-client" id="dhClientChip" style="display:none"><span class="ic">📍</span><span id="dhClientName"></span></span>'+
+          '<button class="dh-btn dh-btn-ghost" id="dhToggle" aria-label="Menu">☰</button>'+
+          '<button class="dh-btn dh-btn-ghost" id="dhConfig" title="Conexão com a Central Comercial"><span class="dh-dot" id="dhConnDot"></span>⚙️ Central Comercial</button>'+
+          '<button class="dh-btn dh-btn-primary" id="dhSync">↻ Atualizar Insights</button>'+
+          '</div>';
+        mainEl.prepend(top);
+
+        Array.prototype.forEach.call(mainEl.children, function(c){
+          if(c===top || c===biSection || c===dashSection || c===repHeader || c===repArea) return;
+          c.style.display='none';
+        });
+
+        // Strip de KPIs + Insights (lê valores JÁ renderizados — zero recálculo)
+        var kpis=document.createElement('div'); kpis.id='dhKpis';
+        kpis.innerHTML=[['Receita','dhk_rev'],['ROAS','dhk_roas'],['CAC','dhk_cac'],['Conversão','dhk_conv'],['Conversas','dhk_convs'],['Meta atingida','dhk_meta']]
+          .map(function(k){ return '<div class="k"><div class="kl">'+k[0]+'</div><div class="kv" id="'+k[1]+'">—</div><div class="kd" id="'+k[1]+'_d"></div></div>'; }).join('');
+        top.parentNode.insertBefore(kpis, top.nextSibling);
+        var insBox=document.createElement('div'); insBox.id='dhInsights';
+        insBox.innerHTML='<div class="ih"><span class="dot"></span>Insights Automáticos</div><div class="ig" id="dhInsightsBody"><div class="ins"><span class="ie">💡</span><span class="it">Clique em <b>Atualizar Insights</b> para carregar seus dados.</span></div></div>';
+        kpis.parentNode.insertBefore(insBox, kpis.nextSibling);
+
+        function txt(id){ var e=document.getElementById(id); return e? (e.textContent||'').trim() : ''; }
+        function setk(id,v){ var e=document.getElementById(id); if(e) e.textContent=(v&&v!=='')?v:'—'; }
+        function dhRefreshKpis(){
+          try{
+            var rev=txt('kpiRevenue'), roas=txt('kpiROAS'), cac=txt('kpiCAC'), conv=txt('kpiConversion'),
+                convs=txt('kpiConvs'), meta=txt('teamGoalPct'), proj=txt('kpiProjection'),
+                revD=txt('kpiRevenueDelta'), cacD=txt('kpiCACDetail'), convD=txt('kpiConversionDetail');
+            setk('dhk_rev',rev); setk('dhk_roas',roas); setk('dhk_cac',cac);
+            setk('dhk_conv',conv); setk('dhk_convs',convs); setk('dhk_meta', meta);
+            setk('dhk_rev_d', (revD&&revD.indexOf('—')<0)?revD:''); setk('dhk_cac_d', cacD); setk('dhk_conv_d', convD);
+            var hasData = rev && rev!=='R$ 0' && rev!=='—';
+            if(!hasData) return;
+            var cards=[];
+            cards.push(['💰','Receita no período: <b>'+rev+'</b>'+((revD&&revD.indexOf('—')<0)?(' · '+revD):'')]);
+            var isZero=function(s){ return !s || s==='—' || /^R?\$?\s*0([.,]0+)?\s*%?$/.test(s); };
+            if(!isZero(proj)) cards.push(['📈','Projeção do mês: <b>'+proj+'</b>']);
+            if(roas&&roas!=='—') cards.push(['🚀','ROAS do WhatsApp: <b>'+roas+'</b>']);
+            if(cac&&cac!=='—') cards.push(['👤','Custo por cliente (CAC): <b>'+cac+'</b>']);
+            if(conv&&conv!=='—') cards.push(['🎯','Taxa de conversão: <b>'+conv+'</b>']);
+            if(meta&&meta!=='—') cards.push(['🏆','Meta da equipe: <b>'+meta+'</b> atingida']);
+            var body=document.getElementById('dhInsightsBody');
+            if(body&&cards.length) body.innerHTML=cards.map(function(c){ return '<div class="ins"><span class="ie">'+c[0]+'</span><span class="it">'+c[1]+'</span></div>'; }).join('');
+          }catch(e){}
+        }
+
+        function setActive(btn){ var it=aside.querySelectorAll('.dh-item'); for(var i=0;i<it.length;i++) it[i].classList.toggle('active', it[i]===btn); }
+        function show(kind,key,title){
+          [biSection,dashSection,repHeader,repArea].forEach(function(x){ if(x) x.style.display='none'; });
+          if(kind==='bi'){ if(biSection) biSection.style.display=''; var tb=document.querySelector('[data-bi-tab="'+key+'"]'); if(tb) tb.click(); }
+          else if(key==='dash'){ if(dashSection) dashSection.style.display=''; }
+          else if(key==='calc'){ if(repHeader) repHeader.style.display=''; if(repArea) repArea.style.display=''; }
+          var vt=document.getElementById('dhViewTitle'); if(vt&&title) vt.textContent=title;
+          window.scrollTo(0,0);
+          setTimeout(function(){ try{ window.dispatchEvent(new Event('resize')); }catch(e){} dhRefreshKpis(); }, 80);
+        }
+        var items=aside.querySelectorAll('.dh-item');
+        for(var i=0;i<items.length;i++){ (function(btn){
+          btn.addEventListener('click', function(){ setActive(btn); show(btn.dataset.kind, btn.dataset.key, btn.textContent.trim()); root.classList.remove('dh-open'); });
+        })(items[i]); }
+
+        var sync=document.getElementById('dhSync'); if(sync) sync.addEventListener('click', function(){ var b=document.getElementById('biSyncBtn'); if(b) b.click(); });
+        var cfg=document.getElementById('dhConfig'); if(cfg) cfg.addEventListener('click', function(){ var b=document.getElementById('configBtn'); if(b) b.click(); });
+        var tg=document.getElementById('dhToggle'); if(tg) tg.addEventListener('click', function(){ root.classList.toggle('dh-open'); });
+
+        function dhUpdateConn(){
+          var dot=document.getElementById('dhConnDot'); if(!dot) return;
+          var on=false; try{ on=(typeof getDcKey==='function')&&!!getDcKey(); }catch(e){}
+          dot.style.background = on ? '#00A859' : '#CBD5E1';
+          dot.style.boxShadow = on ? '0 0 0 3px rgba(0,168,89,.22)' : 'none';
+          var b=document.getElementById('dhConfig'); if(b) b.title = on ? 'Conectado à Central Comercial' : 'Não conectado — clique para conectar';
+        }
+        function syncClient(){
+          var n=document.getElementById('clientNameBadge');
+          var nm=(n&&n.textContent&&n.textContent.trim()&&n.textContent.trim()!=='—')?n.textContent.trim():'';
+          var chip=document.getElementById('dhClientChip'), cn=document.getElementById('dhClientName');
+          if(cn) cn.textContent=nm;
+          if(chip) chip.style.display = nm ? 'inline-flex' : 'none';
+          var sub=document.getElementById('dhViewClient'); if(sub) sub.textContent = nm ? ('Cliente: '+nm) : 'RevOps · WhatsApp';
+          dhUpdateConn();
+        }
+        syncClient(); setInterval(syncClient, 3000);
+
+        root.classList.add('dh-shell');
+        var first=aside.querySelector('.dh-item'); if(first){ setActive(first); show('bi','overview','Visão Geral'); }
+        dhRefreshKpis(); setInterval(dhRefreshKpis, 3000);
+        var syncBtn2=document.getElementById('dhSync'); if(syncBtn2) syncBtn2.addEventListener('click', function(){ setTimeout(dhRefreshKpis, 1500); setTimeout(dhRefreshKpis, 5000); });
+      }catch(e){ console.warn('[dh-shell] desativado por erro:', e); }
+    }
+    if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot); else boot();
+  })();
   </script>
 </body>
 </html>
