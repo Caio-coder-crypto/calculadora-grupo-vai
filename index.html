@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Grupo VAI — Calculadora de Custos WhatsApp Business API</title>
+  <link rel="icon" type="image/webp" href="vai-logo-quadrada.webp" />
+  <link rel="apple-touch-icon" href="vai-logo-quadrada.webp" />
   <meta name="description" content="Calculadora oficial de custos da API do WhatsApp Business + Dashboard CRM + BI completo. Cotação USD/BRL em tempo real." />
 
   <script src="https://cdn.tailwindcss.com"></script>
@@ -195,7 +197,7 @@
     <!-- Header da página — hero navy executivo (identidade do pitch Grupo VAI) -->
     <header class="mb-8 lg:mb-10 relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-[#0b1b3a] via-[#0a1730] to-[#050c1a] text-white shadow-xl ring-1 ring-white/5">
       <!-- watermark do logo ao fundo -->
-      <img src="vai-icon.png" alt="" aria-hidden="true" class="pointer-events-none select-none absolute -left-10 -top-12 w-72 sm:w-[28rem] opacity-[0.045]" onerror="this.style.display='none'" />
+      <img src="vai-logo-quadrada.webp" alt="" aria-hidden="true" class="pointer-events-none select-none absolute -left-10 -top-12 w-72 sm:w-[28rem] opacity-[0.045]" onerror="this.style.display='none'" />
       <!-- faixa de acento (verde + dourado da marca) -->
       <div class="absolute top-0 left-0 right-0 h-1 flex">
         <span class="w-20 bg-[#00A859]"></span><span class="w-8 bg-[#FFB81C]"></span><span class="flex-1 bg-white/5"></span>
@@ -206,7 +208,7 @@
             <div class="rounded-xl overflow-hidden ring-1 ring-white/10 bg-white/5 flex items-center justify-center w-11 h-11 sm:w-14 sm:h-14 shrink-0">
               <img id="brandIcon" src="vai-logo-quadrada.webp" alt="Grupo VAI"
                    class="w-full h-full object-cover block"
-                   onerror="this.onerror=null;this.src='vai-icon.png';" />
+                   onerror="this.onerror=null;this.src='vai-logo-quadrada.webp';" />
             </div>
             <div class="leading-tight">
               <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-[#00A859]">Grupo VAI</p>
@@ -1683,7 +1685,7 @@
         <div class="flex items-center justify-between pb-6 mb-8 border-b border-slate-200">
           <div class="flex items-center gap-3">
             <div class="rounded-lg overflow-hidden shadow-sm ring-1 ring-[#041227]/10 bg-[#041227] flex items-center justify-center" style="width: 120px; height: 48px;">
-              <img id="reportIcon" src="vai-icon.png" alt="Grupo VAI"
+              <img id="reportIcon" src="vai-logo-quadrada.webp" alt="Grupo VAI"
                    class="max-h-full max-w-full object-contain block"
                    onerror="this.onerror=null;this.src='logo-icon.png';"
                    crossorigin="anonymous" />
@@ -2432,7 +2434,7 @@
                 <tr>
                   <td style="vertical-align: middle; padding-right: 12px;">
                     <div style="background: #041227; padding: 6px 10px; border-radius: 8px; display: inline-block;">
-                      <img src="vai-icon.png" style="height: 32px; width: auto; display: block; max-width: 90px; object-fit: contain;" crossorigin="anonymous" />
+                      <img src="vai-logo-quadrada.webp" style="height: 32px; width: auto; display: block; max-width: 90px; object-fit: contain;" crossorigin="anonymous" />
                     </div>
                   </td>
                   <td style="vertical-align: middle;">
@@ -7222,7 +7224,7 @@
       display:flex; flex-direction:column; padding:18px 14px; overflow-y:auto;
       border-right:1px solid rgba(255,255,255,.06); }
     #dhSidebar .dh-brand{ display:flex; align-items:center; gap:10px; padding:6px 8px 14px; margin-bottom:4px; }
-    #dhSidebar .dh-brand img{ width:30px; height:30px; }
+    #dhSidebar .dh-brand img{ width:32px; height:32px; border-radius:7px; object-fit:cover; }
     #dhSidebar .dh-brand b{ color:#fff; font-family:'Sora',system-ui,sans-serif; font-weight:700; font-size:17px; letter-spacing:-.02em; }
     #dhSidebar .dh-brand small{ display:block; color:#00A859; font-size:9px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; margin-top:1px; }
     #dhSidebar .dh-group{ font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:#52627a; margin:16px 12px 6px; }
@@ -7307,7 +7309,7 @@
           {t:'Simulador de Receita', ic:'🧮', kind:'section', key:'calc'}
         ];
         var aside=document.createElement('aside'); aside.id='dhSidebar';
-        var html='<div class="dh-brand"><img src="vai-icon.png" alt="Grupo VAI"><div><b>Grupo VAI</b><small>RevOps</small></div></div>';
+        var html='<div class="dh-brand"><img src="vai-logo-quadrada.webp" alt="Grupo VAI"><div><b>Grupo VAI</b><small>RevOps</small></div></div>';
         NAV.forEach(function(n){
           if(n.g){ html+='<div class="dh-group">'+n.g+'</div>'; return; }
           html+='<button class="dh-item" data-kind="'+n.kind+'" data-key="'+n.key+'"><span class="ic">'+n.ic+'</span>'+n.t+'</button>';
