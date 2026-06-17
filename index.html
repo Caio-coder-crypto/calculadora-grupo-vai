@@ -4588,32 +4588,71 @@
       document.getElementById(view).classList.remove('hidden');
     }
 
+    // Carga em CHUNKS: o back entrega no máx. 3.000 deals por resposta (limite do
+    // Vercel). Buscamos o 1º chunk (traz metadados + total), depois os restantes em
+    // sequência até montar a base inteira no cliente. Assim os cálculos rodam sobre
+    // TODOS os negócios, não só os 3.000 mais recentes.
+    const BI_CHUNK = 3000;
+
+    function setBiLoadingProgress(loaded, total) {
+      const el = document.getElementById('biLoadingMsg');
+      if (!el) return;
+      if (total && total > BI_CHUNK) {
+        el.textContent = `Carregando ${fmtInt(loaded)} de ${fmtInt(total)} negócios…`;
+      } else {
+        el.textContent = 'Pode levar 10-30s na primeira carga (depois fica em cache).';
+      }
+    }
+
+    // Busca um chunk e devolve o JSON (ou null se já tratamos bloqueio/401).
+    async function fetchBiChunk(skip, force) {
+      const qs = '?dealsSkip=' + skip + '&dealsTake=' + BI_CHUNK + (force ? '&force=1' : '');
+      const res = await dcFetch('/api/datacrazy/bi-data' + qs);
+      // Lê como texto primeiro pra evitar "Unexpected token" quando o Vercel
+      // retorna HTML em caso de timeout/erro 500.
+      const rawText = await res.text();
+      let data;
+      try {
+        data = JSON.parse(rawText);
+      } catch {
+        if (res.status === 504 || /gateway.*time|fun.*timeout/i.test(rawText)) {
+          throw new Error('A operação demorou demais (timeout). Sua base é muito grande — tente novamente em alguns segundos.');
+        }
+        throw new Error(`Resposta inesperada do servidor (HTTP ${res.status}).`);
+      }
+      if (!res.ok || data.error) {
+        // 403 ou KEY_NOT_FOUND → tela de bloqueio (kill switch)
+        if (checkSubscriptionBlock(res, data)) { setBiView('biEmpty'); return null; }
+        if (res.status === 401) { openConfig(); showConfigMessage('error', data.hint || 'Chave inválida.'); setBiView('biEmpty'); return null; }
+        throw new Error(data.message || `HTTP ${res.status}`);
+      }
+      return data;
+    }
+
     async function loadBi(force = false) {
       if (!getDcKey()) { openConfig(); showConfigMessage('info', 'Configure sua chave DataCrazy antes de carregar o BI.'); return; }
       setBiView('biLoading');
+      setBiLoadingProgress(0, 0);
       try {
-        const res = await dcFetch('/api/datacrazy/bi-data' + (force ? '?force=1' : ''));
-        // Lê como texto primeiro pra evitar "Unexpected token" quando Vercel
-        // retorna HTML em caso de timeout/erro 500
-        const rawText = await res.text();
-        let data;
-        try {
-          data = JSON.parse(rawText);
-        } catch {
-          if (res.status === 504 || /gateway.*time|fun.*timeout/i.test(rawText)) {
-            throw new Error('A operação demorou demais (timeout). Sua base é muito grande — tente novamente em alguns segundos.');
-          }
-          throw new Error(`Resposta inesperada do servidor (HTTP ${res.status}).`);
+        // 1º chunk: metadados (pipelines/atendentes/motivos) + total + 1ª leva de deals
+        const first = await fetchBiChunk(0, force);
+        if (!first) return;  // bloqueio/401 já tratado
+        let allDeals = Array.isArray(first.deals) ? first.deals.slice() : [];
+        const total = first.dealsTotal || (first.counts && first.counts.deals) || allDeals.length;
+
+        // Chunks restantes em sequência (evita rate-limit; mostra progresso)
+        let guard = 0;
+        for (let skip = BI_CHUNK; skip < total && guard < 50; skip += BI_CHUNK) {
+          guard++;
+          setBiLoadingProgress(allDeals.length, total);
+          const chunk = await fetchBiChunk(skip, force);
+          if (!chunk) return;  // bloqueio/401 no meio
+          if (Array.isArray(chunk.deals)) allDeals.push(...chunk.deals);
+          if (!chunk.hasMore) break;
         }
-        if (!res.ok || data.error) {
-          // 403 ou KEY_NOT_FOUND → tela de bloqueio (kill switch)
-          if (checkSubscriptionBlock(res, data)) {
-            setBiView('biEmpty');
-            return;
-          }
-          if (res.status === 401) { openConfig(); showConfigMessage('error', data.hint || 'Chave inválida.'); setBiView('biEmpty'); return; }
-          throw new Error(data.message || `HTTP ${res.status}`);
-        }
+
+        // Monta o dataset completo: metadados do 1º chunk + TODOS os deals
+        const data = { ...first, deals: allDeals };
         biState.raw = data;
         populateBiFilters(data);
         applyBiFilters();
@@ -7320,7 +7359,6 @@
           {t:'Geografia', ic:'🗺️', kind:'bi', key:'geo'},
           {g:'Equipe'},
           {t:'Vendedores', ic:'🏆', kind:'bi', key:'sellers'},
-          {t:'Produtividade', ic:'⚡', kind:'bi', key:'productivity'},
           {t:'Atendimento', ic:'🎧', kind:'bi', key:'service'},
           {g:'WhatsApp'},
           {t:'Conversas', ic:'💬', kind:'section', key:'dash'},
