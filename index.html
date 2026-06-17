@@ -2700,7 +2700,7 @@
         });
         const data = await res.json();
         if (!res.ok || data.error) throw new Error(data.message || `HTTP ${res.status}`);
-        showConfigMessage('success', `✓ Conexão OK. ${fmtInt(data.total || 0)} leads encontrados.`);
+        showConfigMessage('success', '✓ Conexão OK! Chave válida — dados acessíveis.');
       } catch (err) {
         showConfigMessage('error', '✗ ' + (err.message || 'Falha na conexão'));
       }
@@ -7271,11 +7271,29 @@
     #dhInsights .ins .it b{ color:#fff; font-weight:600; }
 
     #dhToggle{ display:none; }
+    .dh-lbl{ display:inline; }
+    /* Trava o scroll horizontal sem quebrar o position:sticky do topbar.
+       overflow-x:clip (≠ hidden) não cria scroll-container no eixo Y, então o sticky continua. */
+    html, body{ max-width:100%; overflow-x:clip; }
     @media (max-width:1024px){
-      #dhSidebar{ transform:translateX(-100%); transition:transform .25s ease; }
+      #dhSidebar{ transform:translateX(-100%); transition:transform .25s ease; width:84vw; max-width:300px; }
       .dh-shell.dh-open #dhSidebar{ transform:translateX(0); box-shadow:0 24px 70px rgba(4,18,39,.5); }
-      .dh-shell main{ margin-left:0 !important; padding:0 16px 44px !important; }
-      #dhToggle{ display:inline-flex; }
+      .dh-shell.dh-open::before{ content:''; position:fixed; inset:0; z-index:45; background:rgba(4,18,39,.5); -webkit-backdrop-filter:blur(2px); backdrop-filter:blur(2px); }
+      .dh-shell main{ margin-left:0 !important; padding:0 14px 40px !important; }
+      #dhToggle{ display:inline-flex; order:-1; }
+      #dhTopbar{ flex-wrap:wrap; gap:10px; padding:12px 0 10px; }
+      #dhTopbar .t-actions{ flex-wrap:wrap; gap:8px; }
+    }
+    @media (max-width:640px){
+      #dhTopbar .t-title{ font-size:18px; }
+      #dhTopbar .t-sub{ font-size:11px; }
+      /* No celular os botões viram só ícone (⚙️ / ↻) — cabem com folga, nada some da tela */
+      #dhTopbar .dh-btn .dh-lbl{ display:none; }
+      #dhTopbar .dh-btn{ padding:9px 12px; font-size:15px; }
+      #dhTopbar .t-actions{ margin-left:auto; }
+      #dhKpis{ gap:9px; }
+      #dhKpis .k{ padding:11px 12px; }
+      #dhKpis .k .kv{ font-size:18px; }
     }
   </style>
   <script>
@@ -7323,8 +7341,8 @@
           '<div class="t-actions">'+
           '<span class="dh-client" id="dhClientChip" style="display:none"><span class="ic">📍</span><span id="dhClientName"></span></span>'+
           '<button class="dh-btn dh-btn-ghost" id="dhToggle" aria-label="Menu">☰</button>'+
-          '<button class="dh-btn dh-btn-ghost" id="dhConfig" title="Conexão com a Central Comercial"><span class="dh-dot" id="dhConnDot"></span>⚙️ Central Comercial</button>'+
-          '<button class="dh-btn dh-btn-primary" id="dhSync">↻ Atualizar Insights</button>'+
+          '<button class="dh-btn dh-btn-ghost" id="dhConfig" title="Conexão com a Central Comercial"><span class="dh-dot" id="dhConnDot"></span>⚙️<span class="dh-lbl"> Central Comercial</span></button>'+
+          '<button class="dh-btn dh-btn-primary" id="dhSync">↻<span class="dh-lbl"> Atualizar Insights</span></button>'+
           '</div>';
         mainEl.prepend(top);
 
@@ -7384,7 +7402,9 @@
 
         var sync=document.getElementById('dhSync'); if(sync) sync.addEventListener('click', function(){ var b=document.getElementById('biSyncBtn'); if(b) b.click(); });
         var cfg=document.getElementById('dhConfig'); if(cfg) cfg.addEventListener('click', function(){ var b=document.getElementById('configBtn'); if(b) b.click(); });
-        var tg=document.getElementById('dhToggle'); if(tg) tg.addEventListener('click', function(){ root.classList.toggle('dh-open'); });
+        var tg=document.getElementById('dhToggle'); if(tg) tg.addEventListener('click', function(e){ e.stopPropagation(); root.classList.toggle('dh-open'); });
+        // Toca fora da sidebar (no backdrop) fecha o menu no celular
+        document.addEventListener('click', function(e){ if(root.classList.contains('dh-open') && !aside.contains(e.target) && e.target!==tg){ root.classList.remove('dh-open'); } });
 
         function dhUpdateConn(){
           var dot=document.getElementById('dhConnDot'); if(!dot) return;
