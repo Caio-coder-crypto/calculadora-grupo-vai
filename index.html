@@ -1171,6 +1171,9 @@
               </div>
             </div>
 
+            <!-- ALERTA DE PERFORMANCE DE ADS (só aparece quando há gasto em ads) -->
+            <div id="roi_ads_warn" class="hidden"></div>
+
             <!-- VEREDITO TEXTUAL -->
             <div id="roi_verdict" class="bg-white border-2 rounded-xl p-5">
               <p class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">🎯 Veredito Realista</p>
@@ -5146,6 +5149,31 @@
       document.getElementById('roi_kpi_cac_ads').textContent  = cacAds ? fmtBRL(cacAds) : '—';
       document.getElementById('roi_kpi_ticket').textContent   = avgTicket > 0 ? fmtBRL(avgTicket) : '—';
       document.getElementById('roi_kpi_payback').textContent  = payback > 0 ? `${payback.toFixed(1)} meses` : '—';
+
+      // Alerta de performance de ADS — vermelho (gastou e não vendeu / no prejuízo) ou amarelo (abaixo de 3x).
+      // Só aparece quando houve gasto em ads; some quando o ROAS está saudável (>= 3x).
+      const adsWarnEl = document.getElementById('roi_ads_warn');
+      if (adsWarnEl) {
+        let w = '', cls = '';
+        if (adsTotal > 0) {
+          if (adsClients === 0) {
+            w = `🔴 <strong>Atenção:</strong> você gastou <strong>${fmtBRL(adsTotal)}</strong> em anúncios e <strong>não fechou nenhuma venda</strong> vinda de ads neste período.`;
+            cls = 'bg-red-50 border-red-300 text-red-800';
+          } else if (roasTotal < 1) {
+            w = `🔴 <strong>Ads no prejuízo:</strong> ${fmtBRL(adsTotal)} investidos geraram só ${fmtBRL(adsRevenue)} em ${adsClients} venda(s) — ROAS ${roasTotal.toFixed(2)}x (cada R$1 em ads voltou R$${roasTotal.toFixed(2)}).`;
+            cls = 'bg-red-50 border-red-300 text-red-800';
+          } else if (roasTotal < 3) {
+            w = `🟡 <strong>Ads abaixo do saudável:</strong> ROAS ${roasTotal.toFixed(2)}x em ${adsClients} venda(s) de ads. Meta recomendada: ≥ 3x.`;
+            cls = 'bg-amber-50 border-amber-300 text-amber-800';
+          }
+        }
+        if (w) {
+          adsWarnEl.innerHTML = w;
+          adsWarnEl.className = `text-xs sm:text-sm rounded-xl border px-4 py-3 ${cls}`;
+        } else {
+          adsWarnEl.className = 'hidden';
+        }
+      }
 
       // VEREDITO
       const verdictEl = document.getElementById('roi_verdict');
