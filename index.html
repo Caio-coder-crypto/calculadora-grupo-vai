@@ -1158,7 +1158,7 @@
                 <p class="text-lg font-bold text-[#041227] mt-1" id="roi_kpi_cac">R$ 0</p>
               </div>
               <div class="bg-white rounded-lg p-3 border border-slate-200">
-                <p class="text-[9px] font-bold uppercase tracking-widest text-slate-500" title="Apenas gastos com ads ÷ novos clientes">📣 CAC Ads</p>
+                <p class="text-[9px] font-bold uppercase tracking-widest text-slate-500" title="Gasto com ads ÷ clientes que vieram de ads">📣 CAC Ads</p>
                 <p class="text-lg font-bold text-[#041227] mt-1" id="roi_kpi_cac_ads">R$ 0</p>
               </div>
               <div class="bg-white rounded-lg p-3 border border-slate-200">
@@ -5083,12 +5083,30 @@
       const totalInvestment = manualTotal + whatsappCost + commissionsTotal;
       const grossProfit = monthRevenue - totalInvestment;
 
+      // 4.1) ATRIBUIÇÃO POR CANAL — separa o que veio de ADS (tráfego pago) do
+      // orgânico/não-mapeado, reusando getDealPlatform (mesma lógica da tabela
+      // "Economia por Canal"). Sem isso, ROAS/CAC de ads cruzavam receita e
+      // clientes orgânicos (bug: ROAS irreal e CAC Ads dividido por todo mundo).
+      const PAID_PLATFORMS = ['meta', 'google', 'tiktok', 'other'];
+      const channelMap = getChannelPlatformMap();
+      let adsRevenue = 0, adsClients = 0;
+      for (const d of wonInMonth) {
+        if (PAID_PLATFORMS.includes(getDealPlatform(d, channelMap))) {
+          adsClients++;
+          adsRevenue += (d.total || 0);
+        }
+      }
+
       // 5) MÉTRICAS FINANCEIRAS
-      const roasTotal  = adsTotal > 0 ? (monthRevenue / adsTotal) : 0;
-      const roi        = totalInvestment > 0 ? ((monthRevenue - totalInvestment) / totalInvestment * 100) : 0;
+      // ROAS dos anúncios = SÓ a receita atribuída a ads ÷ gasto em ads.
+      // Receita orgânica/manual/não-mapeada NUNCA entra no dividendo.
+      const roasTotal  = adsTotal > 0 ? (adsRevenue / adsTotal) : 0;
+      const roi        = totalInvestment > 0 ? ((monthRevenue - totalInvestment) / totalInvestment * 100) : 0;  // ROI Total — inalterado (cruza receita/custo gerais)
       const margin     = monthRevenue > 0 ? (grossProfit / monthRevenue * 100) : 0;
-      const cac        = newCustomers > 0 ? (totalInvestment / newCustomers) : 0;
-      const cacAds     = newCustomers > 0 ? (adsTotal / newCustomers) : 0;
+      const cac        = newCustomers > 0 ? (totalInvestment / newCustomers) : 0;                                // CAC Total — inalterado
+      // CAC dos anúncios = gasto em ads ÷ clientes VINDOS de ads.
+      // Sem cliente de ads → null → exibe "—" (evita Infinity/CAC enganoso).
+      const cacAds     = adsClients > 0 ? (adsTotal / adsClients) : null;
       const payback    = avgTicket > 0 ? (cac / avgTicket) : 0;
 
       // 6) Renderização
@@ -5106,7 +5124,7 @@
       const roasClass = roiClassify('roas', roasTotal);
       const roasColors = roiCardColor(roasClass.level);
       document.getElementById('roi_kpi_roas').innerHTML = `<span class="${roasColors.text}">${roasTotal.toFixed(2)}x</span>`;
-      document.getElementById('roi_kpi_roas_label').innerHTML = `<span class="${roasColors.text} font-semibold">${roasClass.label}</span> · pra cada R$1 em ads, R$${roasTotal.toFixed(2)} em receita`;
+      document.getElementById('roi_kpi_roas_label').innerHTML = `<span class="${roasColors.text} font-semibold">${roasClass.label}</span> · pra cada R$1 em ads, R$${roasTotal.toFixed(2)} de receita vinda de ads`;
       document.getElementById('roi_kpi_roas_card').className = `bg-white rounded-xl border-2 ${roasColors.border} p-4 shadow-sm relative overflow-hidden`;
 
       // ROI card
@@ -5125,7 +5143,7 @@
 
       // KPIs secundários
       document.getElementById('roi_kpi_cac').textContent      = cac > 0 ? fmtBRL(cac) : '—';
-      document.getElementById('roi_kpi_cac_ads').textContent  = cacAds > 0 ? fmtBRL(cacAds) : '—';
+      document.getElementById('roi_kpi_cac_ads').textContent  = cacAds ? fmtBRL(cacAds) : '—';
       document.getElementById('roi_kpi_ticket').textContent   = avgTicket > 0 ? fmtBRL(avgTicket) : '—';
       document.getElementById('roi_kpi_payback').textContent  = payback > 0 ? `${payback.toFixed(1)} meses` : '—';
 
