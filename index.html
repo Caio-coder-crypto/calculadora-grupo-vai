@@ -5019,6 +5019,90 @@
       return map[level] || map.critical;
     }
 
+    // ====================================================================
+    // MOTOR DE INSIGHTS AUTOMÁTICOS (JS puro — sem IA/API).
+    // Lê biState.raw.deals + gastos do ROI e devolve frases ACIONÁVEIS,
+    // rankeadas por IMPACTO (R$ em jogo). Mostra as Top 5. Reusa as mesmas
+    // funções do BI (getDealPlatform, getCurrentPeriodRange...) — não recalcula
+    // nada por fora nem altera regra de negócio existente.
+    // ====================================================================
+    function computeAutoInsights() {
+      try {
+        var raw = biState.raw;
+        if (!raw || !Array.isArray(raw.deals) || !raw.deals.length) return [];
+        var CH = { meta:'Meta Ads', google:'Google Ads', tiktok:'TikTok Ads', other:'Outros Ads', organic:'Orgânico', unmapped:'Não mapeado' };
+        var PAID = ['meta','google','tiktok','other'];
+        var isWonD = function(d){ return d.status === 'won' || /ganh/i.test(d.stageName || ''); };
+        var stamp  = function(d){ return new Date(d.statusChangedAt || d.lastMovedAt || d.createdAt).getTime(); };
+        var range = getCurrentPeriodRange();
+        var finite = isFinite(range.end) && range.start > 0;
+        var prev = finite ? { start: range.start - (range.end - range.start), end: range.start } : null;
+        var inR = function(d, r){ var t = stamp(d); return t >= r.start && t < r.end; };
+        var deals = raw.deals;
+        var won     = deals.filter(function(d){ return isWonD(d) && inR(d, range); });
+        var wonPrev = prev ? deals.filter(function(d){ return isWonD(d) && inR(d, prev); }) : [];
+        var map = getChannelPlatformMap();
+        var exp = getRoiExpensesForCurrentPeriod();
+        var spend = { meta:+exp.ads_meta||0, google:+exp.ads_google||0, tiktok:+exp.ads_tiktok||0, other:+exp.ads_other||0 };
+        var ch = {};
+        won.forEach(function(d){ var p = getDealPlatform(d, map); if(!ch[p]) ch[p]={rev:0,clients:0}; ch[p].rev += d.total||0; ch[p].clients++; });
+        Object.keys(ch).forEach(function(k){ ch[k].spend = spend[k]||0; ch[k].roas = ch[k].spend>0 ? ch[k].rev/ch[k].spend : null; });
+        var revenue = won.reduce(function(a,d){return a+(d.total||0);},0);
+        var revenuePrev = wonPrev.reduce(function(a,d){return a+(d.total||0);},0);
+        var ticket = won.length ? revenue/won.length : 0;
+        var adsTotal = spend.meta+spend.google+spend.tiktok+spend.other;
+        var adsClients = PAID.reduce(function(a,k){return a+((ch[k]&&ch[k].clients)||0);},0);
+        var cacAds = adsClients>0 ? adsTotal/adsClients : null;
+        var out = [];
+        var add = function(level,impact,text){ out.push({level:level,impact:impact,text:text}); };
+        // R1 — realocação de verba (gasto x ROAS por canal)
+        var pagos = Object.keys(ch).filter(function(k){ return ch[k].spend>0 && ch[k].roas!=null; });
+        if (pagos.length >= 2) {
+          var maisGasto = pagos.slice().sort(function(a,b){return ch[b].spend-ch[a].spend;})[0];
+          var melhor    = pagos.slice().sort(function(a,b){return ch[b].roas-ch[a].roas;})[0];
+          if (maisGasto !== melhor && ch[melhor].roas >= ch[maisGasto].roas*1.4) {
+            var ganho = ch[maisGasto].spend*0.2*(ch[melhor].roas - ch[maisGasto].roas);
+            add('opportunity', ganho, '💸 Você concentra a verba no <b>'+CH[maisGasto]+'</b> (ROAS '+ch[maisGasto].roas.toFixed(1)+'x), mas o <b>'+CH[melhor]+'</b> rende '+(ch[melhor].roas/ch[maisGasto].roas).toFixed(1)+'x mais (ROAS '+ch[melhor].roas.toFixed(1)+'x). Mover ~20% do orçamento pode render <b>+'+fmtBRL(ganho)+'</b> sem gastar a mais.');
+          }
+        }
+        // R2 — valor parado no funil (etapa aberta que mais trava R$)
+        var open = deals.filter(function(d){ return !isWonD(d) && d.status!=='lost'; });
+        if (open.length) {
+          var byStage = {};
+          open.forEach(function(d){ var s=d.stageName||'Sem etapa'; if(!byStage[s]) byStage[s]={n:0,val:0}; byStage[s].n++; byStage[s].val+=d.total||0; });
+          var topS = Object.keys(byStage).sort(function(a,b){return byStage[b].val-byStage[a].val;})[0];
+          if (topS && byStage[topS].val>0) {
+            var pct = Math.round(byStage[topS].n/open.length*100);
+            add('warning', byStage[topS].val, '🔻 Maior valor parado no funil: <b>'+fmtInt(byStage[topS].n)+' negócios</b> na etapa "<b>'+escapeHTML(topS)+'</b>", segurando <b>'+fmtBRL(byStage[topS].val)+'</b>. É o ponto de maior alavancagem do funil — destravar aqui rende mais que gerar lead novo.');
+          }
+        }
+        // R3 — payback (CAC de ads x ticket médio)
+        if (cacAds && ticket) {
+          var rt = cacAds/ticket;
+          if (rt > 1) add('critical', cacAds*adsClients, '🔴 Cada cliente de ads custa <b>'+fmtBRL(cacAds)+'</b>, mas seu ticket médio é <b>'+fmtBRL(ticket)+'</b> — você paga '+rt.toFixed(1)+'x o que ganha na 1ª venda. Só fecha a conta com recompra. Ação: subir ticket ou cortar o canal mais caro.');
+          else add('ok', cacAds*adsClients*0.3, '🟢 CAC de ads ('+fmtBRL(cacAds)+') = '+Math.round(rt*100)+'% do ticket médio. Você recupera o investimento já na 1ª venda — há espaço pra escalar.');
+        }
+        // R4 — concentração de receita
+        if (revenue > 0) {
+          var topCh = Object.keys(ch).sort(function(a,b){return ch[b].rev-ch[a].rev;})[0];
+          if (topCh && ch[topCh].rev/revenue >= 0.5) add('warning', ch[topCh].rev, '⚠️ <b>'+Math.round(ch[topCh].rev/revenue*100)+'%</b> da receita ('+fmtBRL(ch[topCh].rev)+') depende de <b>'+(CH[topCh]||topCh)+'</b>. Se esse canal oscilar, o mês inteiro oscila. Vale diversificar antes de escalar.');
+        }
+        // R5 — tendência vs período anterior
+        if (prev && revenuePrev > 0) {
+          var v = (revenue - revenuePrev)/revenuePrev*100;
+          var chPrev = {};
+          wonPrev.forEach(function(d){ var p=getDealPlatform(d,map); chPrev[p]=(chPrev[p]||0)+(d.total||0); });
+          var motor=null, best=0, keys={};
+          Object.keys(ch).forEach(function(k){keys[k]=1;}); Object.keys(chPrev).forEach(function(k){keys[k]=1;});
+          Object.keys(keys).forEach(function(k){ var delta=((ch[k]&&ch[k].rev)||0)-(chPrev[k]||0); if(Math.abs(delta)>Math.abs(best)){best=delta;motor=k;} });
+          add('info', Math.abs(revenue-revenuePrev), v>=0
+            ? '📈 Receita <b>+'+v.toFixed(0)+'%</b> vs o período anterior ('+fmtBRL(revenue)+')'+(motor?', puxada por <b>'+(CH[motor]||motor)+'</b> (+'+fmtBRL(best)+')':'')+'. Replique o que funcionou.'
+            : '📉 Receita <b>'+v.toFixed(0)+'%</b> vs o período anterior'+(motor?', maior queda em <b>'+(CH[motor]||motor)+'</b> ('+fmtBRL(best)+')':'')+'. Investigue antes do fechamento.');
+        }
+        return out.sort(function(a,b){return b.impact-a.impact;}).slice(0,5);
+      } catch(e){ console.warn('[insights]', e); return []; }
+    }
+
     function renderRoi() {
       // 1) Período selecionado
       const monthsAgo = parseInt(document.getElementById('roiPeriod').value || '0', 10);
@@ -7465,7 +7549,11 @@
             if(conv&&conv!=='—') cards.push(['🎯','Taxa de conversão: <b>'+conv+'</b>']);
             if(meta&&meta!=='—') cards.push(['🏆','Meta da equipe: <b>'+meta+'</b> atingida']);
             var body=document.getElementById('dhInsightsBody');
-            if(body&&cards.length) body.innerHTML=cards.map(function(c){ return '<div class="ins"><span class="ie">'+c[0]+'</span><span class="it">'+c[1]+'</span></div>'; }).join('');
+            var eng=[]; try{ if(typeof computeAutoInsights==='function') eng=computeAutoInsights(); }catch(e){}
+            if(body && eng && eng.length){
+              var icol={critical:'#ff8585',warning:'#FFB81C',opportunity:'#3BE38C',ok:'#3BE38C',info:'#93A6BD'};
+              body.innerHTML=eng.map(function(i){ return '<div class="ins" style="border-left:3px solid '+(icol[i.level]||'#3BE38C')+';padding-left:12px"><span class="it">'+i.text+'</span></div>'; }).join('');
+            } else if(body&&cards.length) body.innerHTML=cards.map(function(c){ return '<div class="ins"><span class="ie">'+c[0]+'</span><span class="it">'+c[1]+'</span></div>'; }).join('');
           }catch(e){}
         }
 
