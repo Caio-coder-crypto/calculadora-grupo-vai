@@ -5026,6 +5026,51 @@
     // funções do BI (getDealPlatform, getCurrentPeriodRange...) — não recalcula
     // nada por fora nem altera regra de negócio existente.
     // ====================================================================
+    // Score de Saúde da Operação (0–100): sub-notas ponderadas dos mesmos sinais.
+    // Renormaliza o peso se um eixo não se aplica (ex.: sem gasto em ads não penaliza).
+    function computeHealthScore() {
+      try {
+        var raw = biState.raw;
+        if (!raw || !Array.isArray(raw.deals) || !raw.deals.length) return null;
+        var isWonD=function(d){return d.status==='won'||/ganh/i.test(d.stageName||'');};
+        var stamp=function(d){return new Date(d.statusChangedAt||d.lastMovedAt||d.createdAt).getTime();};
+        var range=getCurrentPeriodRange();
+        var finite=isFinite(range.end)&&range.start>0;
+        var prev=finite?{start:range.start-(range.end-range.start),end:range.start}:null;
+        var inR=function(d,r){var t=stamp(d);return t>=r.start&&t<r.end;};
+        var deals=raw.deals, map=getChannelPlatformMap();
+        var won=deals.filter(function(d){return isWonD(d)&&inR(d,range);});
+        var lost=deals.filter(function(d){return d.status==='lost'&&inR(d,range);});
+        var wonPrev=prev?deals.filter(function(d){return isWonD(d)&&inR(d,prev);}):[];
+        var exp=getRoiExpensesForCurrentPeriod();
+        var adsTotal=(+exp.ads_meta||0)+(+exp.ads_google||0)+(+exp.ads_tiktok||0)+(+exp.ads_other||0);
+        var PAID=['meta','google','tiktok','other'];
+        var revenue=won.reduce(function(a,d){return a+(d.total||0);},0);
+        var revenuePrev=wonPrev.reduce(function(a,d){return a+(d.total||0);},0);
+        var ticket=won.length?revenue/won.length:0;
+        var ch={}; won.forEach(function(d){var p=getDealPlatform(d,map);if(!ch[p])ch[p]={rev:0,c:0};ch[p].rev+=d.total||0;ch[p].c++;});
+        var adsRevenue=PAID.reduce(function(a,k){return a+((ch[k]&&ch[k].rev)||0);},0);
+        var adsClients=PAID.reduce(function(a,k){return a+((ch[k]&&ch[k].c)||0);},0);
+        var clamp=function(x){return Math.max(0,Math.min(1,x));};
+        var parts=[];
+        if(won.length+lost.length>=4){ var conv=won.length/(won.length+lost.length); parts.push({k:'Conversão',s:clamp(conv/0.35),w:25,low:'conversão de '+Math.round(conv*100)+'%'}); }
+        if(prev&&revenuePrev>0){ var g=(revenue-revenuePrev)/revenuePrev; parts.push({k:'Crescimento',s:clamp((g+0.2)/0.4),w:20,low:'receita '+(g>=0?'+':'')+Math.round(g*100)+'% vs período anterior'}); }
+        if(revenue>0){ var topc=Object.keys(ch).sort(function(a,b){return ch[b].rev-ch[a].rev;})[0]; var share=topc?ch[topc].rev/revenue:0; parts.push({k:'Diversificação',s:clamp((0.8-share)/0.4),w:20,low:Math.round(share*100)+'% num canal só'}); }
+        if(adsTotal>0){ var roas=adsRevenue/adsTotal; parts.push({k:'ROAS de ads',s:clamp(roas/3),w:20,low:'ROAS '+roas.toFixed(1)+'x'}); }
+        if(adsTotal>0&&adsClients>0&&ticket>0){ var cacAds=adsTotal/adsClients; parts.push({k:'Payback',s:clamp((ticket-cacAds)/ticket+0.5),w:15,low:'CAC de ads em '+fmtBRL(cacAds)}); }
+        if(!parts.length) return null;
+        var tw=parts.reduce(function(a,p){return a+p.w;},0);
+        var score=Math.round(parts.reduce(function(a,p){return a+p.s*p.w;},0)/tw*100);
+        var level=score>=75?'good':(score>=50?'warning':'critical');
+        var label=level==='good'?'Saudável':(level==='warning'?'Atenção':'Crítico');
+        var weak=parts.slice().sort(function(a,b){return ((1-b.s)*b.w)-((1-a.s)*a.w);})[0];
+        var verdict=level==='good'
+          ? 'Operação saudável. O que ainda dá pra subir: <b>'+weak.k+'</b> ('+weak.low+').'
+          : 'O que mais segura sua nota: <b>'+weak.k+'</b> ('+weak.low+'). Atacar isso é o que mais move o ponteiro.';
+        return {score:score,level:level,label:label,verdict:verdict};
+      } catch(e){ console.warn('[score]',e); return null; }
+    }
+
     function computeAutoInsights() {
       try {
         var raw = biState.raw;
@@ -7438,6 +7483,16 @@
     #dhInsights .ins .ie{ font-size:17px; line-height:1.2; }
     #dhInsights .ins .it{ color:#cdd7e5; font-size:12.5px; line-height:1.45; }
     #dhInsights .ins .it b{ color:#fff; font-weight:600; }
+    #dhScore{ display:flex; gap:16px; align-items:center; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.09); border-radius:12px; padding:13px 16px; margin-bottom:12px; }
+    #dhScore .sc-num{ font-family:'Sora',system-ui,sans-serif; font-weight:800; font-size:40px; line-height:1; flex:none; }
+    #dhScore .sc-num small{ font-size:15px; color:#64748B; font-weight:600; }
+    #dhScore .sc-body{ flex:1; min-width:0; }
+    #dhScore .sc-top{ display:flex; justify-content:space-between; gap:10px; font-size:13px; }
+    #dhScore .sc-top b{ color:#fff; font-weight:600; }
+    #dhScore .sc-bar{ height:7px; border-radius:99px; background:rgba(255,255,255,.1); margin:8px 0 7px; overflow:hidden; }
+    #dhScore .sc-bar i{ display:block; height:100%; border-radius:99px; }
+    #dhScore .sc-verdict{ font-size:12.5px; color:#aab8c9; line-height:1.4; }
+    #dhScore .sc-verdict b{ color:#fff; font-weight:600; }
 
     #dhToggle{ display:none; }
     .dh-lbl{ display:inline; }
@@ -7525,7 +7580,7 @@
           .map(function(k){ return '<div class="k"><div class="kl">'+k[0]+'</div><div class="kv" id="'+k[1]+'">—</div><div class="kd" id="'+k[1]+'_d"></div></div>'; }).join('');
         top.parentNode.insertBefore(kpis, top.nextSibling);
         var insBox=document.createElement('div'); insBox.id='dhInsights';
-        insBox.innerHTML='<div class="ih"><span class="dot"></span>Insights Automáticos</div><div class="ig" id="dhInsightsBody"><div class="ins"><span class="ie">💡</span><span class="it">Clique em <b>Atualizar Insights</b> para carregar seus dados.</span></div></div>';
+        insBox.innerHTML='<div id="dhScore" style="display:none"></div><div class="ih"><span class="dot"></span>Insights Automáticos</div><div class="ig" id="dhInsightsBody"><div class="ins"><span class="ie">💡</span><span class="it">Clique em <b>Atualizar Insights</b> para carregar seus dados.</span></div></div>';
         kpis.parentNode.insertBefore(insBox, kpis.nextSibling);
 
         function txt(id){ var e=document.getElementById(id); return e? (e.textContent||'').trim() : ''; }
@@ -7549,6 +7604,8 @@
             if(conv&&conv!=='—') cards.push(['🎯','Taxa de conversão: <b>'+conv+'</b>']);
             if(meta&&meta!=='—') cards.push(['🏆','Meta da equipe: <b>'+meta+'</b> atingida']);
             var body=document.getElementById('dhInsightsBody');
+            try{ var _sc=(typeof computeHealthScore==='function')?computeHealthScore():null; var _se=document.getElementById('dhScore');
+              if(_se){ if(_sc){ var _c=_sc.level==='good'?'#3BE38C':(_sc.level==='warning'?'#FFB81C':'#ff8585'); _se.style.display='flex'; _se.innerHTML='<div class="sc-num" style="color:'+_c+'">'+_sc.score+'<small>/100</small></div><div class="sc-body"><div class="sc-top"><b>Saúde da operação</b><span style="color:'+_c+'">'+_sc.label+'</span></div><div class="sc-bar"><i style="width:'+_sc.score+'%;background:'+_c+'"></i></div><div class="sc-verdict">'+_sc.verdict+'</div></div>'; } else { _se.style.display='none'; } } }catch(e){}
             var eng=[]; try{ if(typeof computeAutoInsights==='function') eng=computeAutoInsights(); }catch(e){}
             if(body && eng && eng.length){
               var icol={critical:'#ff8585',warning:'#FFB81C',opportunity:'#3BE38C',ok:'#3BE38C',info:'#93A6BD'};
