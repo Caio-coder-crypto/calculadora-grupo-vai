@@ -4161,7 +4161,7 @@
 
     function renderDrillKpis(deals) {
       const isWon = (d) => d.status === 'won' || /ganh/i.test(d.stageName);
-      const isLost = (d) => d.status === 'lost';
+      const isLost = (d) => !isWon(d) && (d.status === 'lost' || isLostStageId(d.stageId));
       const won = deals.filter(isWon);
       const lost = deals.filter(isLost);
       const open = deals.filter(d => !isWon(d) && !isLost(d));
@@ -4187,7 +4187,7 @@
 
     function renderDrillTable(deals) {
       const isWon = (d) => d.status === 'won' || /ganh/i.test(d.stageName);
-      const isLost = (d) => d.status === 'lost';
+      const isLost = (d) => !isWon(d) && (d.status === 'lost' || isLostStageId(d.stageId));
       const tbody = document.getElementById('drillTable');
       document.getElementById('drillCount').textContent = `${fmtInt(deals.length)} deal${deals.length === 1 ? '' : 's'}`;
       if (deals.length === 0) {
@@ -4223,7 +4223,7 @@
 
     function exportDrillCSV() {
       const isWon = (d) => d.status === 'won' || /ganh/i.test(d.stageName);
-      const isLost = (d) => d.status === 'lost';
+      const isLost = (d) => !isWon(d) && (d.status === 'lost' || isLostStageId(d.stageId));
       const rows = [['Codigo', 'Lead', 'Vendedor', 'Etapa', 'Status', 'Valor', 'Criado em']];
       drillState.deals.forEach(d => {
         const status = isWon(d) ? 'Ganho' : isLost(d) ? 'Perdido' : 'Em aberto';
@@ -4657,6 +4657,7 @@
         // Monta o dataset completo: metadados do 1º chunk + TODOS os deals
         const data = { ...first, deals: allDeals };
         biState.raw = data;
+        computeLostStageIds();   // detecta etapas de perda (p/ classificar perda por etapa, igual ao CRM)
         populateBiFilters(data);
         applyBiFilters();
         setBiView('biContent');
@@ -5707,8 +5708,22 @@
     }
 
     // ---------- HELPERS ----------
+    // Etapas de PERDA detectadas pelo nome (/perd/i) — mesmo critério do funil.
+    // Classifica como perdido um deal parado numa etapa "Perdido" mesmo quando o CRM
+    // não marcou status='lost' (vários clientes só movem o card de etapa). Ganho NUNCA
+    // muda (receita/comissão usam isWon e ficam idênticos).
+    const LOST_STAGE_RE = /perd/i;
+    function computeLostStageIds() {
+      const ids = new Set();
+      for (const p of (biState.raw?.pipelines || [])) for (const s of (p.stages || [])) if (s && s.name && LOST_STAGE_RE.test(s.name)) ids.add(s.id);
+      for (const d of (biState.raw?.deals || [])) if (d.stageId && d.stageName && LOST_STAGE_RE.test(d.stageName)) ids.add(d.stageId);  // fallback p/ etapas fora dos metadados
+      biState.lostStageIds = ids;
+      return ids;
+    }
+    function isLostStageId(id) { return !!(biState.lostStageIds && biState.lostStageIds.has(id)); }
+
     const isWon  = (d) => d.status === 'won' || /ganh/i.test(d.stageName);
-    const isLost = (d) => d.status === 'lost';
+    const isLost = (d) => !isWon(d) && (d.status === 'lost' || isLostStageId(d.stageId));
     const isOpen = (d) => !isWon(d) && !isLost(d);
     const sumTotal = (arr) => arr.reduce((a, d) => a + (d.total || 0), 0);
 
