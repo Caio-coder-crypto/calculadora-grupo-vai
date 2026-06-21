@@ -214,6 +214,52 @@ async function dcGet(apiKey, path, query = {}) {
 }
 
 /**
+ * Faz uma chamada POST autenticada na API do DataCrazy (ESCRITA).
+ * Mesmo retry/backoff do dcGet. Devolve o JSON da resposta (ou {} se vazio).
+ */
+async function dcPost(apiKey, path, body) {
+  if (!apiKey) {
+    const err = new Error('API key ausente.');
+    err.status = 401;
+    err.code = 'NO_KEY';
+    throw err;
+  }
+  const url = API_BASE + path;
+  const MAX_RETRIES = 3;
+  const BACKOFF_MS  = [400, 1200, 3000];
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify(body || {})
+    });
+
+    if (res.ok) {
+      const txt = await res.text().catch(() => '');
+      try { return txt ? JSON.parse(txt) : {}; } catch { return {}; }
+    }
+
+    if ((res.status === 429 || res.status === 503) && attempt < MAX_RETRIES) {
+      const retryAfter = parseInt(res.headers.get('retry-after') || '0', 10);
+      const delay = retryAfter > 0 ? retryAfter * 1000 : BACKOFF_MS[attempt];
+      console.warn(`[datacrazy] POST HTTP ${res.status} em ${path} — aguardando ${delay}ms (tentativa ${attempt + 1}/${MAX_RETRIES})`);
+      await sleep(delay);
+      continue;
+    }
+
+    const text = await res.text().catch(() => '');
+    const err = new Error(`DataCrazy POST ${path} → HTTP ${res.status}: ${text.slice(0, 200)}`);
+    err.status = res.status;
+    throw err;
+  }
+}
+
+/**
  * Paginação automática com delay anti-burst (80ms entre páginas).
  *
  * opts.ignoreCount: quando true, NÃO confia no campo `count` da resposta como
@@ -283,6 +329,7 @@ function handleOptions(res) {
 
 module.exports = {
   dcGet,
+  dcPost,
   dcGetAll,
   send,
   sendError,

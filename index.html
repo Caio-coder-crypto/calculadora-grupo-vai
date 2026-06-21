@@ -643,6 +643,43 @@
 
           <!-- ===== ABA: FUNIL ===== -->
           <div data-bi-content="funnel" class="bi-content hidden p-6 space-y-5">
+            <div class="flex justify-end">
+              <button id="prospectOpenBtn" class="inline-flex items-center gap-2 rounded-lg bg-[#041227] text-white text-xs font-bold px-3 py-2 hover:bg-[#0a1f3a] transition" title="Buscar negócios no Google Maps (Apify) e jogar direto no seu funil">🎯 Prospectar leads (Apify)</button>
+            </div>
+
+            <!-- MODAL: Prospecção via Apify -->
+            <div id="prospectModal" class="hidden fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4">
+              <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-5 space-y-3 max-h-[90vh] overflow-y-auto">
+                <div class="flex justify-between items-center">
+                  <h3 class="text-base font-extrabold text-[#041227]">🎯 Prospectar leads (Apify)</h3>
+                  <button id="prospectClose" class="text-slate-400 hover:text-slate-700 text-2xl leading-none">&times;</button>
+                </div>
+                <p class="text-xs text-slate-500">Busca negócios no Google Maps e cria os leads <strong>direto no seu CRM</strong>, no funil escolhido e com a tag — sem planilha.</p>
+                <label class="block text-xs font-bold text-slate-600">Segmento
+                  <input id="prospectSegment" type="text" placeholder="clínica de estética" class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                </label>
+                <label class="block text-xs font-bold text-slate-600">Cidade / localização
+                  <input id="prospectLocation" type="text" placeholder="Fortaleza, CE, Brazil" class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                </label>
+                <div class="grid grid-cols-2 gap-3">
+                  <label class="block text-xs font-bold text-slate-600">Quantidade
+                    <input id="prospectQty" type="number" value="20" min="1" max="60" class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                  </label>
+                  <label class="block text-xs font-bold text-slate-600">Nota mínima
+                    <input id="prospectStars" type="text" placeholder="opcional (ex: 4.0)" class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                  </label>
+                </div>
+                <label class="block text-xs font-bold text-slate-600">Funil de destino
+                  <select id="prospectPipeline" class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white"></select>
+                </label>
+                <label class="block text-xs font-bold text-slate-600">Tag
+                  <input id="prospectTag" type="text" value="Outbound Apify" class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                </label>
+                <button id="prospectRun" class="w-full rounded-lg bg-[#00A859] text-white font-bold py-2.5 text-sm hover:bg-[#00904a] transition disabled:opacity-60">Gerar leads no CRM</button>
+                <div id="prospectResult" class="text-xs leading-relaxed"></div>
+              </div>
+            </div>
+
             <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
               <div class="bg-slate-50 rounded-lg p-3 border border-slate-200">
                 <p class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Em aberto</p>
@@ -6091,6 +6128,68 @@
     document.querySelectorAll('.funnel-mode-btn').forEach(btn => {
       btn.addEventListener('click', () => setFunnelMode(btn.dataset.funnelMode));
     });
+
+    // ---------- PROSPECÇÃO (Apify → CRM, nativo) ----------
+    (function wireProspect() {
+      const openBtn = document.getElementById('prospectOpenBtn');
+      const modal   = document.getElementById('prospectModal');
+      if (!openBtn || !modal) return;
+      const close = () => modal.classList.add('hidden');
+      openBtn.addEventListener('click', () => {
+        const sel = document.getElementById('prospectPipeline');
+        const pls = (biState.raw && biState.raw.pipelines) || [];
+        sel.innerHTML = pls.length
+          ? pls.map(p => `<option value="${p.id}">${escapeHTML(p.name)}</option>`).join('')
+          : '<option value="">(conecte o CRM e carregue os dados primeiro)</option>';
+        document.getElementById('prospectResult').innerHTML = '';
+        modal.classList.remove('hidden');
+      });
+      document.getElementById('prospectClose').addEventListener('click', close);
+      modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+
+      document.getElementById('prospectRun').addEventListener('click', async () => {
+        const btn = document.getElementById('prospectRun');
+        const out = document.getElementById('prospectResult');
+        const payload = {
+          segment:    document.getElementById('prospectSegment').value.trim(),
+          location:   document.getElementById('prospectLocation').value.trim(),
+          quantity:   parseInt(document.getElementById('prospectQty').value, 10) || 20,
+          minStars:   document.getElementById('prospectStars').value.trim(),
+          pipelineId: document.getElementById('prospectPipeline').value,
+          tag:        document.getElementById('prospectTag').value.trim() || 'Outbound Apify'
+        };
+        if (!payload.segment || !payload.location || !payload.pipelineId) {
+          out.innerHTML = '<span class="text-red-600">Preencha segmento, cidade e funil de destino.</span>';
+          return;
+        }
+        const orig = btn.textContent;
+        btn.disabled = true; btn.textContent = 'Buscando e criando no CRM…';
+        out.innerHTML = '<span class="text-slate-500">Rodando o Apify e injetando no CRM… pode levar até 1 min.</span>';
+        try {
+          const res = await dcFetch('/api/datacrazy/prospect', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || data.error) {
+            out.innerHTML = `<span class="text-red-600">${escapeHTML(data.message || ('Erro HTTP ' + res.status))}</span>`
+              + (data.hint ? `<br><span class="text-slate-500">${escapeHTML(data.hint)}</span>` : '');
+          } else {
+            out.innerHTML = `<div class="text-[#00754d] font-bold">✅ ${data.added} lead(s) criados no funil (tag "${escapeHTML(data.tag)}").</div>`
+              + (data.failed ? `<div class="text-amber-600">${data.failed} falharam.</div>` : '')
+              + ((data.sample && data.sample.length) ? `<div class="text-slate-500 mt-1">${data.sample.map(s => escapeHTML(s.name)).join(' · ')}</div>` : '')
+              + `<button id="prospectReload" class="mt-2 underline text-[#041227] font-semibold">Recarregar o painel</button>`;
+            const rl = document.getElementById('prospectReload');
+            if (rl) rl.addEventListener('click', () => { close(); if (typeof loadBi === 'function') loadBi(true); });
+          }
+        } catch (e) {
+          out.innerHTML = `<span class="text-red-600">Falha: ${escapeHTML(String(e.message || e))}</span>`;
+        } finally {
+          btn.disabled = false; btn.textContent = orig;
+        }
+      });
+    })();
     // Botão info abre/fecha o hint
     const modeInfoBtn = document.getElementById('funnelModeInfo');
     if (modeInfoBtn) {
