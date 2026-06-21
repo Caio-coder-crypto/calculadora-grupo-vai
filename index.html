@@ -6059,7 +6059,7 @@
     });
 
     // Toggle MODO (Cumulativo passaram × Snapshot estão hoje)
-    const FUNNEL_MODE_STORAGE = 'dc_funnel_mode_v1';
+    const FUNNEL_MODE_STORAGE = 'dc_funnel_mode_v2';  // v2: reseta usuários presos no modo cumulativo p/ o novo padrão snapshot (foto do CRM)
     function getFunnelMode() {
       // padrão = snapshot ("como está no CRM"): a foto por etapa bate 1:1 com o kanban.
       try { return localStorage.getItem(FUNNEL_MODE_STORAGE) || 'snapshot'; }
@@ -6818,9 +6818,10 @@
       }).join('') : '<p class="text-xs text-slate-400">Sem leads no período.</p>';
 
       // ===== Funil em PIRÂMIDE (funnelData/stages já calculados no topo) =====
+      const hasPeriodSel = biState.filters.period !== 'all';
       const capMode = (mode === 'snapshot')
-        ? '📍 <strong>Foto atual</strong> — cada etapa = deals parados nela <strong>agora</strong>. Bate 1:1 com o kanban do CRM (ignora o filtro de período).'
-        : '📈 <strong>Conversão do período</strong> — cada etapa = quem <strong>passou</strong> por ela no período. Serve pra taxa de conversão; não é a foto atual do CRM.';
+        ? ('📍 <strong>Foto atual do CRM</strong> — cada etapa = deals parados nela <strong>agora</strong> (bate 1:1 com o kanban).' + (hasPeriodSel ? ' <span class="text-amber-600">A foto não muda com o período — o filtro vale só pra Faturamento abaixo.</span>' : ''))
+        : '📈 <strong>Conversão do período</strong> — cada etapa = quem <strong>passou</strong> por ela (acumulado). Serve pra taxa de conversão; <strong>não</strong> é a foto atual do CRM (por isso os números são maiores).';
       const capPipe = effPipelineName ? ` &nbsp;·&nbsp; Pipeline: <strong>${escapeHTML(effPipelineName)}</strong>` : '';
       const capAll = (pipeline === '__all__' && pls.length > 1)
         ? ` <span class="text-amber-600">(maior pipeline — troque no filtro acima p/ ver outro)</span>` : '';
