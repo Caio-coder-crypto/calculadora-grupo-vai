@@ -677,8 +677,8 @@
               <div class="flex items-center justify-between flex-wrap gap-2 mb-4">
                 <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Funil de Conversão</p>
                 <div class="flex items-center gap-1 bg-slate-100 rounded-lg p-0.5">
-                  <button data-funnel-mode="cumulative" class="funnel-mode-btn px-3 py-1 rounded-md text-[11px] font-bold transition bg-white text-[#041227] shadow-sm" title="Conta todos os deals que passaram por esta etapa">📈 Cumulativo</button>
-                  <button data-funnel-mode="snapshot" class="funnel-mode-btn px-3 py-1 rounded-md text-[11px] font-bold transition text-slate-600 hover:bg-white/50" title="Conta só os deals parados na etapa agora">📍 Atual</button>
+                  <button data-funnel-mode="snapshot" class="funnel-mode-btn px-3 py-1 rounded-md text-[11px] font-bold transition bg-white text-[#041227] shadow-sm" title="Quantos deals estão parados em cada etapa agora — igual ao kanban do CRM">📍 Como está no CRM</button>
+                  <button data-funnel-mode="cumulative" class="funnel-mode-btn px-3 py-1 rounded-md text-[11px] font-bold transition text-slate-600 hover:bg-white/50" title="Quantos deals passaram por cada etapa no período (taxa de conversão)">📈 Conversão</button>
                 </div>
               </div>
               <div id="funnelPyramid" class="max-w-2xl mx-auto space-y-0.5"></div>
@@ -5762,10 +5762,13 @@
       // 2) 1º terminal de ganho. Tudo APÓS ele (pós-venda, ex.: "Lojas do Interior", e won-terminals extras) sai do funil.
       const wonIdxs = sorted.filter(s => wonTerminalIds.has(s.id)).map(s => s._idx);
       const firstWonIdx = wonIdxs.length ? Math.min(...wonIdxs) : null;
-      const lostStages = sorted.filter(s => lostTerminalIds.has(s.id) && (firstWonIdx === null || s._idx <= firstWonIdx));
+      // TODAS as etapas de perda entram no bloco de perdas (igual ao card "Perdidos" e ao CRM).
+      const lostStages = sorted.filter(s => lostTerminalIds.has(s.id));
       const postSale = [];
       let activeFlow = sorted.filter(s => !lostTerminalIds.has(s.id));
-      if (firstWonIdx !== null) {
+      if (firstWonIdx !== null && mode !== 'snapshot') {
+        // No modo cumulativo, tudo após o 1º ganho é pós-venda e sai do funil de conversão.
+        // No snapshot mantemos TODAS as etapas (igual ao kanban do CRM).
         activeFlow = activeFlow.filter(s => {
           if (s._idx > firstWonIdx) { postSale.push(s); return false; }  // tudo após o ganho = pós-venda
           return true;
@@ -5778,14 +5781,15 @@
         const isWonStage = firstWonIdx !== null && stage._idx === firstWonIdx;
         let count = 0, value = 0;
         const dealsHere = [];
-        if (isWonStage) {
+        if (mode === 'snapshot') {
+          // FOTO ATUAL: conta SÓ quem está parado nesta etapa agora (stageId) — bate 1:1 com o kanban do CRM.
+          for (const d of dealsToCount) {
+            if (d.stageId === stage.id) { count++; value += d.total || 0; dealsHere.push(d); }
+          }
+        } else if (isWonStage) {
           // GANHO: deals com status 'won' (posição-independente)
           for (const d of dealsToCount) {
             if (d.status === 'won') { count++; value += d.total || 0; dealsHere.push(d); }
-          }
-        } else if (mode === 'snapshot') {
-          for (const d of dealsToCount) {
-            if (d.stageId === stage.id) { count++; value += d.total || 0; dealsHere.push(d); }
           }
         } else {
           // CUMULATIVO: chegou nesta etapa (stageIndex >= idx) OU é ganho (won chegou em TODAS as etapas
@@ -6042,8 +6046,9 @@
     // Toggle MODO (Cumulativo passaram × Snapshot estão hoje)
     const FUNNEL_MODE_STORAGE = 'dc_funnel_mode_v1';
     function getFunnelMode() {
-      try { return localStorage.getItem(FUNNEL_MODE_STORAGE) || 'cumulative'; }
-      catch { return 'cumulative'; }
+      // padrão = snapshot ("como está no CRM"): a foto por etapa bate 1:1 com o kanban.
+      try { return localStorage.getItem(FUNNEL_MODE_STORAGE) || 'snapshot'; }
+      catch { return 'snapshot'; }
     }
     function setFunnelMode(mode) {
       try { localStorage.setItem(FUNNEL_MODE_STORAGE, mode); } catch {}
@@ -6058,10 +6063,10 @@
       if (hint) {
         if (mode === 'snapshot') {
           hint.classList.remove('hidden');
-          hint.innerHTML = `<strong>📍 Modo Atual:</strong> cada barra mostra quantos deals estão <strong>parados agora</strong> nesta etapa. Útil pra ver gargalos operacionais. As % de conversão NÃO se aplicam neste modo.`;
+          hint.innerHTML = `<strong>📍 Como está no CRM:</strong> cada barra mostra quantos deals estão <strong>parados agora</strong> em cada etapa — exatamente como o kanban do CRM (ignora o filtro de período). As % de conversão não se aplicam neste modo.`;
         } else {
           hint.classList.remove('hidden');
-          hint.innerHTML = `<strong>📈 Modo Cumulativo:</strong> cada barra mostra quantos deals <strong>já passaram</strong> por esta etapa (atuais + os que avançaram). É o padrão de funil de vendas — permite calcular taxa de conversão real entre etapas.`;
+          hint.innerHTML = `<strong>📈 Conversão do período:</strong> cada barra mostra quantos deals <strong>passaram</strong> por cada etapa no período. Permite calcular a taxa de conversão entre etapas. <strong>Não</strong> é a foto atual do CRM.`;
         }
       }
       if (biState.raw) renderFunnel();
@@ -6726,26 +6731,58 @@
 
     // ---------- FUNIL ----------
     function renderFunnel() {
-      // Item 1 — funil usa o dataset com ganhos pela data de FECHAMENTO (fallback: filtered)
-      const deals = biState.filteredClose || biState.filtered || [];
+      const mode = getFunnelMode();   // 'snapshot' (padrão: foto do CRM) | 'cumulative' (conversão do período)
+      const { pipeline, attendant } = biState.filters;
+      const pls = biState.raw?.pipelines || [];
+      const attOf = (d) => (attendant === '__all__' || d.attendantId === attendant);
 
-      const won  = getWonInFilteredPeriod();    // GANHOS no período (statusChangedAt)
-      const lost = getLostInFilteredPeriod();   // PERDIDOS no período (statusChangedAt)
-      const open = (biState.raw?.deals || []).filter(d => isOpen(d) && applyAttendantPipelineFilter(d));  // ABERTOS AGORA (snapshot)
+      // O funil é SEMPRE por-pipeline (igual ao kanban do CRM). Com "todos os pipelines",
+      // escolhe automaticamente o pipeline com mais deals no escopo e avisa o usuário.
+      let effPipeline = pipeline, effPipelineName = '';
+      if (pipeline === '__all__') {
+        const cnt = {};
+        for (const d of (biState.raw?.deals || [])) if (d.pipelineId && attOf(d)) cnt[d.pipelineId] = (cnt[d.pipelineId] || 0) + 1;
+        let best = pls[0] || null, bestN = best ? (cnt[best.id] || 0) : -1;
+        for (const p of pls) { const n = cnt[p.id] || 0; if (n > bestN) { bestN = n; best = p; } }
+        effPipeline = best?.id || '__all__';
+        effPipelineName = best?.name || '';
+      } else {
+        effPipelineName = pls.find(p => p.id === pipeline)?.name || '';
+      }
+      const pipelineStages = pls.find(p => p.id === effPipeline)?.stages || [];
 
+      // Datasets escopados ao pipeline efetivo + atendente:
+      //  - scopedAll  : TUDO (all-time) → foto do CRM (snapshot)
+      //  - periodScoped: recorte do período (modo cumulativo / conversão)
+      const scopedAll = (biState.raw?.deals || []).filter(d => d.pipelineId === effPipeline && attOf(d));
+      const periodScoped = filterByPeriod(scopedAll, biState.filters.period, dealStampTime);
+      const countDeals = (mode === 'snapshot') ? scopedAll : periodScoped;
+      const funnelData = buildCumulativeFunnel(pipelineStages, countDeals, mode, scopedAll);
+      const stages = funnelData.activeStages;
+
+      // ===== Cards de topo =====
       const sum = (arr) => arr.reduce((a, d) => a + (d.total || 0), 0);
-      const wonVal = sum(won), lostVal = sum(lost), openVal = sum(open);
-
-      document.getElementById('funnelOpenCount').textContent = fmtInt(open.length);
-      document.getElementById('funnelOpenValue').textContent = fmtBRL(openVal) + ' em pipeline';
-      document.getElementById('funnelWonCount').textContent = fmtInt(won.length);
-      document.getElementById('funnelWonValue').textContent = fmtBRL(wonVal) + ' fechados';
-      document.getElementById('funnelLostCount').textContent = fmtInt(lost.length);
-      document.getElementById('funnelLostValue').textContent = fmtBRL(lostVal) + ' perdidos';
-
-      const denominator = won.length + lost.length;
-      const conv = denominator > 0 ? (won.length / denominator * 100) : 0;
-      document.getElementById('funnelConversion').textContent = conv.toFixed(1) + '%';
+      // Faturamento/Ticket são SEMPRE do período (resultado), independente do modo:
+      const range = getCurrentPeriodRange();
+      const ts = (d) => new Date(d.statusChangedAt || d.lastMovedAt || d.createdAt).getTime();
+      const wonP = scopedAll.filter(d => isWon(d) && ts(d) >= range.start && ts(d) < range.end);
+      const wonValP = sum(wonP);
+      // Cards de topo: SEMPRE foto atual (estado real), classificando por ETAPA terminal
+      // (igual ao CRM) — independente do modo do funil. Mutuamente exclusivos: perda > ganho > aberto.
+      const termWon  = funnelData.wonTerminalIds  || new Set();
+      const termLost = funnelData.lostTerminalIds || new Set();
+      const lostDeals = scopedAll.filter(d => termLost.has(d.stageId) || isLost(d));
+      const wonDeals  = scopedAll.filter(d => !termLost.has(d.stageId) && (termWon.has(d.stageId) || isWon(d)));
+      const openDeals = scopedAll.filter(d => !termLost.has(d.stageId) && !termWon.has(d.stageId) && !isWon(d) && !isLost(d));
+      const lost = lostDeals;  // usado pelos motivos de perda (mais abaixo)
+      document.getElementById('funnelOpenCount').textContent = fmtInt(openDeals.length);
+      document.getElementById('funnelOpenValue').textContent = fmtBRL(sum(openDeals)) + ' em pipeline (agora)';
+      document.getElementById('funnelWonCount').textContent  = fmtInt(wonDeals.length);
+      document.getElementById('funnelWonValue').textContent  = fmtBRL(sum(wonDeals)) + ' ganhos (total)';
+      document.getElementById('funnelLostCount').textContent = fmtInt(lostDeals.length);
+      document.getElementById('funnelLostValue').textContent = fmtBRL(sum(lostDeals)) + ' perdidos (total)';
+      const denom = wonDeals.length + lostDeals.length;
+      document.getElementById('funnelConversion').textContent = (denom > 0 ? (wonDeals.length / denom * 100) : 0).toFixed(1) + '%';
 
       // ===== Item 7 — Chips de Canal de Aquisição (buckets de alto nível) =====
       const acqSource = biState.filtered || [];   // leads = deals criados no período
@@ -6765,20 +6802,20 @@
           </div>`;
       }).join('') : '<p class="text-xs text-slate-400">Sem leads no período.</p>';
 
-      // ===== Funil em PIRÂMIDE (rework cumulativo: detecção estável + corte pós-venda) =====
-      const { pipeline } = biState.filters;
-      let pipelineStages = [];
-      if (pipeline === '__all__') pipelineStages = biState.raw?.pipelines?.[0]?.stages || [];
-      else pipelineStages = biState.raw?.pipelines?.find(p => p.id === pipeline)?.stages || [];
-      const detDeals = applyPipelineAttendantFilters(biState.raw?.deals || []);  // dataset inteiro do escopo (detecção estável)
-      const funnelData = buildCumulativeFunnel(pipelineStages, deals, getFunnelMode(), detDeals);
-      const stages = funnelData.activeStages;
+      // ===== Funil em PIRÂMIDE (funnelData/stages já calculados no topo) =====
+      const capMode = (mode === 'snapshot')
+        ? '📍 <strong>Foto atual</strong> — cada etapa = deals parados nela <strong>agora</strong>. Bate 1:1 com o kanban do CRM (ignora o filtro de período).'
+        : '📈 <strong>Conversão do período</strong> — cada etapa = quem <strong>passou</strong> por ela no período. Serve pra taxa de conversão; não é a foto atual do CRM.';
+      const capPipe = effPipelineName ? ` &nbsp;·&nbsp; Pipeline: <strong>${escapeHTML(effPipelineName)}</strong>` : '';
+      const capAll = (pipeline === '__all__' && pls.length > 1)
+        ? ` <span class="text-amber-600">(maior pipeline — troque no filtro acima p/ ver outro)</span>` : '';
+      const funnelCaption = `<p class="text-[11px] text-slate-500 text-center mb-3 leading-snug">${capMode}${capPipe}${capAll}</p>`;
       const pyramidEl = document.getElementById('funnelPyramid');
       const maxCount = Math.max(...stages.map(s => s.count), 1);
       if (stages.length === 0) {
-        pyramidEl.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">Sem etapas no pipeline selecionado.</p>';
+        pyramidEl.innerHTML = funnelCaption + '<p class="text-xs text-slate-400 text-center py-6">Sem etapas no pipeline selecionado.</p>';
       } else {
-        pyramidEl.innerHTML = stages.map((s, i) => {
+        pyramidEl.innerHTML = funnelCaption + stages.map((s, i) => {
           const widthPct = Math.max(44, (s.count / maxCount) * 100);
           const depth = stages.length > 1 ? i / (stages.length - 1) : 0;
           const sat = Math.round(72 - depth * 8), lig = Math.round(56 - depth * 22);
@@ -6817,9 +6854,9 @@
         });
       });
 
-      // Faturamento + Ticket Médio (ganhos no período)
-      document.getElementById('funnelRevenue').textContent = fmtBRL(wonVal);
-      document.getElementById('funnelTicket').textContent = fmtBRL(won.length > 0 ? wonVal / won.length : 0);
+      // Faturamento + Ticket Médio (SEMPRE ganhos no período — resultado)
+      document.getElementById('funnelRevenue').textContent = fmtBRL(wonValP);
+      document.getElementById('funnelTicket').textContent = fmtBRL(wonP.length > 0 ? wonValP / wonP.length : 0);
 
       // Top motivos de perda
       const lossMap = {};
