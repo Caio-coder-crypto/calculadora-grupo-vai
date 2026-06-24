@@ -583,10 +583,13 @@
             <div id="teamGoalCard" class="hidden bg-white rounded-xl border-2 border-[#FFB81C]/40 p-5 shadow-sm">
               <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
                 <div>
-                  <h4 class="text-sm font-bold text-[#041227] flex items-center gap-2">🎯 Meta da Equipe</h4>
+                  <h4 id="teamGoalTitle" class="text-sm font-bold text-[#041227] flex items-center gap-2">🎯 Meta da Equipe</h4>
                   <p class="text-[11px] text-slate-500" id="teamGoalSubtitle">— vendedores com meta</p>
                 </div>
-                <button id="teamGoalConfigBtn" type="button" class="text-[10px] font-semibold text-[#FFB81C] hover:underline">Editar metas →</button>
+                <div class="flex items-center gap-3">
+                  <button id="generalGoalBtn" type="button" class="text-[10px] font-semibold text-[#041227] hover:underline">🎯 Meta geral</button>
+                  <button id="teamGoalConfigBtn" type="button" class="text-[10px] font-semibold text-[#FFB81C] hover:underline">Editar metas →</button>
+                </div>
               </div>
               <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
@@ -2916,13 +2919,12 @@
     function renderDashboard(data) {
       // KPIs
       document.getElementById('kpiLeads').textContent = fmtInt(data.kpis.totalLeads);
-      const convTrunc = data.kpis.conversationsTruncated;
-      document.getElementById('kpiConvs').textContent =
-        fmtInt(data.kpis.totalConversations) + (convTrunc ? '+' : '');
+      // Conversas = NOVAS no período (mês atual), com comparativo vs mês anterior (feedback do cliente)
+      const tmConv = (data.kpis.thisMonth && data.kpis.thisMonth.billable) || 0;
+      const lmConv = (data.kpis.lastMonth && data.kpis.lastMonth.billable) || 0;
+      document.getElementById('kpiConvs').textContent = fmtInt(tmConv);
       const convsSub = document.getElementById('kpiConvsSub');
-      if (convsSub) convsSub.textContent = convTrunc
-        ? 'amostra parcial (muitos dados)'
-        : 'todas as instâncias · histórico';
+      if (convsSub) convsSub.innerHTML = 'novas neste mês · ' + deltaBadge(tmConv, lmConv);
       document.getElementById('kpiCostNow').textContent = fmtBRL(data.kpis.thisMonth.costBRL);
       document.getElementById('kpiBillableNow').textContent =
         `${fmtInt(data.kpis.thisMonth.billable)} conversas cobráveis · ${fmtUSD(data.kpis.thisMonth.costUSD)}`;
@@ -6789,9 +6791,30 @@
     }
 
     function renderTeamGoal(wonDeals) {
+      const card = document.getElementById('teamGoalCard');
+      const titleEl = document.getElementById('teamGoalTitle');
+      // ===== Meta GERAL (campo único da empresa) — tem prioridade sobre a soma das metas individuais =====
+      const generalGoal = getGeneralGoal();
+      if (generalGoal > 0) {
+        card.classList.remove('hidden');
+        if (titleEl) titleEl.innerHTML = '🎯 Meta Geral';
+        const actual = (wonDeals || []).reduce((a, d) => a + (d.total || 0), 0);
+        const pct = actual / generalGoal * 100;
+        const color = pct >= 100 ? '#00A859' : pct >= 70 ? '#FFB81C' : pct >= 30 ? '#7c3aed' : '#94a3b8';
+        const emoji = pct >= 100 ? '🏆' : pct >= 70 ? '⚡' : pct >= 30 ? '🔥' : '🎯';
+        document.getElementById('teamGoalSubtitle').textContent = 'Meta geral da empresa · receita do período';
+        document.getElementById('teamGoalActual').textContent = fmtBRL(actual);
+        document.getElementById('teamGoalTotal').textContent = fmtBRL(generalGoal);
+        const pctEl = document.getElementById('teamGoalPct'); pctEl.textContent = `${emoji} ${pct.toFixed(0)}%`; pctEl.style.color = color;
+        const bar = document.getElementById('teamGoalBar'); bar.style.width = Math.min(100, pct).toFixed(0) + '%'; bar.style.background = color;
+        const cap = document.getElementById('teamGoalCaption'); if (cap) cap.textContent = `${fmtBRL(actual)} de ${fmtBRL(generalGoal)} no período`;
+        const lead = document.getElementById('teamGoalLeaders'); if (lead) lead.innerHTML = '';
+        return;
+      }
+      if (titleEl) titleEl.innerHTML = '🎯 Meta da Equipe';
+
       const goals = getGoals();
       const sellersWithGoal = Object.keys(goals).filter(id => (goals[id]?.revenue || 0) > 0);
-      const card = document.getElementById('teamGoalCard');
 
       if (sellersWithGoal.length === 0) {
         card.classList.add('hidden');
@@ -6986,6 +7009,14 @@
 
     // Botão "Editar metas" do card Meta da Equipe
     document.getElementById('teamGoalConfigBtn').addEventListener('click', openGoalsModal);
+    document.getElementById('generalGoalBtn')?.addEventListener('click', () => {
+      const cur = getGeneralGoal();
+      const v = prompt('Meta GERAL mensal da empresa (R$). Deixe em branco pra remover:', cur ? String(cur) : '');
+      if (v === null) return;
+      const num = parseFloat(String(v).replace(/[^\d.,]/g, '').replace(/\./g, '').replace(',', '.')) || 0;
+      setGeneralGoal(num);
+      if (biState.raw) renderOverview();
+    });
 
     // Botão "Editar papéis" do card Performance da Equipe
     document.getElementById('teamPerfConfigBtn').addEventListener('click', openRolesModal);
