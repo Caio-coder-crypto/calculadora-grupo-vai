@@ -7044,15 +7044,21 @@
       const pipelineStages = pls.find(p => p.id === effPipeline)?.stages || [];
 
       // Datasets escopados ao pipeline efetivo + atendente:
-      //  - scopedAll   : TUDO (all-time)                          → foto do CRM (snapshot)
-      //  - cohort      : leads CRIADOS no período (createdAt)      → "funil do mês" (safra)
-      //  - periodScoped: ganhos pela data de fechamento no período → modo Conversão (cumulativo)
       const scopedAll = (biState.raw?.deals || []).filter(d => d.pipelineId === effPipeline && attOf(d));
-      const cohort = filterByPeriod(scopedAll, biState.filters.period);                  // por createdAt ('all' = tudo)
-      const periodScoped = filterByPeriod(scopedAll, biState.filters.period, dealStampTime);
-      const isCohort = (mode === 'cohort');
-      const buildMode = isCohort ? 'snapshot' : mode;   // coorte conta por ETAPA ATUAL (snapshot) dentro da safra
-      const countDeals = (mode === 'snapshot') ? cohort : periodScoped;   // snapshot ("Como está no CRM") filtra por data de CRIAÇÃO no período (igual ao filtro do CRM)
+      const periodScoped = filterByPeriod(scopedAll, biState.filters.period, dealStampTime);   // modo Conversão (por data de fechamento)
+      // snapshot ("Como está no CRM"): igual ao filtro do CRM — etapas ABERTAS/PERDA por DATA DE CRIAÇÃO,
+      // e a(s) etapa(s) de GANHO por DATA DO GANHO (statusChangedAt), pra "venda ganha" refletir o mês do fechamento.
+      let snapDeals = scopedAll;
+      if (mode === 'snapshot') {
+        const _det = buildCumulativeFunnel(pipelineStages, scopedAll, 'snapshot', scopedAll);
+        const _wonIds = _det.wonTerminalIds || new Set();
+        const _r = getCurrentPeriodRange();
+        const _createdIn = d => { const t = new Date(d.createdAt).getTime(); return t >= _r.start && t < _r.end; };
+        const _wonIn = d => { const s = d.statusChangedAt || d.lastMovedAt || d.createdAt; const t = new Date(s).getTime(); return t >= _r.start && t < _r.end; };
+        snapDeals = scopedAll.filter(d => (_wonIds.has(d.stageId) || isWon(d)) ? _wonIn(d) : _createdIn(d));
+      }
+      const buildMode = mode;
+      const countDeals = (mode === 'snapshot') ? snapDeals : periodScoped;
       const funnelData = buildCumulativeFunnel(pipelineStages, countDeals, buildMode, scopedAll);
       const stages = funnelData.activeStages;
 
@@ -7064,20 +7070,21 @@
       const termLost = funnelData.lostTerminalIds || new Set();
       // Base dos cards: COORTE usa a safra do período; snapshot/Conversão usam o estado atual (all-time).
       // Classificação por ETAPA terminal (igual ao CRM), mutuamente exclusiva: perda > ganho > aberto.
-      const cardBase = (mode === 'snapshot') ? cohort : scopedAll;   // cards do snapshot também respeitam o período (data de criação)
+      const cardBase = (mode === 'snapshot') ? snapDeals : scopedAll;   // snapshot: aberto/perda por criação, ganho por data do ganho
       const lostDeals = cardBase.filter(d => termLost.has(d.stageId) || isLost(d));
       const wonDeals  = cardBase.filter(d => !termLost.has(d.stageId) && (termWon.has(d.stageId) || isWon(d)));
       const openDeals = cardBase.filter(d => !termLost.has(d.stageId) && !termWon.has(d.stageId) && !isWon(d) && !isLost(d));
       const lost = lostDeals;  // usado pelos motivos de perda (mais abaixo)
-      // Faturamento/Ticket: COORTE = ganhos da safra; snapshot/Conversão = ganhos no período (statusChangedAt)
-      const wonForRev = isCohort ? wonDeals : scopedAll.filter(d => isWon(d) && ts(d) >= range.start && ts(d) < range.end);
+      // Faturamento/Ticket: ganhos no período por DATA DO GANHO (statusChangedAt)
+      const wonForRev = scopedAll.filter(d => isWon(d) && ts(d) >= range.start && ts(d) < range.end);
       const wonValP = sum(wonForRev);
+      const perSel = (mode === 'snapshot') && (biState.filters.period !== 'all');   // snapshot filtrado por período
       document.getElementById('funnelOpenCount').textContent = fmtInt(openDeals.length);
-      document.getElementById('funnelOpenValue').textContent = fmtBRL(sum(openDeals)) + (isCohort ? ' abertos da safra' : ' em pipeline (agora)');
+      document.getElementById('funnelOpenValue').textContent = fmtBRL(sum(openDeals)) + (perSel ? ' abertos no período' : ' em pipeline (agora)');
       document.getElementById('funnelWonCount').textContent  = fmtInt(wonDeals.length);
-      document.getElementById('funnelWonValue').textContent  = fmtBRL(sum(wonDeals)) + (isCohort ? ' ganhos da safra' : ' ganhos (total)');
+      document.getElementById('funnelWonValue').textContent  = fmtBRL(sum(wonDeals)) + (perSel ? ' ganhos no período' : ' ganhos (total)');
       document.getElementById('funnelLostCount').textContent = fmtInt(lostDeals.length);
-      document.getElementById('funnelLostValue').textContent = fmtBRL(sum(lostDeals)) + (isCohort ? ' perdidos da safra' : ' perdidos (total)');
+      document.getElementById('funnelLostValue').textContent = fmtBRL(sum(lostDeals)) + (perSel ? ' perdidos no período' : ' perdidos (total)');
       const denom = wonDeals.length + lostDeals.length;
       document.getElementById('funnelConversion').textContent = (denom > 0 ? (wonDeals.length / denom * 100) : 0).toFixed(1) + '%';
 
@@ -7103,7 +7110,7 @@
       const hasPeriodSel = biState.filters.period !== 'all';
       let capMode;
       if (mode === 'snapshot') {
-        capMode = '📍 <strong>Como está no CRM</strong> — deals por <strong>etapa atual</strong>' + (hasPeriodSel ? ', <strong>filtrados por data de criação no período</strong> (igual ao filtro do CRM).' : ' (todos — igual ao kanban; selecione um período pra filtrar por data de criação).');
+        capMode = '📍 <strong>Como está no CRM</strong> — deals por <strong>etapa atual</strong>' + (hasPeriodSel ? ', <strong>filtrados por data de criação no período</strong> (venda ganha pela data do ganho) — igual ao CRM.' : ' (todos — igual ao kanban; selecione um período pra filtrar).');
       } else if (mode === 'cohort') {
         capMode = '🗓️ <strong>Funil do mês (safra)</strong> — dos leads <strong>criados no período</strong>, onde cada um está hoje (por etapa atual).' + (hasPeriodSel ? '' : ' <span class="text-amber-600">Selecione um mês no filtro acima pra ver uma safra (agora está mostrando tudo).</span>');
       } else {
