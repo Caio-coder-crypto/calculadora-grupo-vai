@@ -7052,7 +7052,7 @@
       const periodScoped = filterByPeriod(scopedAll, biState.filters.period, dealStampTime);
       const isCohort = (mode === 'cohort');
       const buildMode = isCohort ? 'snapshot' : mode;   // coorte conta por ETAPA ATUAL (snapshot) dentro da safra
-      const countDeals = (mode === 'snapshot') ? scopedAll : (isCohort ? cohort : periodScoped);
+      const countDeals = (mode === 'snapshot') ? cohort : periodScoped;   // snapshot ("Como está no CRM") filtra por data de CRIAÇÃO no período (igual ao filtro do CRM)
       const funnelData = buildCumulativeFunnel(pipelineStages, countDeals, buildMode, scopedAll);
       const stages = funnelData.activeStages;
 
@@ -7064,7 +7064,7 @@
       const termLost = funnelData.lostTerminalIds || new Set();
       // Base dos cards: COORTE usa a safra do período; snapshot/Conversão usam o estado atual (all-time).
       // Classificação por ETAPA terminal (igual ao CRM), mutuamente exclusiva: perda > ganho > aberto.
-      const cardBase = isCohort ? cohort : scopedAll;
+      const cardBase = (mode === 'snapshot') ? cohort : scopedAll;   // cards do snapshot também respeitam o período (data de criação)
       const lostDeals = cardBase.filter(d => termLost.has(d.stageId) || isLost(d));
       const wonDeals  = cardBase.filter(d => !termLost.has(d.stageId) && (termWon.has(d.stageId) || isWon(d)));
       const openDeals = cardBase.filter(d => !termLost.has(d.stageId) && !termWon.has(d.stageId) && !isWon(d) && !isLost(d));
@@ -7103,7 +7103,7 @@
       const hasPeriodSel = biState.filters.period !== 'all';
       let capMode;
       if (mode === 'snapshot') {
-        capMode = '📍 <strong>Foto atual do CRM</strong> — cada etapa = deals parados nela <strong>agora</strong> (bate 1:1 com o kanban).' + (hasPeriodSel ? ' <span class="text-amber-600">A foto não muda com o período — o filtro vale só pra Faturamento abaixo.</span>' : '');
+        capMode = '📍 <strong>Como está no CRM</strong> — deals por <strong>etapa atual</strong>' + (hasPeriodSel ? ', <strong>filtrados por data de criação no período</strong> (igual ao filtro do CRM).' : ' (todos — igual ao kanban; selecione um período pra filtrar por data de criação).');
       } else if (mode === 'cohort') {
         capMode = '🗓️ <strong>Funil do mês (safra)</strong> — dos leads <strong>criados no período</strong>, onde cada um está hoje (por etapa atual).' + (hasPeriodSel ? '' : ' <span class="text-amber-600">Selecione um mês no filtro acima pra ver uma safra (agora está mostrando tudo).</span>');
       } else {
