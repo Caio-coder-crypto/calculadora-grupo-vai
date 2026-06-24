@@ -6424,15 +6424,87 @@
       return (d >= 0 ? '+' : '') + d.toFixed(1) + '%';
     }
 
-    function deltaBadge(curr, prev) {
+    function deltaBadge(curr, prev, lowerIsBetter) {
       if (prev === 0 && curr === 0) return '<span class="text-slate-400">— estável</span>';
-      if (prev === 0) return '<span class="text-[#00A859] font-semibold">▲ NOVO</span>';
+      if (prev === 0) return '<span class="text-[#00A859] font-semibold">▲ NOVO vs mês ant.</span>';
       const pct = ((curr - prev) / prev * 100);
       const abs = Math.abs(pct);
-      if (abs < 1) return '<span class="text-slate-400">≈ estável (vs anterior)</span>';
-      if (pct > 0) return `<span class="text-[#00A859] font-semibold">▲ ${abs.toFixed(0)}% vs anterior</span>`;
-      return `<span class="text-red-400 font-semibold">▼ ${abs.toFixed(0)}% vs anterior</span>`;
+      if (abs < 1) return '<span class="text-slate-400">≈ estável vs mês ant.</span>';
+      const good = lowerIsBetter ? (pct < 0) : (pct > 0);
+      const arrow = pct > 0 ? '▲' : '▼';
+      const color = good ? 'text-[#00A859]' : 'text-red-400';
+      return `<span class="${color} font-semibold">${arrow} ${abs.toFixed(0)}% vs mês ant.</span>`;
     }
+
+    // ===== Helpers da Visão Geral (feedback do cliente jun/2026) =====
+    // Comparativo SEMPRE vs mês-calendário anterior (relativo ao mês de referência do período).
+    function ovPrevMonthRange(curRange) {
+      const endRef = (curRange && isFinite(curRange.end)) ? new Date(curRange.end - 1) : new Date();
+      const refStart = new Date(endRef.getFullYear(), endRef.getMonth(), 1);
+      const prevStart = new Date(refStart.getFullYear(), refStart.getMonth() - 1, 1);
+      return { start: prevStart.getTime(), end: refStart.getTime() };
+    }
+    function ovWonIn(range) {
+      return (biState.raw?.deals || []).filter(d => {
+        if (!isWon(d) || !applyAttendantPipelineFilter(d)) return false;
+        const s = d.statusChangedAt || d.lastMovedAt || d.createdAt;
+        const t = s ? new Date(s).getTime() : 0;
+        return t >= range.start && t < range.end;
+      });
+    }
+    function ovCreatedIn(range) {
+      return (biState.raw?.deals || []).filter(d => {
+        if (!applyAttendantPipelineFilter(d)) return false;
+        const t = new Date(d.createdAt).getTime();
+        return t >= range.start && t < range.end;
+      });
+    }
+    // Investimento total (gastos manuais + WhatsApp + comissões) num range — MESMA composição da aba ROI.
+    function computeTotalInvestmentForRange(start, end) {
+      const expAll = getRoiExpenses();
+      const series = (dashState.lastData && dashState.lastData.monthlySeries) || [];
+      const roles = getRoles();
+      let manual = 0, wpp = 0;
+      const endD = isFinite(end) ? new Date(end - 1) : new Date();
+      const startMs = (!start || start <= 0) ? new Date(endD.getFullYear(), endD.getMonth() - 35, 1).getTime() : start;
+      let it = new Date(new Date(startMs).getFullYear(), new Date(startMs).getMonth(), 1);
+      const stop = new Date(endD.getFullYear(), endD.getMonth(), 1);
+      while (it <= stop) {
+        const key = it.getFullYear() + '-' + String(it.getMonth() + 1).padStart(2, '0');
+        const ex = expAll[key]; if (ex) for (const f of ROI_FIELDS) manual += parseFloat(ex[f]) || 0;
+        const hit = series.find(x => x.month === key); if (hit && typeof hit.costBRL === 'number') wpp += hit.costBRL;
+        it = new Date(it.getFullYear(), it.getMonth() + 1, 1);
+      }
+      let commissions = 0;
+      const endTs = isFinite(end) ? end : Infinity;
+      for (const d of (biState.raw?.deals || [])) {
+        if (!isWon(d) || !applyAttendantPipelineFilter(d)) continue;
+        const s = d.statusChangedAt || d.lastMovedAt || d.createdAt; const t = s ? new Date(s).getTime() : 0;
+        if (t < start || t >= endTs) continue;
+        const cfg = roles[d.attendantId]; if (cfg) commissions += (d.total || 0) * (cfg.commissionPct || 0) / 100;
+        const sdrId = getSdrCreditFor(d.leadTags || []);
+        if (sdrId && sdrId !== d.attendantId && roles[sdrId]) commissions += (d.total || 0) * (roles[sdrId].commissionPct || 0) / 100;
+      }
+      return manual + wpp + commissions;
+    }
+    // Gasto só em ADS (4 campos de mídia paga) num range — pra ROAS de ads.
+    function computeAdsSpendForRange(start, end) {
+      const expAll = getRoiExpenses(); let ads = 0;
+      const endD = isFinite(end) ? new Date(end - 1) : new Date();
+      const startMs = (!start || start <= 0) ? new Date(endD.getFullYear(), endD.getMonth() - 35, 1).getTime() : start;
+      let it = new Date(new Date(startMs).getFullYear(), new Date(startMs).getMonth(), 1);
+      const stop = new Date(endD.getFullYear(), endD.getMonth(), 1);
+      while (it <= stop) {
+        const key = it.getFullYear() + '-' + String(it.getMonth() + 1).padStart(2, '0');
+        const ex = expAll[key];
+        if (ex) ads += (parseFloat(ex.ads_meta) || 0) + (parseFloat(ex.ads_google) || 0) + (parseFloat(ex.ads_tiktok) || 0) + (parseFloat(ex.ads_other) || 0);
+        it = new Date(it.getFullYear(), it.getMonth() + 1, 1);
+      }
+      return ads;
+    }
+    const GENERAL_GOAL_KEY = 'dc_general_goal_v1';
+    function getGeneralGoal() { try { return parseFloat(localStorage.getItem(GENERAL_GOAL_KEY)) || 0; } catch { return 0; } }
+    function setGeneralGoal(v) { try { if (v > 0) localStorage.setItem(GENERAL_GOAL_KEY, String(v)); else localStorage.removeItem(GENERAL_GOAL_KEY); } catch {} }
 
     function getPreviousPeriodDeals() {
       // Pega deals do período anterior (mesma duração) pra comparação
@@ -6477,13 +6549,19 @@
       const won   = getWonInFilteredPeriod();         // deals GANHOS no período (statusChangedAt) — RECEITA
       const lost  = getLostInFilteredPeriod();        // deals PERDIDOS no período (statusChangedAt)
       const open  = (biState.raw?.deals || []).filter(d => isOpen(d) && applyAttendantPipelineFilter(d));  // PIPELINE ATUAL (snapshot)
-      const prevWon = getPreviousWonInPeriod();       // ganhos no período ANTERIOR (pra delta)
+      const ovCur  = getCurrentPeriodRange();
+      const ovPrev = ovPrevMonthRange(ovCur);          // comparativo SEMPRE vs mês-calendário anterior
+      const prevWon = ovWonIn(ovPrev);                 // ganhos no MÊS anterior (pra delta)
+      const prevCreated = ovCreatedIn(ovPrev);         // leads que entraram no mês anterior
 
       const revenue     = sumTotal(won);
       const prevRevenue = sumTotal(prevWon);
       const pipeline    = sumTotal(open);
       const avgTicket = won.length > 0 ? revenue / won.length : 0;
-      const conv = (won.length + lost.length) > 0 ? (won.length / (won.length + lost.length) * 100) : 0;
+      const prevAvgTicket = prevWon.length > 0 ? sumTotal(prevWon) / prevWon.length : 0;
+      // Taxa de conversão = VENDAS ÷ leads que entraram no período (feedback do cliente — só na Visão Geral)
+      const conv     = deals.length > 0 ? (won.length / deals.length * 100) : 0;
+      const prevConv = prevCreated.length > 0 ? (prevWon.length / prevCreated.length * 100) : 0;
 
       // Tempo médio entre criação e fechamento (apenas ganhos com statusChangedAt)
       const closedWithTime = won.filter(d => d.statusChangedAt && d.createdAt);
@@ -6501,6 +6579,7 @@
       document.getElementById('kpiClosedDeals').textContent = fmtInt(won.length);
       document.getElementById('kpiClosedDealsDelta').innerHTML = deltaBadge(won.length, prevWon.length);
       document.getElementById('kpiConversion').textContent = conv.toFixed(1) + '%';
+      document.getElementById('kpiConversionDetail').innerHTML = 'Vendas ÷ leads que entraram · ' + deltaBadge(conv, prevConv);
 
       // KPIs secundários
       document.getElementById('kpiAvgTicket').textContent = avgTicket > 0 ? fmtBRL(avgTicket) : 'R$ 0';
@@ -6513,36 +6592,43 @@
       const whatsappCostBRL = dashState.lastData?.kpis?.thisMonth?.costBRL || 0;
       const whatsappProjectionBRL = dashState.lastData?.kpis?.thisMonth?.projection?.costBRL || whatsappCostBRL;
 
+      // CAC = Investimento Total ÷ nº de Vendas (feedback do cliente). Investimento = ads+equipe+ferramentas+WhatsApp+comissões (mesma base da aba ROI).
       const cacEl = document.getElementById('kpiCAC');
       const cacDetail = document.getElementById('kpiCACDetail');
-      if (whatsappCostBRL > 0 && won.length > 0) {
-        const cac = whatsappCostBRL / won.length;
+      const ovInvest = computeTotalInvestmentForRange(ovCur.start, ovCur.end);
+      const ovPrevInvest = computeTotalInvestmentForRange(ovPrev.start, ovPrev.end);
+      if (ovInvest > 0 && won.length > 0) {
+        const cac = ovInvest / won.length;
+        const prevCac = prevWon.length > 0 ? (ovPrevInvest / prevWon.length) : 0;
         cacEl.textContent = fmtBRL(cac);
-        cacDetail.textContent = `${fmtBRL(whatsappCostBRL)} ÷ ${fmtInt(won.length)} ganhos`;
-      } else if (whatsappCostBRL === 0) {
+        cacDetail.innerHTML = `${fmtBRL(ovInvest)} ÷ ${fmtInt(won.length)} vendas · ` + deltaBadge(cac, prevCac, true);
+      } else if (ovInvest === 0) {
         cacEl.textContent = '—';
-        cacDetail.innerHTML = '<span class="text-[#FFB81C]">⚠ Sincronize Dashboard CRM</span>';
+        cacDetail.innerHTML = '<span class="text-[#FFB81C]">⚠ Lance os gastos na aba Gastos & ROI</span>';
       } else {
         cacEl.textContent = '—';
-        cacDetail.textContent = 'Sem ganhos no período';
+        cacDetail.textContent = 'Sem vendas no período';
       }
 
+      // ROAS = retorno EXCLUSIVO dos anúncios (receita vinda de ads ÷ gasto em ads).
       const roasEl = document.getElementById('kpiROAS');
       const roasDetail = document.getElementById('kpiROASDetail');
-      if (whatsappCostBRL > 0 && revenue > 0) {
-        const roas = revenue / whatsappCostBRL;
+      const ovChMap = getChannelPlatformMap();
+      const OV_PAID = ['meta', 'google', 'tiktok', 'other'];
+      const adsRev     = won.reduce((a, d) => OV_PAID.includes(getDealPlatform(d, ovChMap)) ? a + (d.total || 0) : a, 0);
+      const adsSpend   = computeAdsSpendForRange(ovCur.start, ovCur.end);
+      const prevAdsRev = prevWon.reduce((a, d) => OV_PAID.includes(getDealPlatform(d, ovChMap)) ? a + (d.total || 0) : a, 0);
+      const prevAdsSp  = computeAdsSpendForRange(ovPrev.start, ovPrev.end);
+      if (adsSpend > 0) {
+        const roas = adsRev / adsSpend;
+        const prevRoas = prevAdsSp > 0 ? (prevAdsRev / prevAdsSp) : 0;
         roasEl.innerHTML = `${roas.toFixed(1)}x`;
-        // Cor verde se >= 5x (bom), amarelo 2-5x, vermelho < 2x
-        roasEl.style.color = roas >= 5 ? '#00754d' : roas >= 2 ? '#7a5400' : '#dc2626';
-        roasDetail.textContent = `${fmtBRL(revenue)} ÷ ${fmtBRL(whatsappCostBRL)}`;
-      } else if (whatsappCostBRL === 0) {
-        roasEl.textContent = '—';
-        roasEl.style.color = '';
-        roasDetail.innerHTML = '<span class="text-[#FFB81C]">⚠ Sincronize Dashboard CRM</span>';
+        roasEl.style.color = roas >= 3 ? '#00754d' : roas >= 1 ? '#7a5400' : '#dc2626';
+        roasDetail.innerHTML = `receita de ads ÷ gasto de ads · ` + deltaBadge(roas, prevRoas);
       } else {
         roasEl.textContent = '—';
         roasEl.style.color = '';
-        roasDetail.textContent = 'Sem receita no período';
+        roasDetail.innerHTML = '<span class="text-[#FFB81C]">⚠ Lance o gasto de ads na aba Gastos & ROI</span>';
       }
 
       // Top vendedor
