@@ -679,7 +679,6 @@
                 <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Funil de Conversão</p>
                 <div class="flex items-center gap-1 bg-slate-100 rounded-lg p-0.5">
                   <button data-funnel-mode="snapshot" class="funnel-mode-btn px-3 py-1 rounded-md text-[11px] font-bold transition bg-white text-[#041227] shadow-sm" title="Quantos deals estão parados em cada etapa agora — igual ao kanban do CRM">📍 Como está no CRM</button>
-                  <button data-funnel-mode="cohort" class="funnel-mode-btn px-3 py-1 rounded-md text-[11px] font-bold transition text-slate-600 hover:bg-white/50" title="Dos leads criados no período selecionado, onde cada um está hoje">🗓️ Funil do mês</button>
                   <button data-funnel-mode="cumulative" class="funnel-mode-btn px-3 py-1 rounded-md text-[11px] font-bold transition text-slate-600 hover:bg-white/50" title="Quantos deals passaram por cada etapa no período (taxa de conversão)">📈 Conversão</button>
                 </div>
               </div>
@@ -758,6 +757,7 @@
                       <th class="px-3 py-2 font-bold">WhatsApp / Tel</th>
                       <th class="px-3 py-2 font-bold">⭐</th>
                       <th class="px-3 py-2 font-bold">Site</th>
+                      <th class="px-3 py-2 font-bold">Instagram</th>
                       <th class="px-3 py-2 font-bold">Status</th>
                     </tr>
                   </thead>
@@ -3754,7 +3754,8 @@
     const ACQ_BUCKETS = [
       { key: 'paid',         label: 'Tráfego Pago',      color: '#1877F2', icon: '📣' },
       { key: 'partner',      label: 'Parceiro',          color: '#14B8A6', icon: '🤝' },
-      { key: 'events',       label: 'Eventos / Network', color: '#7c3aed', icon: '👥' },
+      { key: 'events',       label: 'Evento',            color: '#7c3aed', icon: '🎟️' },
+      { key: 'network',      label: 'Network',           color: '#6366F1', icon: '🌐' },
       { key: 'reactivation', label: 'Reativação',        color: '#F59E0B', icon: '🔄' },
       { key: 'referral',     label: 'Indicação',         color: '#EAB308', icon: '⭐' },
       { key: 'organic',      label: 'Orgânico',          color: '#10B981', icon: '🌱' },
@@ -3768,7 +3769,8 @@
         if (/indica|referral/.test(n)) return 'referral';
         if (/reativa/.test(n))         return 'reactivation';
         if (/parceir|partner/.test(n)) return 'partner';
-        if (/evento|network/.test(n))  return 'events';
+        if (/network|networking/.test(n)) return 'network';
+        if (/evento|event/.test(n))    return 'events';
       }
       return plat === 'unmapped' ? 'unmapped' : 'organic';
     }
@@ -6180,7 +6182,8 @@
             <td class="px-3 py-1.5 font-semibold text-[#041227]">${esc(it.name)}</td>
             <td class="px-3 py-1.5 tabular-nums">${esc(it.phone || '—')}</td>
             <td class="px-3 py-1.5">${it.rating ? esc(it.rating) : '—'}</td>
-            <td class="px-3 py-1.5">${it.website ? '<span class="text-[#00754d]">sim</span>' : '<span class="text-amber-600">não</span>'}</td>
+            <td class="px-3 py-1.5">${it.website ? `<a href="${/^https?:/.test(it.website) ? it.website : 'https://' + it.website}" target="_blank" rel="noopener" class="text-[#00754d] underline">abrir</a>` : '<span class="text-amber-600">não</span>'}</td>
+            <td class="px-3 py-1.5">${it.instagram ? `<a href="${/^https?:/.test(it.instagram) ? it.instagram : 'https://instagram.com/' + String(it.instagram).replace(/^@/, '')}" target="_blank" rel="noopener" class="text-[#00754d] underline">${esc(String(it.instagram).replace(/^https?:\/\/(www\.)?instagram\.com\//, '@').replace(/\/$/, ''))}</a>` : '<span class="text-slate-400">—</span>'}</td>
             <td class="px-3 py-1.5">${withStatus ? (it._status || '') : '<span class="text-slate-300">—</span>'}</td>
           </tr>`).join('');
         $('pCount').textContent = prospectItems.length;
@@ -6225,7 +6228,7 @@
         msg.innerHTML = '<span class="text-slate-500">Criando leads no CRM… pode levar até 1 min.</span>';
         try {
           const res = await dcFetch('/api/datacrazy/prospect', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'import', pipelineId, tag, segment: $('pSegment').value.trim(), leads: prospectItems.map(it => ({ name: it.name, phone: it.phone, website: it.website })) }) });
+            body: JSON.stringify({ action: 'import', pipelineId, tag, segment: $('pSegment').value.trim(), leads: prospectItems.map(it => ({ name: it.name, phone: it.phone, website: it.website, instagram: it.instagram })) }) });
           const data = await res.json().catch(() => ({}));
           if (!res.ok || data.error) {
             msg.innerHTML = `<span class="text-red-600">${esc(data.message || ('Erro HTTP ' + res.status))}</span>` + (data.hint ? `<br><span class="text-slate-500">${esc(data.hint)}</span>` : '');
@@ -6989,7 +6992,7 @@
 
     // ---------- FUNIL ----------
     function renderFunnel() {
-      const mode = getFunnelMode();   // 'snapshot' (padrão: foto do CRM) | 'cumulative' (conversão do período)
+      let mode = getFunnelMode(); if (mode === 'cohort') mode = 'snapshot';   // "Funil do mês" (coorte) removido a pedido do cliente → cai no snapshot
       const { pipeline, attendant } = biState.filters;
       const pls = biState.raw?.pipelines || [];
       const attOf = (d) => (attendant === '__all__' || d.attendantId === attendant);
@@ -7098,6 +7101,7 @@
           return conv + `<div class="funnel-stage mx-auto rounded-lg shadow-md text-white text-center py-3 px-3 cursor-pointer hover:brightness-110 transition" data-stage-idx="${i}" style="width:${widthPct}%; min-width:160px; background:${bg}">
               <div class="text-[10px] sm:text-[11px] font-semibold tracking-tight leading-snug break-words opacity-95">${escapeHTML(s.name)}${s.isWonTerminal ? ' 🏆' : ''}</div>
               <div class="text-lg sm:text-xl font-extrabold leading-tight tabular-nums mt-0.5">${fmtInt(s.count)}</div>
+              ${mode === 'snapshot' ? `<div class="text-[10px] font-semibold tabular-nums opacity-90 mt-0.5">${fmtBRL(s.value)}</div>` : ''}
             </div>`;
         }).join('');
         pyramidEl.querySelectorAll('.funnel-stage').forEach(el => {
@@ -7471,10 +7475,16 @@
     // Deals que entram na análise, conforme o toggle dataset:
     //  'won'  = ganhos no período (receita real)  ·  'open' = pipeline em aberto criado no período
     function getProductScopeDeals() {
-      if (biState.productsDataset === 'open') {
-        return (biState.filtered || []).filter(d => !isWon(d) && !isLost(d));
-      }
-      return getWonInFilteredPeriod();
+      // Atribuição por DATA DE MOVIMENTAÇÃO (lastMovedAt), atrelada ao negócio (feedback do cliente).
+      const range = getCurrentPeriodRange();
+      const movedInPeriod = (d) => {
+        if (!applyAttendantPipelineFilter(d)) return false;
+        const t = d.lastMovedAt ? new Date(d.lastMovedAt).getTime() : 0;
+        return t >= range.start && t < range.end;
+      };
+      const base = (biState.raw?.deals || []).filter(movedInPeriod);
+      if (biState.productsDataset === 'open') return base.filter(d => !isWon(d) && !isLost(d));
+      return base.filter(isWon);
     }
 
     function renderProducts() {

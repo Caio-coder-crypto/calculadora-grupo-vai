@@ -81,7 +81,8 @@ async function doSearch(body, res) {
     searchStringsArray: [segment],
     locationQuery: location,
     maxCrawledPlacesPerSearch: quantity,
-    language: 'pt-BR'
+    language: 'pt-BR',
+    scrapeContacts: true   // enriquece com redes sociais (Instagram) + e-mails a partir do site
   };
   if (minStars) apifyInput.placeMinimumStars = minStars;
 
@@ -104,6 +105,8 @@ async function doSearch(body, res) {
       name: p.title || p.name,
       phone: fmtPhoneBR(p.phoneUnformatted || p.phone),
       website: p.website || '',
+      instagram: (Array.isArray(p.instagrams) && p.instagrams[0]) || p.instagram
+        || (p.contactDetails && Array.isArray(p.contactDetails.instagrams) && p.contactDetails.instagrams[0]) || '',
       rating: p.totalScore || null,
       reviews: p.reviewsCount || 0,
       neighborhood: p.neighborhood || ''
@@ -151,6 +154,7 @@ async function doImport(apiKey, body, res) {
         phone: phone || undefined,
         source: segment ? `Apify · ${segment}` : 'Apify · outbound',
         site: l.website || undefined,
+        instagram: l.instagram || undefined,
         tags: [{ id: tagId }]
       });
       const leadId = lead.id || lead.data?.id;
