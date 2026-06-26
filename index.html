@@ -1794,7 +1794,7 @@
                 <h3 class="text-sm font-bold text-[#041227]">Distribuição de custos (BRL)</h3>
                 <span class="text-[10px] font-semibold uppercase tracking-widest text-[#00A859]">Doughnut</span>
               </div>
-              <div class="flex-1 flex items-center justify-center min-h-[260px]">
+              <div class="flex items-center justify-center h-64 sm:h-72">
                 <canvas id="costChart"></canvas>
               </div>
               <p class="text-[11px] text-slate-500 mt-3 text-center">Marketing · Utilidade · Autenticação</p>
@@ -4761,8 +4761,8 @@
       if (period === 'custom') {
         if (!customStart || !customEnd) return { start: 0, end: Infinity };
         return {
-          start: new Date(customStart + 'T00:00:00').getTime(),
-          end:   new Date(customEnd   + 'T23:59:59').getTime() + 1
+          start: new Date(customStart + 'T00:00:00-03:00').getTime(),
+          end:   new Date(customEnd   + 'T23:59:59-03:00').getTime() + 1
         };
       }
       const days  = parseInt(period, 10);
@@ -4810,8 +4810,8 @@
       let cutoffStart, cutoffEnd;
       if (period === 'custom') {
         if (!customStart || !customEnd) return [];
-        const startTs = new Date(customStart + 'T00:00:00').getTime();
-        const endTs   = new Date(customEnd   + 'T23:59:59').getTime();
+        const startTs = new Date(customStart + 'T00:00:00-03:00').getTime();
+        const endTs   = new Date(customEnd   + 'T23:59:59-03:00').getTime();
         const span    = endTs - startTs;
         cutoffEnd     = startTs;
         cutoffStart   = startTs - span;
@@ -4852,12 +4852,18 @@
       return deals;
     }
 
-    // Retorna [início, fim) de um mês-calendário. monthsAgo: 0 = mês atual, 1 = passado.
+    // === Fuso do CRM ancorado em BRT (America/Sao_Paulo = UTC-3, sem horário de verão desde 2019) ===
+    // As bordas de período são fixadas em BRT pra bater 1:1 com o filtro nativo do DataCrazy,
+    // independentemente do fuso do navegador de quem abre o relatório (PC do cliente, do chefe, servidor em UTC…).
+    const BRT_OFFSET_MS = 3 * 3600000;  // 00:00 BRT = 03:00 UTC
+    function brtMonthParts(instant) { const d = new Date(instant - BRT_OFFSET_MS); return { y: d.getUTCFullYear(), m: d.getUTCMonth() }; }
+
+    // Retorna [início, fim) de um mês-calendário em BRT. monthsAgo: 0 = mês atual, 1 = passado.
     function calendarMonthRange(monthsAgo) {
-      const now = new Date();
-      const start = new Date(now.getFullYear(), now.getMonth() - monthsAgo, 1, 0, 0, 0, 0);
-      const end = new Date(now.getFullYear(), now.getMonth() - monthsAgo + 1, 1, 0, 0, 0, 0);
-      return { start: start.getTime(), end: end.getTime(), label: start.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }) };
+      const { y, m } = brtMonthParts(Date.now());
+      const start = Date.UTC(y, m - monthsAgo, 1, 3, 0, 0, 0);       // 00:00 BRT = 03:00 UTC
+      const end   = Date.UTC(y, m - monthsAgo + 1, 1, 3, 0, 0, 0);
+      return { start, end, label: new Date(start).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric', timeZone: 'America/Sao_Paulo' }) };
     }
 
     // Aplica os filtros de pipeline/vendedor (sem período) a um array de deals
@@ -4898,8 +4904,8 @@
       if (period === 'custom') {
         const { customStart, customEnd } = biState.filters;
         if (!customStart || !customEnd) return deals;  // se ainda não escolheu datas, mostra tudo
-        const startTs = new Date(customStart + 'T00:00:00').getTime();
-        const endTs   = new Date(customEnd   + 'T23:59:59').getTime();
+        const startTs = new Date(customStart + 'T00:00:00-03:00').getTime();
+        const endTs   = new Date(customEnd   + 'T23:59:59-03:00').getTime();
         return deals.filter(d => {
           const t = stamp(d);
           return t >= startTs && t <= endTs;
@@ -5636,9 +5642,9 @@
         const t = v > 0 ? v / maxVal : 0;
         const bg = geoHeatColor(t), txt = t > 0.55 ? '#fff' : '#475569';
         const lbl = a ? (geoMetric === 'revenue' ? 'R$' + geoShort(a.rev) : geoMetric === 'conv' ? Math.round(convPct(a)) + '%' : fmtInt(a.leads)) : '';
-        return `<button class="geo-tile rounded-md flex flex-col items-center justify-center aspect-square ${a ? 'cursor-pointer hover:ring-2 hover:ring-[#00A859]' : 'opacity-70'}" data-uf="${uf}" title="${meta.n}${a ? ' — ' + fmtInt(a.leads) + ' leads · ' + fmtBRL(a.rev) + ' · ' + Math.round(convPct(a)) + '% conv' : ' — sem dados'}" style="grid-column:${meta.c + 1};grid-row:${meta.r + 1};background:${bg};color:${txt}">
-            <span class="text-[10px] font-extrabold leading-none">${uf}</span>
-            <span class="text-[8px] font-semibold leading-none mt-0.5">${lbl}</span>
+        return `<button class="geo-tile rounded-md flex flex-col items-center justify-center aspect-square overflow-hidden min-w-0 ${a ? 'cursor-pointer hover:ring-2 hover:ring-[#00A859]' : 'opacity-70'}" data-uf="${uf}" title="${meta.n}${a ? ' — ' + fmtInt(a.leads) + ' leads · ' + fmtBRL(a.rev) + ' · ' + Math.round(convPct(a)) + '% conv' : ' — sem dados'}" style="grid-column:${meta.c + 1};grid-row:${meta.r + 1};background:${bg};color:${txt}">
+            <span class="text-[10px] font-extrabold leading-none truncate max-w-full">${uf}</span>
+            <span class="text-[8px] font-semibold leading-none mt-0.5 truncate max-w-full">${lbl}</span>
           </button>`;
       }).join('');
       mapEl.querySelectorAll('.geo-tile[data-uf]').forEach(el => el.addEventListener('click', () => {
@@ -6431,7 +6437,7 @@
 
     function deltaBadge(curr, prev, lowerIsBetter) {
       if (prev === 0 && curr === 0) return '<span class="text-slate-400">— estável</span>';
-      if (prev === 0) return '<span class="text-[#00A859] font-semibold">▲ NOVO vs mês ant.</span>';
+      if (prev === 0) return lowerIsBetter ? '<span class="text-slate-400 font-semibold">• novo vs mês ant.</span>' : '<span class="text-[#00A859] font-semibold">▲ NOVO vs mês ant.</span>';
       const pct = ((curr - prev) / prev * 100);
       const abs = Math.abs(pct);
       if (abs < 1) return '<span class="text-slate-400">≈ estável vs mês ant.</span>';
@@ -6444,10 +6450,10 @@
     // ===== Helpers da Visão Geral (feedback do cliente jun/2026) =====
     // Comparativo SEMPRE vs mês-calendário anterior (relativo ao mês de referência do período).
     function ovPrevMonthRange(curRange) {
-      const endRef = (curRange && isFinite(curRange.end)) ? new Date(curRange.end - 1) : new Date();
-      const refStart = new Date(endRef.getFullYear(), endRef.getMonth(), 1);
-      const prevStart = new Date(refStart.getFullYear(), refStart.getMonth() - 1, 1);
-      return { start: prevStart.getTime(), end: refStart.getTime() };
+      // mês-calendário anterior ao do período atual, ancorado em BRT (consistente com calendarMonthRange).
+      const refInstant = (curRange && isFinite(curRange.end)) ? (curRange.end - 1) : Date.now();
+      const { y, m } = brtMonthParts(refInstant);
+      return { start: Date.UTC(y, m - 1, 1, 3, 0, 0, 0), end: Date.UTC(y, m, 1, 3, 0, 0, 0) };
     }
     function ovWonIn(range) {
       return (biState.raw?.deals || []).filter(d => {
@@ -6470,15 +6476,15 @@
       const series = (dashState.lastData && dashState.lastData.monthlySeries) || [];
       const roles = getRoles();
       let manual = 0, wpp = 0;
-      const endD = isFinite(end) ? new Date(end - 1) : new Date();
-      const startMs = (!start || start <= 0) ? new Date(endD.getFullYear(), endD.getMonth() - 35, 1).getTime() : start;
-      let it = new Date(new Date(startMs).getFullYear(), new Date(startMs).getMonth(), 1);
-      const stop = new Date(endD.getFullYear(), endD.getMonth(), 1);
-      while (it <= stop) {
-        const key = it.getFullYear() + '-' + String(it.getMonth() + 1).padStart(2, '0');
+      const endParts = brtMonthParts(isFinite(end) ? end - 1 : Date.now());
+      const startInstant = (!start || start <= 0) ? Date.UTC(endParts.y, endParts.m - 35, 1, 3, 0, 0, 0) : start;
+      const sp = brtMonthParts(startInstant);
+      let itY = sp.y, itM = sp.m;
+      while (itY < endParts.y || (itY === endParts.y && itM <= endParts.m)) {
+        const key = itY + '-' + String(itM + 1).padStart(2, '0');
         const ex = expAll[key]; if (ex) for (const f of ROI_FIELDS) manual += parseFloat(ex[f]) || 0;
         const hit = series.find(x => x.month === key); if (hit && typeof hit.costBRL === 'number') wpp += hit.costBRL;
-        it = new Date(it.getFullYear(), it.getMonth() + 1, 1);
+        itM++; if (itM > 11) { itM = 0; itY++; }
       }
       let commissions = 0;
       const endTs = isFinite(end) ? end : Infinity;
@@ -6495,15 +6501,15 @@
     // Gasto só em ADS (4 campos de mídia paga) num range — pra ROAS de ads.
     function computeAdsSpendForRange(start, end) {
       const expAll = getRoiExpenses(); let ads = 0;
-      const endD = isFinite(end) ? new Date(end - 1) : new Date();
-      const startMs = (!start || start <= 0) ? new Date(endD.getFullYear(), endD.getMonth() - 35, 1).getTime() : start;
-      let it = new Date(new Date(startMs).getFullYear(), new Date(startMs).getMonth(), 1);
-      const stop = new Date(endD.getFullYear(), endD.getMonth(), 1);
-      while (it <= stop) {
-        const key = it.getFullYear() + '-' + String(it.getMonth() + 1).padStart(2, '0');
+      const endParts = brtMonthParts(isFinite(end) ? end - 1 : Date.now());
+      const startInstant = (!start || start <= 0) ? Date.UTC(endParts.y, endParts.m - 35, 1, 3, 0, 0, 0) : start;
+      const sp = brtMonthParts(startInstant);
+      let itY = sp.y, itM = sp.m;
+      while (itY < endParts.y || (itY === endParts.y && itM <= endParts.m)) {
+        const key = itY + '-' + String(itM + 1).padStart(2, '0');
         const ex = expAll[key];
         if (ex) ads += (parseFloat(ex.ads_meta) || 0) + (parseFloat(ex.ads_google) || 0) + (parseFloat(ex.ads_tiktok) || 0) + (parseFloat(ex.ads_other) || 0);
-        it = new Date(it.getFullYear(), it.getMonth() + 1, 1);
+        itM++; if (itM > 11) { itM = 0; itY++; }
       }
       return ads;
     }
@@ -6520,8 +6526,8 @@
       let cutoffStart, cutoffEnd;
       if (period === 'custom') {
         if (!customStart || !customEnd) return [];
-        const startTs = new Date(customStart + 'T00:00:00').getTime();
-        const endTs   = new Date(customEnd   + 'T23:59:59').getTime();
+        const startTs = new Date(customStart + 'T00:00:00-03:00').getTime();
+        const endTs   = new Date(customEnd   + 'T23:59:59-03:00').getTime();
         const span    = endTs - startTs;
         cutoffEnd     = startTs;          // termina onde o período atual começa
         cutoffStart   = startTs - span;   // mesma duração antes
@@ -6583,8 +6589,8 @@
       document.getElementById('kpiPipelineCount').textContent = `${fmtInt(open.length)} negócios em aberto`;
       document.getElementById('kpiClosedDeals').textContent = fmtInt(won.length);
       document.getElementById('kpiClosedDealsDelta').innerHTML = deltaBadge(won.length, prevWon.length);
-      document.getElementById('kpiConversion').textContent = conv.toFixed(1) + '%';
-      document.getElementById('kpiConversionDetail').innerHTML = 'Vendas ÷ leads que entraram · ' + deltaBadge(conv, prevConv);
+      document.getElementById('kpiConversion').textContent = Math.min(100, conv).toFixed(1) + '%';
+      document.getElementById('kpiConversionDetail').innerHTML = 'Vendas ÷ leads que entraram · ' + deltaBadge(Math.min(100, conv), Math.min(100, prevConv));
 
       // KPIs secundários
       document.getElementById('kpiAvgTicket').textContent = avgTicket > 0 ? fmtBRL(avgTicket) : 'R$ 0';
@@ -7108,9 +7114,18 @@
 
       // ===== Funil em PIRÂMIDE (funnelData/stages já calculados no topo) =====
       const hasPeriodSel = biState.filters.period !== 'all';
+      // Reconciliação (snapshot): negócios cuja etapa saiu da definição do pipeline (drift no CRM)
+      // sumiriam silenciosamente da pirâmide. Detecta, loga e avisa na legenda (guarda de integridade).
+      let funnelOrphanCount = 0, funnelOrphanValue = 0;
+      if (mode === 'snapshot') {
+        const renderedStageIds = new Set([...stages.map(s => s.id), ...(funnelData.lostStages || []).map(s => s.id)]);
+        for (const d of countDeals) { if (!renderedStageIds.has(d.stageId)) { funnelOrphanCount++; funnelOrphanValue += d.total || 0; } }
+        if (funnelOrphanCount > 0) console.warn('[funil] ' + funnelOrphanCount + ' negócio(s) em etapa fora da definição do pipeline (R$ ' + funnelOrphanValue + ') — não aparecem na pirâmide. Verifique etapas arquivadas no CRM.');
+      }
       let capMode;
       if (mode === 'snapshot') {
         capMode = '📍 <strong>Como está no CRM</strong> — deals por <strong>etapa atual</strong>' + (hasPeriodSel ? ', <strong>filtrados por data de criação no período</strong> (venda ganha pela data do ganho) — igual ao CRM.' : ' (todos — igual ao kanban; selecione um período pra filtrar).');
+        if (funnelOrphanCount > 0) capMode += ` <span class="text-amber-600">⚠ ${fmtInt(funnelOrphanCount)} negócio(s) em etapa arquivada (${fmtBRL(funnelOrphanValue)}) — fora da pirâmide; confira no CRM.</span>`;
       } else if (mode === 'cohort') {
         capMode = '🗓️ <strong>Funil do mês (safra)</strong> — dos leads <strong>criados no período</strong>, onde cada um está hoje (por etapa atual).' + (hasPeriodSel ? '' : ' <span class="text-amber-600">Selecione um mês no filtro acima pra ver uma safra (agora está mostrando tudo).</span>');
       } else {
