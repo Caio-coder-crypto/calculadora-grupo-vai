@@ -432,6 +432,10 @@
                       class="mt-1 self-start inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-600 bg-slate-100 hover:bg-amber-100 ring-1 ring-slate-200 px-2.5 py-1 rounded-lg transition">
                 🏷️ Sem tag: <span id="biUntaggedCount" class="font-extrabold">—</span>
               </button>
+              <span id="biNoSellerWrap" title="Negócios SEM vendedor atribuído no CRM — não entram em nenhuma análise por vendedor. Atribua um responsável ao card no DataCrazy."
+                    class="mt-1 self-start inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-600 bg-slate-100 ring-1 ring-slate-200 px-2.5 py-1 rounded-lg">
+                👤 Sem vendedor: <span id="biNoSellerCount" class="font-extrabold">—</span>
+              </span>
             </div>
           </div>
           <!-- (botões de configuração movidos para o topo do #biContent — item 3) -->
@@ -4741,9 +4745,14 @@
       pipeSel.innerHTML = '<option value="__all__">Todos os pipelines</option>' +
         data.pipelines.map(p => `<option value="${p.id}">${escapeHTML(p.name)}</option>`).join('');
 
-      // Atendentes (só os que têm deals)
+      // Vendedores: UNIÃO de (/attendants/crm) com (qualquer attendantId presente nos deals).
+      // Assim um vendedor com negócio atribuído SEMPRE aparece, mesmo que não venha na lista do CRM.
+      // (Mostra só quem tem deal — não polui com vendedores cadastrados e zerados.)
+      const attName = new Map();
+      for (const a of (data.attendants || [])) if (a && a.id) attName.set(a.id, a.name || a.id);
+      for (const d of data.deals) if (d.attendantId && !attName.has(d.attendantId)) attName.set(d.attendantId, d.attendantName || d.attendantId);
       const attendantsInDeals = new Set(data.deals.map(d => d.attendantId).filter(Boolean));
-      const usefulAttendants = data.attendants.filter(a => attendantsInDeals.has(a.id));
+      const usefulAttendants = [...attName.entries()].filter(([id]) => attendantsInDeals.has(id)).map(([id, name]) => ({ id, name }));
       const attSel = document.getElementById('biFilterAttendant');
       attSel.innerHTML = '<option value="__all__">Todos os vendedores</option>' +
         usefulAttendants.sort((a, b) => a.name.localeCompare(b.name))
@@ -4931,6 +4940,9 @@
       const untaggedDeals = biState.filtered.filter(d => !d.leadTags || d.leadTags.length === 0);
       const untaggedCountEl = document.getElementById('biUntaggedCount');
       if (untaggedCountEl) untaggedCountEl.textContent = fmtInt(untaggedDeals.length);
+      // Negócios sem vendedor atribuído no CRM (visibilidade do gargalo de atribuição)
+      const noSellerEl = document.getElementById('biNoSellerCount');
+      if (noSellerEl) noSellerEl.textContent = fmtInt(biState.filtered.filter(d => !d.attendantId).length);
       if (biState.filters.untaggedOnly) {
         biState.filtered = untaggedDeals;
         deals = untaggedDeals;   // reflete na label "X deals" abaixo
