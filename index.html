@@ -1911,6 +1911,29 @@
             Salvar e conectar
           </button>
         </div>
+
+        <!-- ===== Alternativa: Kommo (separado, em ROXO, pra não confundir com o DataCrazy) ===== -->
+        <div class="mt-1 pt-4 border-t border-slate-200">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="text-xs font-extrabold uppercase tracking-widest text-[#7C3AED]">Alternativa · Kommo</span>
+            <span id="kommoActiveBadge" class="hidden text-[10px] font-bold text-white bg-[#7C3AED] px-2 py-0.5 rounded-full">ATIVO</span>
+          </div>
+          <p class="text-[11px] text-slate-500 mb-2">Se o cliente usa <b>Kommo</b> (em vez do DataCrazy), conecte por aqui. Use um <b>ou</b> o outro.</p>
+          <label class="block text-[11px] font-bold uppercase tracking-widest text-slate-600 mb-1">Subdomínio Kommo</label>
+          <div class="flex items-center rounded-lg border border-slate-200 bg-slate-50 overflow-hidden mb-2 focus-within:ring-2 focus-within:ring-[#7C3AED]">
+            <input id="kommoSubInput" type="text" placeholder="empresacliente" autocomplete="off" spellcheck="false"
+                   class="flex-1 bg-transparent px-3 py-2.5 text-sm font-mono text-[#041227] focus:outline-none" />
+            <span class="px-3 text-xs text-slate-400 font-mono select-none">.kommo.com</span>
+          </div>
+          <label class="block text-[11px] font-bold uppercase tracking-widest text-slate-600 mb-1">Token de longa duração</label>
+          <input id="kommoTokenInput" type="password" placeholder="eyJ0eXA..." autocomplete="off" spellcheck="false"
+                 class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-mono text-[#041227] focus:outline-none focus:ring-2 focus:ring-[#7C3AED] focus:border-[#7C3AED] focus:bg-white transition" />
+          <p class="text-[11px] text-slate-500 mt-1.5">Integração privada → aba <b>Chaves e escopos</b> → <b>Gerar token de longa duração</b>. Fica salvo só no seu navegador.</p>
+          <div class="flex flex-col-reverse sm:flex-row gap-2 mt-3">
+            <button id="kommoClear" type="button" class="px-4 py-2.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 font-medium text-sm transition">Voltar pro DataCrazy</button>
+            <button id="kommoSave" type="button" class="flex-1 px-4 py-2.5 rounded-lg bg-[#7C3AED] text-white hover:bg-[#6D28D9] font-bold text-sm transition shadow-lg">Salvar e conectar (Kommo)</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -2723,6 +2746,11 @@
     // ------- Modal events -------
     function openConfig() {
       document.getElementById('configKeyInput').value = getDcKey();
+      try {
+        const ks = document.getElementById('kommoSubInput'); if (ks) ks.value = localStorage.getItem('kommo_subdomain') || '';
+        const kt = document.getElementById('kommoTokenInput'); if (kt) kt.value = localStorage.getItem('kommo_token') || '';
+        const kb = document.getElementById('kommoActiveBadge'); if (kb) kb.classList.toggle('hidden', localStorage.getItem('dc_backend') !== 'kommo');
+      } catch (e) {}
       document.getElementById('configModal').classList.remove('hidden');
       document.getElementById('configMessage').classList.add('hidden');
       document.getElementById('configKeyInput').focus();
@@ -2778,6 +2806,25 @@
         showConfigMessage('error', '✗ ' + (err.message || 'Falha na conexão'));
       }
     });
+
+    // ===== Kommo (seção separada do DataCrazy) =====
+    (function () {
+      const sv = document.getElementById('kommoSave'), cl = document.getElementById('kommoClear');
+      if (sv) sv.addEventListener('click', () => {
+        const sub = (document.getElementById('kommoSubInput').value || '').replace(/^https?:\/\//i, '').replace(/\.kommo\.com.*$/i, '').trim();
+        const tok = (document.getElementById('kommoTokenInput').value || '').trim();
+        if (!sub || !tok) { showConfigMessage('error', 'Preencha o subdomínio e o token do Kommo.'); return; }
+        try { localStorage.setItem('kommo_subdomain', sub); localStorage.setItem('kommo_token', tok); localStorage.setItem('dc_backend', 'kommo'); } catch (e) {}
+        const kb = document.getElementById('kommoActiveBadge'); if (kb) kb.classList.remove('hidden');
+        showConfigMessage('success', '✓ Kommo conectado (' + sub + '). Carregando o BI…');
+        setTimeout(() => { closeConfig(); loadBi(true); }, 700);
+      });
+      if (cl) cl.addEventListener('click', () => {
+        try { localStorage.removeItem('dc_backend'); } catch (e) {}
+        const kb = document.getElementById('kommoActiveBadge'); if (kb) kb.classList.add('hidden');
+        showConfigMessage('info', 'Voltou pro DataCrazy. Use a chave verde acima.');
+      });
+    })();
 
     updateConnectionStatus();
 
