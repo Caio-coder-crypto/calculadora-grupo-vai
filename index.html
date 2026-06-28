@@ -4747,7 +4747,9 @@
     async function loadKommoBI(force) {
       setBiView('biLoading'); setBiLoadingProgress(0, 0);
       try {
-        const res = await fetch('/api/kommo/bi-data' + (force ? '?force=1' : ''));
+        const kh = {};
+        try { const _s = localStorage.getItem('kommo_subdomain'), _t = localStorage.getItem('kommo_token'); if (_s) kh['X-Kommo-Subdomain'] = _s; if (_t) kh['X-Kommo-Token'] = _t; } catch (e) {}
+        const res = await fetch('/api/kommo/bi-data' + (force ? '?force=1' : ''), { headers: kh });
         const txt = await res.text();
         let data; try { data = JSON.parse(txt); } catch (e) { throw new Error('Resposta inesperada do servidor (HTTP ' + res.status + ').'); }
         if (!res.ok || data.error) throw new Error(data.message || ('HTTP ' + res.status));
@@ -4764,6 +4766,15 @@
     }
     try {
       window.loadKommoBI = loadKommoBI;
+      // Onboard de cliente Kommo pela "caixinha" (igual à chave do DataCrazy, mas com 2 campos):
+      window.setKommo = function (sub, token) {
+        if (!sub || !token) { alert('Uso: setKommo("subdominio", "token")'); return; }
+        localStorage.setItem('kommo_subdomain', String(sub).replace(/^https?:\/\//i, '').replace(/\.kommo\.com.*$/i, '').trim());
+        localStorage.setItem('kommo_token', String(token).trim());
+        localStorage.setItem('dc_backend', 'kommo');
+        alert('Kommo conectado: ' + sub + '. Agora clique em "Carregar BI".');
+      };
+      window.usarDataCrazy = function () { localStorage.removeItem('dc_backend'); alert('Voltou pro DataCrazy. Clique em Carregar BI.'); };
       const _bp = new URLSearchParams(location.search).get('backend');
       if (_bp === 'kommo') localStorage.setItem('dc_backend', 'kommo');
       else if (_bp === 'datacrazy') localStorage.removeItem('dc_backend');
