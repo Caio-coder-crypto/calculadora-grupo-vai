@@ -1,0 +1,103 @@
+// ============================================================
+// GET /api/kommo/bi-data
+// Endpoint mestre do BI rodando sobre o KOMMO. Devolve EXATAMENTE o mesmo
+// shape do /api/datacrazy/bi-data, pra o front (index.html) renderizar sem mudar nada.
+//
+// De-para Kommo -> DataHub:
+//   lead.id            -> id / leadId / code
+//   lead.created_at    -> createdAt        (unix -> ISO)
+//   lead.updated_at    -> lastMovedAt e statusChangedAt (Kommo NÃO expõe a data exata
+//                         da mudança de status; aproximamos por updated_at)
+//   lead.status_id     -> stageId   (142 = ganho, 143 = perdido — status de sistema do Kommo)
+//   lead.pipeline_id   -> pipelineId
+//   lead.price         -> total
+//   responsible_user_id-> attendantId  (nome via /users)
+//   _embedded.tags[]   -> leadTags[]
+//   status normalizado -> 'won' (142) | 'lost' (143) | 'in_process'
+//
+// Carga: pagina TODOS os leads no servidor e devolve em 1 resposta (hasMore:false).
+// Cabe com folga até ~12k leads sob o limite do Vercel. Acima disso, paginar por chunk (v2).
+// ============================================================
+
+const { getConfig, kGet, kGetAll, send, sendError, handleOptions } = require('./_client');
+
+const STAGE_WON = 142, STAGE_LOST = 143;   // status de sistema do Kommo (em todo funil)
+const iso = (u) => (u ? new Date(u * 1000).toISOString() : null);
+
+function normalizeLead(l, stageMap, userMap) {
+  const st = stageMap[l.status_id] || {};
+  const status = l.status_id === STAGE_WON ? 'won' : (l.status_id === STAGE_LOST ? 'lost' : 'in_process');
+  const tags = ((l._embedded && l._embedded.tags) || []).map(t => t.name).filter(Boolean);
+  return {
+    id: l.id,
+    code: l.id,
+    createdAt: iso(l.created_at),
+    lastMovedAt: iso(l.updated_at),
+    statusChangedAt: iso(l.updated_at),   // aproximação (Kommo não dá a data da mudança de etapa)
+    stageId: l.status_id,
+    stageName: st.name || 'Sem etapa',
+    stageColor: st.color || '#94a3b8',
+    stageIndex: (st.index != null) ? st.index : 999,
+    pipelineId: l.pipeline_id,
+    attendantId: l.responsible_user_id || null,
+    attendantName: userMap[l.responsible_user_id] || 'Sem vendedor',
+    leadId: l.id,
+    leadName: l.name || '',
+    leadPhone: '',                 // telefone vive no CONTATO (custom field) — fica pra v2
+    leadSource: '',
+    leadTags: tags,
+    total: l.price || 0,
+    status,
+    lossReasonId: (l.loss_reason_id != null) ? l.loss_reason_id : null,
+    productsCount: 0,
+    products: []
+  };
+}
+
+module.exports = async function handler(req, res) {
+  if (req.method === 'OPTIONS') return handleOptions(res);
+  try {
+    const cfg = getConfig(req);
+
+    // 1) Funis + etapas (statuses)
+    const pl = await kGet(cfg, '/leads/pipelines');
+    const pipelines = (pl._embedded && pl._embedded.pipelines) || [];
+    const stageMap = {};
+    const pipeOut = pipelines.map(p => {
+      const sts = (((p._embedded && p._embedded.statuses) || []).slice()).sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0));
+      sts.forEach((s, i) => { stageMap[s.id] = { name: s.name, color: s.color, index: (s.sort != null ? s.sort : i), pipelineId: p.id }; });
+      return {
+        id: p.id, name: p.name, description: '', group: p.is_main ? 'Principal' : '',
+        stagesCount: sts.length,
+        stages: sts.map((s, i) => ({ id: s.id, name: s.name, color: s.color, index: (s.sort != null ? s.sort : i) }))
+      };
+    });
+
+    // 2) Usuários (vendedores)
+    const users = await kGetAll(cfg, '/users', 'users');
+    const userMap = {}; users.forEach(u => { userMap[u.id] = u.name; });
+
+    // 3) Leads (todos) -> normalizados
+    const leadsRaw = await kGetAll(cfg, '/leads', 'leads');
+    const deals = leadsRaw.map(l => normalizeLead(l, stageMap, userMap));
+
+    return send(res, 200, {
+      deals,
+      dealsSkip: 0,
+      dealsReturned: deals.length,
+      dealsTotal: deals.length,
+      hasMore: false,
+      counts: { deals: deals.length, pipelines: pipeOut.length, attendants: users.length, lossReasons: 0 },
+      pipelines: pipeOut,
+      attendants: users.map(u => ({ id: u.id, userId: u.id, name: u.name, email: u.email || '', phone: '', image: '' })),
+      lossReasons: [],   // Kommo: motivos de perda ficam pra v2
+      fetchedAt: new Date().toISOString(),
+      source: 'kommo',
+      cached: false
+    });
+  } catch (err) {
+    return sendError(res, err);
+  }
+};
+
+module.exports.config = { maxDuration: 60 };   // pagina toda a base; pode levar ~10-15s

@@ -97,7 +97,7 @@ const server = http.createServer(async (req, res) => {
 
   // ---- API ROUTES ----
   // Aceita /api/datacrazy/*, /api/admin/*, /api/meta/* e /api/google/*
-  const apiMatch = pathname.match(/^\/api\/(datacrazy|admin|meta|google)\/([\w-]+)\/?$/);
+  const apiMatch = pathname.match(/^\/api\/(datacrazy|kommo|admin|meta|google)\/([\w-]+)\/?$/);
   if (apiMatch) {
     const group = apiMatch[1];
     const name = apiMatch[2];

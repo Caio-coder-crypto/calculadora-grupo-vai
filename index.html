@@ -4704,6 +4704,7 @@
     }
 
     async function loadBi(force = false) {
+      if (biBackend() === 'kommo') return loadKommoBI(force);   // backend Kommo (gated por localStorage dc_backend)
       if (!getDcKey()) { openConfig(); showConfigMessage('info', 'Configure sua chave DataCrazy antes de carregar o BI.'); return; }
       setBiView('biLoading');
       setBiLoadingProgress(0, 0);
@@ -4738,6 +4739,35 @@
         setBiView('biError');
       }
     }
+
+    // ===== Backend selecionável: DataCrazy (padrão) ou Kommo =====
+    // Liga em: localStorage.dc_backend='kommo' (ou abra a página com ?backend=kommo).
+    // O token/subdomínio do Kommo ficam no SERVIDOR (env KOMMO_TOKEN / KOMMO_SUBDOMAIN), nunca no navegador.
+    function biBackend() { try { return localStorage.getItem('dc_backend') === 'kommo' ? 'kommo' : 'datacrazy'; } catch (e) { return 'datacrazy'; } }
+    async function loadKommoBI(force) {
+      setBiView('biLoading'); setBiLoadingProgress(0, 0);
+      try {
+        const res = await fetch('/api/kommo/bi-data' + (force ? '?force=1' : ''));
+        const txt = await res.text();
+        let data; try { data = JSON.parse(txt); } catch (e) { throw new Error('Resposta inesperada do servidor (HTTP ' + res.status + ').'); }
+        if (!res.ok || data.error) throw new Error(data.message || ('HTTP ' + res.status));
+        biState.raw = data;
+        computeLostStageIds();
+        populateBiFilters(data);
+        applyBiFilters();
+        setBiView('biContent');
+      } catch (err) {
+        console.error('[kommo]', err);
+        const el = document.getElementById('biErrorMsg'); if (el) el.textContent = err.message || 'Falha ao carregar BI (Kommo).';
+        setBiView('biError');
+      }
+    }
+    try {
+      window.loadKommoBI = loadKommoBI;
+      const _bp = new URLSearchParams(location.search).get('backend');
+      if (_bp === 'kommo') localStorage.setItem('dc_backend', 'kommo');
+      else if (_bp === 'datacrazy') localStorage.removeItem('dc_backend');
+    } catch (e) {}
 
     function populateBiFilters(data) {
       // Pipelines
