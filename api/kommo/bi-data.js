@@ -24,10 +24,20 @@ const { getConfig, kGet, kGetAll, send, sendError, handleOptions } = require('./
 const STAGE_WON = 142, STAGE_LOST = 143;   // status de sistema do Kommo (em todo funil)
 const iso = (u) => (u ? new Date(u * 1000).toISOString() : null);
 
-function normalizeLead(l, stageMap, userMap) {
+function normalizeLead(l, stageMap, userMap, sellerSet) {
   const st = stageMap[l.status_id] || {};
   const status = l.status_id === STAGE_WON ? 'won' : (l.status_id === STAGE_LOST ? 'lost' : 'in_process');
   const tags = ((l._embedded && l._embedded.tags) || []).map(t => t.name).filter(Boolean);
+  // Vendedor: por padrão o usuário responsável do Kommo. Mas se houver "tags de vendedor"
+  // configuradas (cliente que separa vendedor por TAG, não por usuário), o vendedor vem da TAG
+  // — e segue o lead mesmo quando o usuário muda (ex.: SDR transfere, mas a tag permanece).
+  let attendantId = l.responsible_user_id || null;
+  let attendantName = userMap[l.responsible_user_id] || 'Sem vendedor';
+  if (sellerSet && sellerSet.size) {
+    const hit = tags.find(t => sellerSet.has(t.toLowerCase()));
+    if (hit) { attendantId = 'tag:' + hit.toLowerCase(); attendantName = hit; }
+    else { attendantId = null; attendantName = 'Sem vendedor'; }   // modo tag: sem tag de vendedor = sem vendedor
+  }
   return {
     id: l.id,
     code: l.id,
@@ -39,8 +49,8 @@ function normalizeLead(l, stageMap, userMap) {
     stageColor: st.color || '#94a3b8',
     stageIndex: (st.index != null) ? st.index : 999,
     pipelineId: l.pipeline_id,
-    attendantId: l.responsible_user_id || null,
-    attendantName: userMap[l.responsible_user_id] || 'Sem vendedor',
+    attendantId: attendantId,
+    attendantName: attendantName,
     leadId: l.id,
     leadName: l.name || '',
     leadPhone: '',                 // telefone vive no CONTATO (custom field) — fica pra v2
@@ -58,6 +68,10 @@ module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return handleOptions(res);
   try {
     const cfg = getConfig(req);
+    // "Tags de vendedor": cliente que separa vendedor por TAG (não por usuário). CSV via ?sellerTags= ou env.
+    let sellerTagsRaw = process.env.KOMMO_SELLER_TAGS || '';
+    try { const _u = new URL(req.url, 'http://x'); const _q = _u.searchParams.get('sellerTags'); if (_q) sellerTagsRaw = _q; } catch (e) {}
+    const sellerSet = new Set(String(sellerTagsRaw).split(',').map(s => s.trim().toLowerCase()).filter(Boolean));
 
     // 1) Funis + etapas (statuses)
     const pl = await kGet(cfg, '/leads/pipelines');
@@ -79,7 +93,7 @@ module.exports = async function handler(req, res) {
 
     // 3) Leads (todos) -> normalizados
     const leadsRaw = await kGetAll(cfg, '/leads', 'leads');
-    const deals = leadsRaw.map(l => normalizeLead(l, stageMap, userMap));
+    const deals = leadsRaw.map(l => normalizeLead(l, stageMap, userMap, sellerSet));
 
     return send(res, 200, {
       deals,
