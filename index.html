@@ -4203,10 +4203,11 @@
         return;
       }
       // Pega vendedores que aparecem em deals
+      const attName = new Map();
+      for (const a of (biState.raw.attendants || [])) if (a && a.id) attName.set(a.id, a.name || a.id);
+      for (const d of biState.raw.deals) if (d.attendantId && !attName.has(d.attendantId)) attName.set(d.attendantId, d.attendantName || d.attendantId);
       const attendantsInDeals = new Set(biState.raw.deals.map(d => d.attendantId).filter(Boolean));
-      const useful = biState.raw.attendants
-        .filter(a => attendantsInDeals.has(a.id))
-        .sort((a, b) => a.name.localeCompare(b.name));
+      const useful = [...attName.entries()].filter(([id]) => attendantsInDeals.has(id)).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
 
       const goals = getGoals();
       document.getElementById('goalsList').innerHTML = useful.map(a => {
@@ -4462,10 +4463,11 @@
     // ----- Modal -----
     function openRolesModal() {
       if (!biState.raw) { alert('Carregue o BI primeiro pra ver os atendentes.'); return; }
+      const attName = new Map();
+      for (const a of (biState.raw.attendants || [])) if (a && a.id) attName.set(a.id, a.name || a.id);
+      for (const d of biState.raw.deals) if (d.attendantId && !attName.has(d.attendantId)) attName.set(d.attendantId, d.attendantName || d.attendantId);
       const attendantsInDeals = new Set(biState.raw.deals.map(d => d.attendantId).filter(Boolean));
-      const useful = biState.raw.attendants
-        .filter(a => attendantsInDeals.has(a.id))
-        .sort((a, b) => a.name.localeCompare(b.name));
+      const useful = [...attName.entries()].filter(([id]) => attendantsInDeals.has(id)).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
       const roles = getRoles();
 
       // Pega TODAS as tags reais do CRM (ordenadas por uso)
