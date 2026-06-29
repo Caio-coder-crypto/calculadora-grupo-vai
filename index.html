@@ -369,6 +369,10 @@
                     class="inline-flex items-center gap-1.5 text-xs font-semibold text-[#041227] bg-[#00A859]/10 hover:bg-[#00A859]/20 ring-1 ring-[#00A859]/40 px-3 py-1.5 rounded-lg transition">
               🏷️ Configurar Canais
             </button>
+            <button id="kommoSellersBtn" type="button"
+                    class="hidden inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-[#7C3AED] hover:bg-[#6D28D9] px-3 py-1.5 rounded-lg transition">
+              👤 Vendedores (tags)
+            </button>
             <button id="goalsOpenBtn" type="button"
                     class="inline-flex items-center gap-1.5 text-xs font-semibold text-[#041227] bg-[#FFB81C]/15 hover:bg-[#FFB81C]/25 ring-1 ring-[#FFB81C]/40 px-3 py-1.5 rounded-lg transition">
               🎯 Configurar Metas
@@ -1929,10 +1933,7 @@
           <input id="kommoTokenInput" type="password" placeholder="eyJ0eXA..." autocomplete="off" spellcheck="false"
                  class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-mono text-[#041227] focus:outline-none focus:ring-2 focus:ring-[#7C3AED] focus:border-[#7C3AED] focus:bg-white transition" />
           <p class="text-[11px] text-slate-500 mt-1.5">Integração privada → aba <b>Chaves e escopos</b> → <b>Gerar token de longa duração</b>. Fica salvo só no seu navegador.</p>
-          <label class="block text-[11px] font-bold uppercase tracking-widest text-slate-600 mb-1 mt-3">Tags de vendedor <span class="text-slate-400 normal-case font-normal">(opcional)</span></label>
-          <input id="kommoSellerTagsInput" type="text" placeholder="William, Renato, Débora, ..." autocomplete="off" spellcheck="false"
-                 class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-[#041227] focus:outline-none focus:ring-2 focus:ring-[#7C3AED] focus:border-[#7C3AED] focus:bg-white transition" />
-          <p class="text-[11px] text-slate-500 mt-1.5">Se o cliente separa vendedor por <b>tag</b> (não por usuário), liste as tags aqui (vírgula). O ranking e o filtro de vendedor passam a usar a tag.</p>
+          <p class="text-[11px] text-slate-500 mt-2">Vendedor por <b>tag</b>? Depois de carregar o BI, clique em <b class="text-[#7C3AED]">👤 Vendedores (tags)</b> (no topo) e <b>marque</b> as tags de vendedor — sem digitar nada.</p>
           <div class="flex flex-col-reverse sm:flex-row gap-2 mt-3">
             <button id="kommoClear" type="button" class="px-4 py-2.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 font-medium text-sm transition">Voltar pro DataCrazy</button>
             <button id="kommoSave" type="button" class="flex-1 px-4 py-2.5 rounded-lg bg-[#7C3AED] text-white hover:bg-[#6D28D9] font-bold text-sm transition shadow-lg">Salvar e conectar (Kommo)</button>
@@ -2819,8 +2820,7 @@
         const sub = (document.getElementById('kommoSubInput').value || '').replace(/^https?:\/\//i, '').replace(/\.kommo\.com.*$/i, '').trim();
         const tok = (document.getElementById('kommoTokenInput').value || '').trim();
         if (!sub || !tok) { showConfigMessage('error', 'Preencha o subdomínio e o token do Kommo.'); return; }
-        const stg = (document.getElementById('kommoSellerTagsInput').value || '').trim();
-        try { localStorage.setItem('kommo_subdomain', sub); localStorage.setItem('kommo_token', tok); if (stg) localStorage.setItem('kommo_seller_tags', stg); else localStorage.removeItem('kommo_seller_tags'); localStorage.setItem('dc_backend', 'kommo'); } catch (e) {}
+        try { localStorage.setItem('kommo_subdomain', sub); localStorage.setItem('kommo_token', tok); localStorage.setItem('dc_backend', 'kommo'); } catch (e) {}
         const kb = document.getElementById('kommoActiveBadge'); if (kb) kb.classList.remove('hidden');
         showConfigMessage('success', '✓ Kommo conectado (' + sub + '). Carregando o BI…');
         setTimeout(() => { closeConfig(); loadBi(true); }, 700);
@@ -4815,6 +4815,7 @@
         populateBiFilters(data);
         applyBiFilters();
         setBiView('biContent');
+        try { const _ksb = document.getElementById('kommoSellersBtn'); if (_ksb) _ksb.classList.remove('hidden'); } catch (e) {}
       } catch (err) {
         console.error('[kommo]', err);
         const el = document.getElementById('biErrorMsg'); if (el) el.textContent = err.message || 'Falha ao carregar BI (Kommo).';
@@ -4836,6 +4837,51 @@
       if (_bp === 'kommo') localStorage.setItem('dc_backend', 'kommo');
       else if (_bp === 'datacrazy') localStorage.removeItem('dc_backend');
     } catch (e) {}
+
+    // ===== Seletor de "Vendedores por tag" (clica, não digita) =====
+    function kommoSellerSet() { try { return new Set((localStorage.getItem('kommo_seller_tags') || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean)); } catch (e) { return new Set(); } }
+    function kommoApplySellerTags() {
+      if (!biState.raw || !biState.raw.deals) return;
+      const set = kommoSellerSet(); if (!set.size) return;
+      biState.raw.deals.forEach(d => {
+        const hit = (d.leadTags || []).find(t => set.has(String(t).toLowerCase()));
+        if (hit) { d.attendantId = 'tag:' + String(hit).toLowerCase(); d.attendantName = hit; }
+        else { d.attendantId = null; d.attendantName = 'Sem vendedor'; }
+      });
+      populateBiFilters(biState.raw); applyBiFilters();
+    }
+    function openKommoSellers() {
+      if (!biState.raw || !biState.raw.deals) { alert('Carregue o BI primeiro.'); return; }
+      const freq = {}; biState.raw.deals.forEach(d => (d.leadTags || []).forEach(t => { freq[t] = (freq[t] || 0) + 1; }));
+      const tags = Object.keys(freq).sort((a, b) => freq[b] - freq[a]);
+      const sel = kommoSellerSet();
+      const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+      let ov = document.getElementById('kommoSellersModal'); if (ov) ov.remove();
+      ov = document.createElement('div'); ov.id = 'kommoSellersModal';
+      ov.className = 'fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[#041227]/80 backdrop-blur-sm';
+      ov.innerHTML = '<div class="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[86vh] flex flex-col overflow-hidden">'
+        + '<div class="bg-[#7C3AED] text-white p-4"><h3 class="text-base font-bold">👤 Vendedores (por tag)</h3><p class="text-xs text-purple-100 mt-0.5">Marque as tags que são VENDEDORES. O ranking e o filtro passam a usar elas.</p></div>'
+        + '<div class="p-3 border-b border-slate-100"><input id="kstSearch" type="text" placeholder="Buscar tag..." class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7C3AED]" /></div>'
+        + '<div id="kstList" class="flex-1 overflow-y-auto p-2"></div>'
+        + '<div class="p-3 border-t border-slate-100 flex gap-2"><button id="kstCancel" class="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium">Cancelar</button><button id="kstSave" class="flex-1 px-4 py-2 rounded-lg bg-[#7C3AED] text-white font-bold text-sm">Salvar e aplicar</button></div>'
+        + '</div>';
+      document.body.appendChild(ov);
+      const list = ov.querySelector('#kstList');
+      const draw = (f) => { f = (f || '').toLowerCase(); list.innerHTML = tags.filter(t => t.toLowerCase().includes(f)).map(t =>
+        '<label class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer text-sm"><input type="checkbox" class="kst-cb accent-[#7C3AED] w-4 h-4" value="' + esc(t) + '" ' + (sel.has(t.toLowerCase()) ? 'checked' : '') + '><span class="flex-1 text-[#041227] truncate">' + esc(t) + '</span><span class="text-[11px] text-slate-400 tabular-nums">' + freq[t] + '</span></label>'
+      ).join('') || '<p class="text-xs text-slate-400 p-3">Nenhuma tag.</p>'; };
+      draw('');
+      ov.querySelector('#kstSearch').addEventListener('input', e => draw(e.target.value));
+      ov.querySelector('#kstCancel').addEventListener('click', () => ov.remove());
+      ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+      ov.querySelector('#kstSave').addEventListener('click', () => {
+        const chosen = [...ov.querySelectorAll('.kst-cb:checked')].map(c => c.value);
+        ov.remove();
+        if (chosen.length) { try { localStorage.setItem('kommo_seller_tags', chosen.join(', ')); } catch (e) {} kommoApplySellerTags(); }
+        else { try { localStorage.removeItem('kommo_seller_tags'); } catch (e) {} loadBi(true); }
+      });
+    }
+    try { const _ksb = document.getElementById('kommoSellersBtn'); if (_ksb) _ksb.addEventListener('click', openKommoSellers); } catch (e) {}
 
     function populateBiFilters(data) {
       // Pipelines
