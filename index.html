@@ -3,12 +3,30 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script>/* no-flash: aplica o tema salvo ANTES de renderizar */(function(){try{if(localStorage.getItem('dh_theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}})();</script>
   <title>Grupo VAI — Calculadora de Custos WhatsApp Business API</title>
   <link rel="icon" type="image/webp" href="vai-logo-quadrada.webp" />
   <link rel="apple-touch-icon" href="vai-logo-quadrada.webp" />
   <meta name="description" content="Calculadora oficial de custos da API do WhatsApp Business + Dashboard CRM + BI completo. Cotação USD/BRL em tempo real." />
 
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    /* Tailwind lê os design tokens (CSS vars) — novas telas usam bg-surface-card, text-text-secondary, font-num, etc. */
+    tailwind.config = {
+      theme: { extend: {
+        colors: {
+          'surface-base':'var(--surface-base)','surface-card':'var(--surface-card)','surface-subtle':'var(--surface-subtle)','surface-inverse':'var(--surface-inverse)',
+          'text-primary':'var(--text-primary)','text-secondary':'var(--text-secondary)','text-muted':'var(--text-muted)','text-on-dark':'var(--text-on-dark)',
+          'border-subtle':'var(--border-subtle)','border-strong':'var(--border-strong)',
+          brand:'var(--color-primary)','brand-hover':'var(--color-primary-hover)',navy:'var(--color-secondary)','navy-deep':'var(--color-secondary-deep)',
+          'state-success':'var(--state-success)','state-warning':'var(--state-warning)','state-error':'var(--state-error)','state-info':'var(--state-info)',
+          'chart-1':'var(--chart-1)','chart-2':'var(--chart-2)','chart-3':'var(--chart-3)','chart-4':'var(--chart-4)','chart-5':'var(--chart-5)','chart-6':'var(--chart-6)','chart-negative':'var(--chart-negative)'
+        },
+        fontFamily: { display:['Sora','Inter','system-ui','sans-serif'], sans:['Inter','system-ui','sans-serif'], num:['Space Grotesk','Inter','system-ui','monospace'] },
+        boxShadow: { xs:'var(--shadow-xs)', card:'var(--shadow-sm)', hover:'var(--shadow-md)', glow:'var(--shadow-glow)' }
+      } }
+    };
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -124,6 +142,57 @@
     *::-webkit-scrollbar-thumb:hover{ background:rgba(8,27,51,.3); }
     *::-webkit-scrollbar-track{ background:transparent; }
   </style>
+  <style id="dh-tokens">
+    /* ===== DESIGN TOKENS — Light (marca Grupo VAI: verde #00A859) ===== */
+    :root{
+      --color-primary:#00A859; --color-primary-hover:#00754d; --color-secondary:#081B33; --color-secondary-deep:#041227;
+      --surface-base:#F8FAFC; --surface-card:#FFFFFF; --surface-subtle:#F1F5F9; --surface-inverse:#081B33;
+      --text-primary:#081B33; --text-secondary:#64748B; --text-muted:#94A3B8; --text-on-dark:#F8FAFC; --text-on-primary:#041227;
+      --border-subtle:#E2E8F0; --border-strong:#CBD5E1; --border-focus:#00A859;
+      --state-success:#00A859; --state-success-bg:#E7F9F0; --state-warning:#F59E0B; --state-warning-bg:#FEF3C7;
+      --state-error:#EF4444; --state-error-bg:#FEE2E2; --state-info:#0EA5E9; --state-info-bg:#E0F2FE;
+      --gradient-growth:linear-gradient(135deg,#00A859 0%,#00754d 100%);
+      --gradient-navy:linear-gradient(160deg,#081B33 0%,#041227 100%);
+      --gradient-glow:radial-gradient(120% 120% at 50% 0%,rgba(0,168,89,0.18) 0%,rgba(0,168,89,0) 60%);
+      --chart-1:#00A859; --chart-2:#081B33; --chart-3:#0EA5E9; --chart-4:#00754d; --chart-5:#64748B; --chart-6:#F59E0B; --chart-negative:#EF4444;
+      --chart-grid:#E2E8F0; --chart-text:#64748B;
+      --shadow-xs:0 1px 2px rgba(8,27,51,0.06); --shadow-sm:0 2px 8px rgba(8,27,51,0.08);
+      --shadow-md:0 8px 24px rgba(8,27,51,0.10); --shadow-lg:0 16px 40px rgba(8,27,51,0.14); --shadow-glow:0 8px 32px rgba(0,168,89,0.28);
+      --radius-sm:6px; --radius-md:10px; --radius-lg:16px; --radius-xl:24px;
+    }
+    /* ===== Dark ===== */
+    [data-theme="dark"]{
+      --surface-base:#041227; --surface-card:#081B33; --surface-subtle:#0D2543; --surface-inverse:#0D2543;
+      --text-primary:#F8FAFC; --text-secondary:#94A3B8; --text-muted:#64748B;
+      --border-subtle:#0D2543; --border-strong:#183254;
+      --chart-grid:#12335a; --chart-text:#94A3B8;
+      --state-success-bg:rgba(0,168,89,.14); --state-warning-bg:rgba(245,158,11,.14); --state-error-bg:rgba(239,68,68,.14); --state-info-bg:rgba(14,165,233,.14);
+      --shadow-xs:0 1px 2px rgba(0,0,0,.3); --shadow-sm:0 2px 10px rgba(0,0,0,.35); --shadow-md:0 10px 28px rgba(0,0,0,.42); --shadow-lg:0 18px 44px rgba(0,0,0,.5);
+    }
+    .tnum,[data-num],[id^="kpi"],[id^="roi_kpi"],[id^="funnel"],[id^="prod_"],[id^="teamGoal"],[id^="comparison"],[id^="dash"]{ font-variant-numeric:tabular-nums; font-feature-settings:"tnum" 1,"cv01" 1; }
+    body, .bg-white, [class*="bg-slate-"], nav#sectionNav{ transition:background-color .25s ease, color .2s ease, border-color .2s ease; }
+
+    /* ===== DARK MODE — retrofit sobre as classes existentes ===== */
+    [data-theme="dark"] body{
+      background:
+        radial-gradient(1100px 560px at 100% -10%, rgba(0,168,89,.10), transparent 55%),
+        linear-gradient(180deg,#041227 0%,#06101d 62%,#081B33 100%) !important;
+      color:var(--text-on-dark);
+    }
+    [data-theme="dark"] body::before{ opacity:.03; }
+    [data-theme="dark"] .bg-white{ background:var(--surface-card) !important; }
+    [data-theme="dark"] .bg-slate-50,[data-theme="dark"] .bg-slate-100,[data-theme="dark"] .bg-gray-50,[data-theme="dark"] .bg-gray-100{ background:var(--surface-subtle) !important; }
+    [data-theme="dark"] .text-\[\#041227\],[data-theme="dark"] .text-\[\#081B33\],[data-theme="dark"] .text-slate-900,[data-theme="dark"] .text-slate-800,[data-theme="dark"] .text-slate-700,[data-theme="dark"] .text-gray-900,[data-theme="dark"] .text-gray-800{ color:var(--text-on-dark) !important; }
+    [data-theme="dark"] .text-slate-600,[data-theme="dark"] .text-slate-500,[data-theme="dark"] .text-slate-400,[data-theme="dark"] .text-gray-600,[data-theme="dark"] .text-gray-500{ color:var(--text-secondary) !important; }
+    [data-theme="dark"] .border-slate-200,[data-theme="dark"] .border-slate-100,[data-theme="dark"] .border-slate-300,[data-theme="dark"] .border-gray-200,[data-theme="dark"] .border-gray-100{ border-color:var(--border-subtle) !important; }
+    [data-theme="dark"] .ring-slate-200,[data-theme="dark"] .ring-slate-100{ --tw-ring-color:var(--border-subtle) !important; }
+    [data-theme="dark"] .divide-slate-100>*+*,[data-theme="dark"] .divide-slate-200>*+*{ border-color:var(--border-subtle) !important; }
+    [data-theme="dark"] nav#sectionNav{ background:rgba(4,18,39,.72)!important; border-bottom-color:var(--border-subtle)!important; }
+    [data-theme="dark"] input,[data-theme="dark"] select,[data-theme="dark"] textarea{ background:var(--surface-subtle)!important; color:var(--text-on-dark)!important; border-color:var(--border-strong)!important; }
+    [data-theme="dark"] input::placeholder,[data-theme="dark"] textarea::placeholder{ color:var(--text-muted)!important; }
+    [data-theme="dark"] .bg-white.shadow-sm:hover,[data-theme="dark"] .bg-white.shadow-md:hover{ box-shadow:0 26px 54px -22px rgba(0,0,0,.6)!important; }
+    [data-theme="dark"] ::-webkit-scrollbar-thumb{ background:rgba(148,163,184,.25); }
+  </style>
 </head>
 <body class="text-slate-800 min-h-screen antialiased" style="background: radial-gradient(900px 520px at 85% -8%, rgba(0,168,89,.045), transparent 60%), radial-gradient(720px 520px at 0% 0%, rgba(4,18,39,.045), transparent 55%), linear-gradient(180deg, #f7f9fc 0%, #eef2f6 100%); background-attachment: fixed;">
 
@@ -222,6 +291,8 @@
               <span id="configBtnLabel" class="hidden sm:inline">Conectar meu CRM</span>
               <span id="configStatus" class="w-2 h-2 rounded-full bg-slate-400 transition" title="Não configurado"></span>
             </button>
+            <button id="themeToggle" type="button" title="Alternar tema claro / escuro"
+                    class="inline-flex items-center justify-center w-8 h-8 text-sm text-white bg-white/10 border border-white/15 hover:border-[#00A859] hover:bg-white/15 rounded-full transition shrink-0">🌙</button>
             <button id="helpBtn" type="button" title="Ajuda — o que cada coisa significa"
                     class="inline-flex items-center justify-center w-8 h-8 text-sm font-bold text-white bg-white/10 border border-white/15 hover:border-[#FFB81C] hover:bg-white/15 rounded-full transition shrink-0">❓</button>
             <span class="hidden sm:inline-flex items-center text-[11px] font-semibold tracking-widest text-[#00A859] uppercase bg-[#00A859]/15 px-3 py-1.5 rounded-full ring-1 ring-[#00A859]/30">
@@ -7943,6 +8014,52 @@
 
     // Ajuda / glossário (tocável — funciona no celular, onde o tooltip de hover não aparece)
     document.getElementById('helpBtn')?.addEventListener('click', () => document.getElementById('helpModal').classList.remove('hidden'));
+
+    // ===== Dark Mode reativo + theming dinâmico de gráficos + count-up =====
+    function dhCssVar(n){ try { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); } catch(e){ return ''; } }
+    function dhThemeCharts(){
+      if (typeof Chart === 'undefined') return;
+      const txt = dhCssVar('--chart-text') || '#64748B';
+      const grid = dhCssVar('--chart-grid') || '#E2E8F0';
+      Chart.defaults.color = txt;
+      Chart.defaults.borderColor = grid;
+      Chart.defaults.font.family = "'Space Grotesk','Inter',system-ui,sans-serif";
+      const inst = Chart.instances || {};
+      Object.values(inst).forEach(c => { try {
+        if (c.options && c.options.scales) Object.values(c.options.scales).forEach(s => {
+          if (s && s.grid) s.grid.color = grid;
+          if (s && s.ticks) s.ticks.color = txt;
+          if (s && s.title) s.title.color = txt;
+          if (s && s.pointLabels) s.pointLabels.color = txt;
+        });
+        c.update('none');
+      } catch(e){} });
+    }
+    function dhApplyTheme(theme){
+      const dark = theme === 'dark';
+      document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+      try { localStorage.setItem('dh_theme', dark ? 'dark' : 'light'); } catch(e){}
+      const t = document.getElementById('themeToggle'); if (t) t.textContent = dark ? '☀️' : '🌙';
+      dhThemeCharts();
+    }
+    function dhToggleTheme(){ dhApplyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'); }
+    window.dhToggleTheme = dhToggleTheme; window.dhThemeCharts = dhThemeCharts;
+    (function(){
+      const t = document.getElementById('themeToggle');
+      if (t) { t.textContent = document.documentElement.getAttribute('data-theme') === 'dark' ? '☀️' : '🌙'; t.addEventListener('click', dhToggleTheme); }
+      try { if (typeof Chart !== 'undefined') { Chart.defaults.font.family = "'Space Grotesk','Inter',system-ui,sans-serif"; dhThemeCharts(); } } catch(e){}
+    })();
+    // count-up sutil (~600ms) — uso: countUp(el, valorFinal, { ms, fmt:'int'|'brl'|'pct', decimals })
+    window.countUp = function(el, to, opts){
+      if (!el) return; opts = opts || {}; const ms = opts.ms || 600, fmt = opts.fmt || 'int', dec = opts.decimals ?? 0;
+      const from = 0, t0 = performance.now();
+      const render = v => {
+        if (fmt === 'brl') el.textContent = 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+        else if (fmt === 'pct') el.textContent = v.toFixed(dec) + '%';
+        else el.textContent = Math.round(v).toLocaleString('pt-BR');
+      };
+      (function step(now){ let p = Math.min(1, (now - t0) / ms); p = 1 - Math.pow(1 - p, 3); render(from + (to - from) * p); if (p < 1) requestAnimationFrame(step); })(t0);
+    };
     document.getElementById('helpCloseBtn')?.addEventListener('click', () => document.getElementById('helpModal').classList.add('hidden'));
     document.getElementById('helpModal')?.addEventListener('click', (e) => { if (e.target.id === 'helpModal') e.target.classList.add('hidden'); });
 
