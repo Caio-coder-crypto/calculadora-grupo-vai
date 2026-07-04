@@ -1939,14 +1939,15 @@
         </button>
         <h3 class="text-lg font-bold flex items-center gap-2">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-5 h-5 text-[#00A859]"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
-          Conectar com DataCrazy
+          <span id="configTitleText">Conectar com DataCrazy</span>
         </h3>
-        <p class="text-sm text-slate-300 mt-1">Cole sua chave de API para visualizar dados do seu CRM nesta calculadora.</p>
+        <p id="configSubtitle" class="text-sm text-slate-300 mt-1">Cole sua chave de API para visualizar dados do seu CRM nesta plataforma.</p>
+        <button id="trocarCrmBtn" type="button" class="hidden mt-2 text-[11px] font-semibold text-white/70 hover:text-white underline underline-offset-2">↔ Trocar de CRM</button>
       </div>
 
       <!-- Body -->
       <div class="p-6 space-y-4">
-        <div>
+        <div id="dcKeyBlock">
           <label class="block text-xs font-bold uppercase tracking-widest text-slate-600 mb-2">Chave da API DataCrazy</label>
           <input id="configKeyInput" type="password" placeholder="dc_..."
                  autocomplete="off" spellcheck="false"
@@ -1958,7 +1959,7 @@
         </div>
 
         <!-- Como obter -->
-        <details class="bg-slate-50 rounded-lg p-3">
+        <details id="dcHelpBlock" class="bg-slate-50 rounded-lg p-3">
           <summary class="text-xs font-bold uppercase tracking-widest text-slate-700 cursor-pointer">Onde encontro minha chave?</summary>
           <ol class="text-xs text-slate-600 mt-2 space-y-1 list-decimal list-inside">
             <li>Acesse o painel DataCrazy</li>
@@ -1972,7 +1973,7 @@
         <div id="configMessage" class="hidden text-sm p-3 rounded-lg"></div>
 
         <!-- Botões -->
-        <div class="flex flex-col-reverse sm:flex-row gap-2 pt-2">
+        <div id="dcBtnBlock" class="flex flex-col-reverse sm:flex-row gap-2 pt-2">
           <button id="configClear" type="button"
                   class="px-4 py-2.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 font-medium text-sm transition">
             Desconectar
@@ -1987,10 +1988,10 @@
           </button>
         </div>
 
-        <!-- ===== Alternativa: Kommo (separado, em ROXO, pra não confundir com o DataCrazy) ===== -->
-        <div class="mt-1 pt-4 border-t border-slate-200">
+        <!-- ===== Painel de conexão Kommo (mostrado só quando o CRM escolhido é Kommo) ===== -->
+        <div id="kommoConfigSection" class="pt-1">
           <div class="flex items-center gap-2 mb-1">
-            <span class="text-xs font-extrabold uppercase tracking-widest text-[#7C3AED]">Alternativa · Kommo</span>
+            <span class="text-xs font-extrabold uppercase tracking-widest text-[#7C3AED]">Conexão · Kommo</span>
             <span id="kommoActiveBadge" class="hidden text-[10px] font-bold text-white bg-[#7C3AED] px-2 py-0.5 rounded-full">ATIVO</span>
           </div>
           <p class="text-[11px] text-slate-500 mb-2">Se o cliente usa <b>Kommo</b> (em vez do DataCrazy), conecte por aqui. Use um <b>ou</b> o outro.</p>
@@ -2820,7 +2821,25 @@
     }
 
     // ------- Modal events -------
+    // Qual CRM o usuário escolheu (a tela de 1º acesso define isso). Retrofit p/ quem já estava conectado.
+    function dhCurrentCRM() {
+      try {
+        return localStorage.getItem('dc_crm')
+          || (localStorage.getItem('dc_backend') === 'kommo' ? 'kommo'
+             : ((typeof getDcKey === 'function' && getDcKey()) ? 'datacrazy' : ''));
+      } catch (e) { return ''; }
+    }
     function openConfig() {
+      // A engrenagem mostra SÓ o CRM escolhido — Kommo e DataCrazy são painéis separados.
+      const isKommo = (dhCurrentCRM() || 'datacrazy') === 'kommo';
+      const tt = document.getElementById('configTitleText'); if (tt) tt.textContent = isKommo ? 'Conectar com Kommo' : 'Conectar com DataCrazy';
+      const st = document.getElementById('configSubtitle'); if (st) st.textContent = isKommo
+        ? 'Cole o subdomínio e o token do Kommo para ver seus dados nesta plataforma.'
+        : 'Cole sua chave de API para visualizar dados do seu CRM nesta plataforma.';
+      ['dcKeyBlock', 'dcHelpBlock', 'dcBtnBlock'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.toggle('hidden', isKommo); });
+      const kc = document.getElementById('kommoConfigSection'); if (kc) kc.classList.toggle('hidden', !isKommo);
+      const tb = document.getElementById('trocarCrmBtn'); if (tb) tb.classList.remove('hidden');
+
       document.getElementById('configKeyInput').value = getDcKey();
       try {
         const ks = document.getElementById('kommoSubInput'); if (ks) ks.value = localStorage.getItem('kommo_subdomain') || '';
@@ -2830,7 +2849,7 @@
       } catch (e) {}
       document.getElementById('configModal').classList.remove('hidden');
       document.getElementById('configMessage').classList.add('hidden');
-      document.getElementById('configKeyInput').focus();
+      if (!isKommo) document.getElementById('configKeyInput').focus();
     }
     function closeConfig() {
       document.getElementById('configModal').classList.add('hidden');
@@ -2902,6 +2921,56 @@
         showConfigMessage('info', 'Voltou pro DataCrazy. Use a chave verde acima.');
       });
     })();
+
+    // ======================================================================
+    // TELA DE 1º ACESSO — escolher o CRM (Kommo × DataCrazy). Painéis separados,
+    // NÃO dentro da engrenagem: cada CRM traz coisas diferentes.
+    // ======================================================================
+    function setCRM(crm) {
+      try {
+        localStorage.setItem('dc_crm', crm);
+        if (crm === 'kommo') localStorage.setItem('dc_backend', 'kommo');
+        else localStorage.removeItem('dc_backend');
+      } catch (e) {}
+    }
+    function showCrmChooser() {
+      let ov = document.getElementById('crmChooser'); if (ov) ov.remove();
+      ov = document.createElement('div');
+      ov.id = 'crmChooser';
+      ov.className = 'fixed inset-0 z-[80] flex items-center justify-center p-5';
+      ov.style.background = 'radial-gradient(120% 120% at 50% -10%, rgba(0,168,89,.14), transparent 55%), #041227';
+      ov.innerHTML = `
+        <div class="w-full max-w-2xl text-center">
+          <div class="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.2em] text-[#00A859] mb-3"><span class="w-1.5 h-1.5 rounded-full bg-[#00A859]"></span>Primeiro acesso</div>
+          <h2 class="text-white font-bold text-2xl sm:text-[34px] leading-tight" style="font-family:Sora,system-ui,sans-serif">Qual CRM você usa?</h2>
+          <p class="text-slate-300 text-sm mt-3 mb-8 max-w-md mx-auto">Cada CRM tem seu próprio painel de conexão. Escolha o seu &mdash; dá pra trocar depois nas configurações.</p>
+          <div class="grid sm:grid-cols-2 gap-4 text-left">
+            <button data-crm="datacrazy" class="crm-pick group bg-white/[0.04] hover:bg-white/[0.08] border border-white/15 hover:border-[#00A859] rounded-2xl p-6 transition focus:outline-none focus:ring-2 focus:ring-[#00A859]">
+              <div class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl mb-4" style="background:linear-gradient(135deg,#00A859,#00754d)">📊</div>
+              <div class="text-white font-bold text-lg">DataCrazy</div>
+              <div class="text-slate-400 text-[13px] mt-1 leading-snug">Conecta com a <b class="text-slate-200">chave de API</b> do DataCrazy.</div>
+              <div class="mt-4 text-[#00A859] text-sm font-semibold opacity-0 group-hover:opacity-100 transition">Usar DataCrazy →</div>
+            </button>
+            <button data-crm="kommo" class="crm-pick group bg-white/[0.04] hover:bg-white/[0.08] border border-white/15 hover:border-[#7C3AED] rounded-2xl p-6 transition focus:outline-none focus:ring-2 focus:ring-[#7C3AED]">
+              <div class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl mb-4" style="background:linear-gradient(135deg,#7C3AED,#6D28D9)">🟣</div>
+              <div class="text-white font-bold text-lg">Kommo</div>
+              <div class="text-slate-400 text-[13px] mt-1 leading-snug">Conecta com o <b class="text-slate-200">subdomínio + token</b> do Kommo.</div>
+              <div class="mt-4 text-[#a78bfa] text-sm font-semibold opacity-0 group-hover:opacity-100 transition">Usar Kommo →</div>
+            </button>
+          </div>
+          <p class="text-slate-500 text-[11px] mt-6">Não sabe qual? Fale com a gente que a gente te diz.</p>
+        </div>`;
+      document.body.appendChild(ov);
+      ov.querySelectorAll('.crm-pick').forEach(b => b.addEventListener('click', () => {
+        setCRM(b.getAttribute('data-crm'));
+        ov.remove();
+        openConfig();   // abre direto a conexão do CRM escolhido
+      }));
+    }
+    window.trocarCRM = showCrmChooser;
+    { const tb = document.getElementById('trocarCrmBtn'); if (tb) tb.addEventListener('click', () => { closeConfig(); showCrmChooser(); }); }
+    // Mostra a escolha SÓ no primeiro acesso (quem já está conectado não é incomodado).
+    try { if (!dhCurrentCRM()) showCrmChooser(); } catch (e) {}
 
     updateConnectionStatus();
 
