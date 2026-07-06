@@ -237,7 +237,7 @@
         <div id="lockScreenDetails" class="mt-5 px-4 py-3 bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-500 hidden"></div>
 
         <!-- CTA WhatsApp -->
-        <a id="lockScreenCTA" href="https://wa.me/5585988842142?text=Ol%C3%A1%2C%20preciso%20regularizar%20o%20acesso%20ao%20Painel%20BI%20do%20Grupo%20VAI"
+        <a id="lockScreenCTA" href="https://wa.me/558585783895?text=Ol%C3%A1%2C%20preciso%20regularizar%20o%20acesso%20ao%20Painel%20BI%20do%20Grupo%20VAI"
            target="_blank" rel="noopener"
            class="mt-6 inline-flex items-center justify-center gap-2 w-full px-6 py-4 rounded-xl bg-[#00A859] text-white font-bold text-base hover:bg-[#00754d] transition shadow-lg ring-1 ring-[#00A859]/50">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6">
@@ -8153,8 +8153,11 @@
     // ======================================================================
     function dhIsDemo() { try { return localStorage.getItem('dh_demo') === '1'; } catch (e) { return false; } }
     function dhDemoWaLink() {
-      const app = /datahub/i.test(document.title) ? 'do DataHub' : 'do Grupo VAI';
-      return 'https://wa.me/5585988842142?text=' + encodeURIComponent('Olá! Testei o painel de demonstração ' + app + ' e quero ver com os dados da minha empresa. Como funciona a reunião gratuita?');
+      // Número por marca: DataHub e Grupo VAI têm WhatsApp diferentes
+      const isDh = /datahub/i.test(document.title);
+      const num = isDh ? '5585988842142' : '558585783895';
+      const app = isDh ? 'do DataHub' : 'do Grupo VAI';
+      return 'https://wa.me/' + num + '?text=' + encodeURIComponent('Olá! Testei o painel de demonstração ' + app + ' e quero ver com os dados da minha empresa. Como funciona a reunião gratuita?');
     }
     // function declaration (não var): o arm roda ANTES desta linha no parse — precisa içar por completo
     function dhDemoCfgKeys() { return ['dc_expenses_v1', 'dc_goals_v1', 'dc_general_goal_v1', 'dc_roles_v1', 'dc_channel_platform_v1', 'dc_tag_overrides_v1', 'dc_crm', 'dc_backend']; }
