@@ -2969,8 +2969,10 @@
     }
     window.trocarCRM = showCrmChooser;
     { const tb = document.getElementById('trocarCrmBtn'); if (tb) tb.addEventListener('click', () => { closeConfig(); showCrmChooser(); }); }
-    // Mostra a escolha SÓ no primeiro acesso (quem já está conectado não é incomodado).
-    try { if (!dhCurrentCRM()) showCrmChooser(); } catch (e) {}
+    // MODO DEMO: link com ?demo=1 arma a demonstração (dados fictícios, sem chave nem CRM).
+    try { if (new URLSearchParams(location.search).get('demo') === '1') dhDemoArm(); } catch (e) {}
+    // Mostra a escolha SÓ no primeiro acesso (quem já está conectado não é incomodado; demo pula).
+    try { if (!dhCurrentCRM() && !dhIsDemo()) showCrmChooser(); } catch (e) {}
 
     updateConnectionStatus();
 
@@ -3006,6 +3008,16 @@
     let dashRetryTimer = null;
 
     async function syncDashboard() {
+      // Modo demonstração: alimenta o dashboard com o summary fictício (sem API)
+      if (dhIsDemo()) {
+        try {
+          const s = dhDemoData().summary;
+          dashState.lastData = s;
+          renderDashboard(s);
+          setDashView('dashData');
+        } catch (e) { console.error('[demo dash]', e); }
+        return;
+      }
       // Se ainda não configurou a chave, abre o modal direto
       if (!getDcKey()) {
         openConfig();
@@ -4899,6 +4911,7 @@
     }
 
     async function loadBi(force = false) {
+      if (dhIsDemo()) return loadDemoBI();                      // modo demonstração (dados fictícios, sem API)
       if (biBackend() === 'kommo') return loadKommoBI(force);   // backend Kommo (gated por localStorage dc_backend)
       if (!getDcKey()) { openConfig(); showConfigMessage('info', 'Configure sua chave DataCrazy antes de carregar o BI.'); return; }
       setBiView('biLoading');
@@ -8132,9 +8145,409 @@
     document.getElementById('helpCloseBtn')?.addEventListener('click', () => document.getElementById('helpModal').classList.add('hidden'));
     document.getElementById('helpModal')?.addEventListener('click', (e) => { if (e.target.id === 'helpModal') e.target.classList.add('hidden'); });
 
-    // Palma da mão: se já está conectado ao CRM, carrega o BI sozinho (dados na tela sem precisar clicar)
-    if (typeof getDcKey === 'function' && getDcKey() && typeof loadBi === 'function') {
+    // ======================================================================
+    // MODO DEMONSTRAÇÃO (?demo=1) — painel fictício pra campanha de marketing.
+    // Dados 100% gerados no navegador (Boleiro Store, artigos esportivos).
+    // Sem chave, sem API. Backup/restauração das configs reais ao entrar/sair.
+    // ======================================================================
+    function dhIsDemo() { try { return localStorage.getItem('dh_demo') === '1'; } catch (e) { return false; } }
+    function dhDemoWaLink() {
+      const app = /datahub/i.test(document.title) ? 'do DataHub' : 'do Grupo VAI';
+      return 'https://wa.me/5585988842142?text=' + encodeURIComponent('Olá! Testei o painel de demonstração ' + app + ' e quero ver com os dados da minha empresa. Como funciona a reunião gratuita?');
+    }
+    // function declaration (não var): o arm roda ANTES desta linha no parse — precisa içar por completo
+    function dhDemoCfgKeys() { return ['dc_expenses_v1', 'dc_goals_v1', 'dc_general_goal_v1', 'dc_roles_v1', 'dc_channel_platform_v1', 'dc_tag_overrides_v1', 'dc_crm', 'dc_backend']; }
+    function dhDemoArm() {
+      try {
+        if (localStorage.getItem('dh_demo') === '1') return;   // já armado
+        // Backup das configs reais (se este navegador já tinha um cliente conectado)
+        const bak = {};
+        dhDemoCfgKeys().forEach(k => { const v = localStorage.getItem(k); if (v != null) bak[k] = v; });
+        localStorage.setItem('dh_demo_backup_v1', JSON.stringify(bak));
+        localStorage.setItem('dh_demo', '1');
+        localStorage.removeItem('dc_backend');                 // demo roda na via padrão (client-side)
+        localStorage.setItem('dc_crm', 'datacrazy');
+        // Semeia as configs fictícias (gastos, metas, papéis, plataformas de ads)
+        const d = dhDemoData();
+        localStorage.setItem('dc_expenses_v1', JSON.stringify(d.expenses));
+        localStorage.setItem('dc_goals_v1', JSON.stringify(d.goals));
+        localStorage.setItem('dc_general_goal_v1', String(d.generalGoal));
+        localStorage.setItem('dc_roles_v1', JSON.stringify(d.roles));
+        localStorage.setItem('dc_channel_platform_v1', JSON.stringify(d.platformMap));
+      } catch (e) { console.warn('[demo arm]', e); }
+    }
+    function dhDemoExit() {
+      try {
+        const bak = JSON.parse(localStorage.getItem('dh_demo_backup_v1') || '{}');
+        dhDemoCfgKeys().forEach(k => localStorage.removeItem(k));
+        Object.keys(bak).forEach(k => localStorage.setItem(k, bak[k]));
+        ['dh_demo', 'dh_demo_backup_v1', 'dh_demo_tour_done'].forEach(k => localStorage.removeItem(k));
+      } catch (e) {}
+      location.href = location.pathname;   // recarrega limpo, sem ?demo=1
+    }
+
+    var __dhDemoCache = null;
+    function dhDemoData() { if (!__dhDemoCache) __dhDemoCache = dhDemoBuild(); return __dhDemoCache; }
+    function dhDemoBuild() {
+      // RNG determinístico (mesmos números em todo reload; só a janela de datas anda com o dia)
+      let _s = 987654321;
+      const rnd = () => { _s |= 0; _s = _s + 0x6D2B79F5 | 0; let t = Math.imul(_s ^ _s >>> 15, 1 | _s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+      const pick = (arr) => arr[Math.floor(rnd() * arr.length)];
+      const weighted = (pairs) => { let r = rnd(), acc = 0; for (const [v, w] of pairs) { acc += w; if (r <= acc) return v; } return pairs[pairs.length - 1][0]; };
+      const between = (a, b) => a + rnd() * (b - a);
+      const NOW = Date.now(), DAY = 86400000, SPAN = 210;
+      const iso = (t) => new Date(t).toISOString();
+
+      // Vendedores da Boleiro Store (4 closers + 2 SDRs com crédito por tag)
+      const SELLERS = [
+        { id: 'demo-ana', name: 'Ana Souza', role: 'closer', pct: 4, goal: 26000, w: 0.30 },
+        { id: 'demo-bruno', name: 'Bruno Lima', role: 'closer', pct: 4, goal: 32000, w: 0.26 },
+        { id: 'demo-carla', name: 'Carla Mendes', role: 'closer', pct: 4, goal: 20000, w: 0.24 },
+        { id: 'demo-gustavo', name: 'Gustavo Alves', role: 'closer', pct: 3, goal: 16000, w: 0.20 },
+        { id: 'demo-diego', name: 'Diego Ferreira', role: 'sdr', pct: 2, goal: 0, tag: 'SDR Diego' },
+        { id: 'demo-fernanda', name: 'Fernanda Rocha', role: 'sdr', pct: 2, goal: 0, tag: 'SDR Fernanda' }
+      ];
+      const CLOSERS = SELLERS.filter(s => s.role === 'closer');
+      const SDRS = SELLERS.filter(s => s.role === 'sdr');
+
+      // Funis (nomes de etapa que os detectores de ganho/perda já reconhecem)
+      const STAGE_COLORS = ['#38bdf8', '#818cf8', '#a78bfa', '#f59e0b', '#f97316', '#22c55e', '#ef4444'];
+      const P1 = { id: 'demo-p1', name: 'Funil de Vendas — Varejo', stages: ['Novo Lead', 'Primeiro Contato', 'Qualificado', 'Proposta Enviada', 'Negociação', 'Ganho', 'Perdido'] };
+      const P2 = { id: 'demo-p2', name: 'Atacado / B2B', stages: ['Novo Contato', 'Reunião Marcada', 'Proposta', 'Negociação', 'Ganho', 'Perdido'] };
+      const mkPipe = (p) => ({ id: p.id, name: p.name, description: '', group: '', stagesCount: p.stages.length, stages: p.stages.map((n, i) => ({ id: p.id + '-s' + i, name: n, color: STAGE_COLORS[Math.min(i, STAGE_COLORS.length - 1)], index: i })) });
+      const pipes = [mkPipe(P1), mkPipe(P2)];
+      const stageOf = (p, name) => pipes.find(x => x.id === p.id).stages.find(s => s.name === name);
+
+      const CATALOG = [
+        { sku: 'CAM-TIT', name: 'Camisa Titular 24/25', price: 349.90 },
+        { sku: 'CAM-RET', name: 'Camisa Retrô Anos 90', price: 299.90 },
+        { sku: 'CHU-PRO', name: 'Chuteira Boleiro Pro', price: 599.90 },
+        { sku: 'KIT-TOR', name: 'Kit Torcedor', price: 199.90 },
+        { sku: 'BOL-OF', name: 'Bola Oficial', price: 249.90 },
+        { sku: 'MEI-PRO', name: 'Meião Pro', price: 49.90 },
+        { sku: 'PER-NN', name: 'Personalização Nome+Número', price: 59.90 }
+      ];
+      // Canais por TAG (nomes que o classificador de canais já reconhece sozinho)
+      const CHANNELS = [['Meta ADS', .34], ['Google ADS', .14], ['Orgânico', .18], ['Indicação', .10], ['Instagram', .09], ['Site', .07], ['Evento', .04], [null, .04]];
+      const WON_BY_CHANNEL = { 'Meta ADS': .21, 'Google ADS': .22, 'Orgânico': .24, 'Indicação': .38, 'Instagram': .17, 'Site': .15, 'Evento': .30, none: .10 };
+      const DDD = [['85', .26], ['11', .16], ['21', .09], ['31', .08], ['81', .07], ['71', .06], ['41', .05], ['51', .05], ['62', .05], ['98', .04], ['27', .04], ['48', .04], ['61', .04], ['92', .03]];
+      const FIRST = ['Marcos', 'Juliana', 'Rafael', 'Camila', 'Thiago', 'Larissa', 'Pedro', 'Amanda', 'Lucas', 'Bianca', 'Felipe', 'Renata', 'André', 'Patrícia', 'Vinícius', 'Débora', 'Rodrigo', 'Aline', 'Caio', 'Vanessa', 'Igor', 'Natália', 'Samuel', 'Priscila'];
+      const LAST = ['Silva', 'Santos', 'Oliveira', 'Souza', 'Costa', 'Pereira', 'Almeida', 'Nascimento', 'Lima', 'Araújo', 'Ribeiro', 'Carvalho', 'Gomes', 'Martins', 'Barbosa', 'Rocha', 'Dias', 'Moreira', 'Teixeira', 'Correia'];
+      const B2B_KIND = ['Escolinha de Futebol', 'Atlética Universitária', 'Time Amador', 'Colégio', 'Empresa', 'CT de Base', 'Liga Municipal', 'Clube Society'];
+      const B2B_CITY = ['Fortaleza', 'São Paulo', 'Recife', 'Salvador', 'BH', 'Curitiba', 'Goiânia', 'Natal', 'Sobral', 'Caucaia'];
+      const LOSS = [{ id: 'lr1', name: 'Sem resposta' }, { id: 'lr2', name: 'Preço' }, { id: 'lr3', name: 'Comprou concorrente' }, { id: 'lr4', name: 'Fora do perfil' }, { id: 'lr5', name: 'Sem estoque' }];
+      const LOSS_W = [['lr1', .38], ['lr2', .25], ['lr3', .16], ['lr4', .13], ['lr5', .08]];
+
+      const deals = [];
+      let seq = 1;
+      const phone = () => '+55' + weighted(DDD) + '9' + String(10000000 + Math.floor(rnd() * 89999999));
+      const mkProducts = () => {
+        const items = [];
+        const n = 1 + (rnd() < .45 ? 1 : 0);
+        for (let i = 0; i < n; i++) {
+          const c = pick(CATALOG);
+          const qty = 1 + (rnd() < .3 ? 1 : 0);
+          items.push({ id: 'pi' + (seq++), sku: c.sku, name: c.name, catalogPrice: c.price, quantity: qty, total: Math.round(c.price * qty * 100) / 100 });
+        }
+        if (rnd() < .12) items.push({ id: 'pi' + (seq++), sku: 'CHU-PRO', name: 'Chuteira Boleiro Pro', catalogPrice: 599.90, quantity: 1, total: 599.90 });
+        return items;
+      };
+      const pushDeal = (d) => deals.push(d);
+
+      // --- VAREJO: ~1.800 leads nos últimos 210 dias, volume crescente ---
+      for (let day = SPAN; day >= 0; day--) {
+        const t0 = NOW - day * DAY;
+        const dow = new Date(t0).getDay();
+        const weekendCut = (dow === 0 || dow === 6) ? 0.55 : 1;
+        const base = 6.2 * (1 + (SPAN - day) / SPAN * 0.9) * weekendCut;   // ~6/dia → ~12/dia
+        const count = Math.floor(base + rnd() * 3);
+        for (let i = 0; i < count; i++) {
+          const created = t0 + between(9, 21) * 3600000;
+          if (created > NOW) continue;
+          const ch = weighted(CHANNELS);
+          const tags = [];
+          if (ch) tags.push(ch);
+          if (ch === 'Instagram' && rnd() < .5) tags.push('Link Bio');
+          if (ch === 'Google ADS' && rnd() < .4) tags.push('LP');
+          const sdr = rnd() < .35 ? pick(SDRS) : null;
+          if (sdr) tags.push(sdr.tag);
+          const closer = weighted(CLOSERS.map(c => [c, c.w]));
+          const age = (NOW - created) / DAY;
+          const resolveP = age > 30 ? .88 : age > 15 ? .70 : age > 7 ? .45 : .18;
+          const wonP = WON_BY_CHANNEL[ch || 'none'];
+          let status, stage, total = 0, products = [], statusChangedAt = null, lossReasonId = null;
+          if (rnd() < resolveP) {
+            if (rnd() < wonP) {
+              status = 'won'; stage = stageOf(P1, 'Ganho');
+              products = mkProducts();
+              total = Math.round(products.reduce((a, p) => a + p.total, 0) * 100) / 100;
+              statusChangedAt = Math.min(created + between(1, 12) * DAY, NOW - 3600000);
+            } else {
+              status = 'lost'; stage = stageOf(P1, 'Perdido');
+              lossReasonId = weighted(LOSS_W);
+              statusChangedAt = Math.min(created + between(2, 20) * DAY, NOW - 3600000);
+            }
+          } else {
+            status = 'in_process';
+            const openStages = ['Novo Lead', 'Primeiro Contato', 'Qualificado', 'Proposta Enviada', 'Negociação'];
+            const si = weighted([[0, .34], [1, .26], [2, .18], [3, .13], [4, .09]]);
+            stage = stageOf(P1, openStages[si]);
+            if (si >= 3) total = Math.round(between(180, 1400));   // valor estimado em proposta/negociação
+          }
+          // Lead ainda em qualificação (etapas iniciais) com SDR: o dono é a SDR — depois transfere pro closer (a tag fica)
+          const owner = (status === 'in_process' && sdr && stage.index <= 1) ? sdr : closer;
+          const moved = statusChangedAt || Math.min(created + between(0, Math.min(age, 8)) * DAY, NOW - 1800000);
+          pushDeal({
+            id: 'demo-' + (seq++), code: seq, createdAt: iso(created),
+            lastMovedAt: iso(moved), statusChangedAt: iso(statusChangedAt || moved),
+            stageId: stage.id, stageName: stage.name, stageColor: stage.color, stageIndex: stage.index,
+            pipelineId: P1.id, attendantId: owner.id, attendantName: owner.name,
+            leadId: 'demo-l' + seq, leadName: pick(FIRST) + ' ' + pick(LAST), leadPhone: phone(),
+            leadSource: '', leadTags: tags, total, status,
+            lossReasonId, productsCount: products.length, products
+          });
+        }
+      }
+
+      // --- ATACADO / B2B: ~200 negócios maiores (uniformes personalizados) ---
+      const b2bSellers = [SELLERS[1], SELLERS[3]];   // Bruno e Gustavo
+      for (let k = 0; k < 200; k++) {
+        const created = NOW - between(0, SPAN) * DAY;
+        const ch = weighted([['Prospecção', .38], ['Indicação', .25], ['Meta ADS', .22], ['Evento', .15]]);
+        const tags = [ch];
+        const closer = pick(b2bSellers);
+        const age = (NOW - created) / DAY;
+        const resolveP = age > 45 ? .85 : age > 20 ? .60 : .25;
+        const qty = 12 + Math.floor(rnd() * 34);
+        const unit = pick([189.90, 219.90, 249.90]);
+        const value = Math.round(qty * unit * 100) / 100;
+        let status, stage, total = value, products = [], statusChangedAt = null, lossReasonId = null;
+        if (rnd() < resolveP) {
+          if (rnd() < .32) {
+            status = 'won'; stage = stageOf(P2, 'Ganho');
+            products = [{ id: 'pi' + (seq++), sku: 'UNI-KIT', name: 'Kit Uniforme Personalizado', catalogPrice: unit, quantity: qty, total: value }];
+            statusChangedAt = Math.min(created + between(7, 35) * DAY, NOW - 3600000);
+          } else {
+            status = 'lost'; stage = stageOf(P2, 'Perdido');
+            lossReasonId = weighted(LOSS_W);
+            statusChangedAt = Math.min(created + between(10, 45) * DAY, NOW - 3600000);
+          }
+        } else {
+          status = 'in_process';
+          const openStages = ['Novo Contato', 'Reunião Marcada', 'Proposta', 'Negociação'];
+          const si = weighted([[0, .30], [1, .28], [2, .24], [3, .18]]);
+          stage = stageOf(P2, openStages[si]);
+        }
+        const moved = statusChangedAt || Math.min(created + between(0, Math.min(age, 12)) * DAY, NOW - 1800000);
+        pushDeal({
+          id: 'demo-' + (seq++), code: seq, createdAt: iso(created),
+          lastMovedAt: iso(moved), statusChangedAt: iso(statusChangedAt || moved),
+          stageId: stage.id, stageName: stage.name, stageColor: stage.color, stageIndex: stage.index,
+          pipelineId: P2.id, attendantId: closer.id, attendantName: closer.name,
+          leadId: 'demo-l' + seq, leadName: pick(B2B_KIND) + ' ' + pick(B2B_CITY), leadPhone: phone(),
+          leadSource: '', leadTags: tags, total, status,
+          lossReasonId, productsCount: products.length, products
+        });
+      }
+
+      // --- Gastos por mês (últimos 8 meses; mês atual proporcional ao dia) ---
+      const expenses = {};
+      const now = new Date();
+      for (let m = 0; m < 8; m++) {
+        const d = new Date(now.getFullYear(), now.getMonth() - m, 1);
+        const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+        const growth = 1 + (7 - m) * 0.035;
+        let frac = 1;
+        if (m === 0) { const dim = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate(); frac = Math.min(1, now.getDate() / dim); }
+        expenses[key] = {
+          ads_meta: Math.round(2400 * growth * frac), ads_google: Math.round(950 * growth * frac),
+          ads_tiktok: 0, ads_other: 0,
+          team: Math.round(9500 * frac), tools: Math.round(690 * frac), ops: Math.round(1400 * frac), other: Math.round(350 * frac)
+        };
+      }
+
+      // --- Metas, papéis e de-para de plataformas ---
+      const goals = {}; CLOSERS.forEach(c => { goals[c.id] = { revenue: c.goal }; });
+      const roles = {};
+      SELLERS.forEach(s => { roles[s.id] = { role: s.role, commissionPct: s.pct, creditTags: s.tag ? [s.tag] : [] }; });
+      const platformMap = { 'Meta ADS': 'meta', 'Google ADS': 'google' };
+
+      // --- Summary fictício (Conversation Intelligence) ---
+      const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+      const series = [];
+      for (let m = 5; m >= 1; m--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - m, 1);
+        const billable = Math.round(1250 * (1 + (5 - m) * 0.13) + rnd() * 90);
+        series.push({ label: MESES[d.getMonth()] + '/' + String(d.getFullYear()).slice(2), costBRL: Math.round(billable * 0.62), billable });
+      }
+      const dim0 = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      const frac0 = Math.min(1, now.getDate() / dim0);
+      const fullB = Math.round(1250 * (1 + 5 * 0.13));
+      const nowB = Math.round(fullB * frac0);
+      series.push({ label: MESES[now.getMonth()] + '/' + String(now.getFullYear()).slice(2), costBRL: Math.round(nowB * 0.62), billable: nowB });
+      const bySource = {};
+      deals.forEach(d => { const t = d.leadTags[0] || 'Orgânico'; bySource[t] = (bySource[t] || 0) + 1; });
+      const summary = {
+        kpis: {
+          totalLeads: deals.length + 240,
+          thisMonth: { billable: nowB, costBRL: Math.round(nowB * 0.62), costUSD: Math.round(nowB * 0.115), projection: { billable: fullB, costBRL: Math.round(fullB * 0.62), costUSD: Math.round(fullB * 0.115) } },
+          lastMonth: { billable: series[series.length - 2].billable }
+        },
+        config: { avgCostBRL: 0.62, avgCostUSD: 0.115, usdBrl: 5.40 },
+        monthlySeries: series,
+        leadsBySource: Object.entries(bySource).map(([source, count]) => ({ source, count })).sort((a, b) => b.count - a.count).slice(0, 6),
+        fetchedAt: new Date().toISOString()
+      };
+
+      const payload = {
+        deals,
+        dealsSkip: 0, dealsReturned: deals.length, dealsTotal: deals.length, hasMore: false,
+        counts: { deals: deals.length, pipelines: pipes.length, attendants: SELLERS.length, lossReasons: LOSS.length },
+        pipelines: pipes,
+        attendants: SELLERS.map(s => ({ id: s.id, userId: s.id, name: s.name, email: '', phone: '', image: '' })),
+        lossReasons: LOSS,
+        fetchedAt: new Date().toISOString(), cached: false, source: 'demo'
+      };
+      return { payload, summary, expenses, goals, generalGoal: 85000, roles, platformMap };
+    }
+
+    async function loadDemoBI() {
+      setBiView('biLoading'); setBiLoadingProgress(0, 0);
+      try {
+        const data = dhDemoData().payload;
+        biState.raw = data;
+        computeLostStageIds();
+        populateBiFilters(data);
+        applyBiFilters();
+        setBiView('biContent');
+      } catch (err) {
+        console.error('[demo bi]', err);
+        document.getElementById('biErrorMsg').textContent = err.message || 'Falha ao montar a demonstração.';
+        setBiView('biError');
+      }
+    }
+
+    // Barra fixa da demo + chip do cliente + tour de primeiro acesso
+    function dhDemoInitUI() {
+      setTimeout(() => {
+        try {
+          document.body.classList.add('dh-demo');
+          const nm = document.getElementById('dhClientName'); if (nm) nm.textContent = 'Boleiro Store · DEMO';
+          const chip = document.getElementById('dhClientChip'); if (chip) chip.classList.remove('hidden');
+          const cb = document.getElementById('clientNameBadge'); if (cb) cb.textContent = 'Boleiro Store (demonstração)';
+          const cc = document.getElementById('clientContext'); if (cc) cc.classList.remove('hidden');
+          const dot = document.getElementById('dhConnDot'); if (dot) dot.style.background = 'var(--color-primary, #00C16A)';
+          // Prospecção usa API real — fica fora da demonstração (via CSS: imune ao timing do shell)
+          if (!document.getElementById('dhDemoBar')) {
+            const css = document.createElement('style');
+            css.textContent = '#dhDemoBar{position:fixed;left:0;right:0;bottom:0;z-index:70;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 16px;background:rgba(4,18,39,.94);backdrop-filter:blur(8px);border-top:2px solid var(--color-primary,#00C16A);color:#e2e8f0;font-size:13px}'
+              + '#dhDemoBar .dh-demo-acts{display:flex;gap:8px;align-items:center}'
+              + '#dhDemoBar a#dhDemoCta{background:var(--color-primary,#00C16A);color:#04121f;font-weight:800;padding:7px 14px;border-radius:9px;text-decoration:none;white-space:nowrap}'
+              + '#dhDemoBar button{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);color:#cbd5e1;padding:7px 11px;border-radius:9px;font-size:12px;cursor:pointer}'
+              + 'body.dh-demo main{padding-bottom:92px !important}'
+              + 'body.dh-demo .dh-item[data-key="prospect"],body.dh-demo [data-bi-tab="prospect"]{display:none !important}'
+              + '@media (max-width:640px){#dhDemoBar{font-size:12px;padding:8px 10px}#dhDemoBar .dh-demo-sub{display:none}}'
+              + '#dhTourHi{position:fixed;z-index:95;border-radius:14px;box-shadow:0 0 0 9999px rgba(2,10,24,.82),0 0 0 3px var(--color-primary,#00C16A);transition:top .35s,left .35s,width .35s,height .35s;pointer-events:none}'
+              + '#dhTourCard{position:fixed;z-index:96;max-width:360px;background:#fff;color:#0f172a;border-radius:16px;padding:18px;box-shadow:0 24px 60px rgba(2,10,24,.45);font-size:14px;line-height:1.5}'
+              + '[data-theme="dark"] #dhTourCard{background:#0B2447;color:#E6EDF6}'
+              + '#dhTourCard h4{font-weight:800;font-size:16px;margin-bottom:6px}'
+              + '#dhTourCard .dh-tour-steps{font-size:11px;opacity:.6;margin-bottom:4px}'
+              + '#dhTourCard .dh-tour-btns{display:flex;gap:10px;margin-top:14px;align-items:center}'
+              + '#dhTourCard .dh-tour-next{background:var(--color-primary,#00C16A);color:#04121f;font-weight:800;border:0;padding:8px 16px;border-radius:9px;cursor:pointer}'
+              + '#dhTourCard .dh-tour-skip{background:none;border:0;color:#94a3b8;cursor:pointer;font-size:12px}'
+              + '@media (max-width:640px){#dhTourCard{left:4vw !important;right:4vw !important;max-width:92vw;bottom:96px !important;top:auto !important;transform:none !important}}';
+            document.head.appendChild(css);
+            const bar = document.createElement('div');
+            bar.id = 'dhDemoBar';
+            bar.innerHTML = '<span class="dh-demo-txt">🧪 <b>Demonstração</b><span class="dh-demo-sub"> · dados fictícios · Boleiro Store</span></span>'
+              + '<span class="dh-demo-acts">'
+              + '<a id="dhDemoCta" href="' + dhDemoWaLink() + '" target="_blank" rel="noopener">Quero com meus dados →</a>'
+              + '<button id="dhDemoTourBtn" type="button" title="Rever o tour">🎓 Tour</button>'
+              + '<button id="dhDemoExitBtn" type="button" title="Sair da demonstração">Sair</button></span>';
+            document.body.appendChild(bar);
+            document.getElementById('dhDemoTourBtn').addEventListener('click', () => dhDemoTour(true));
+            document.getElementById('dhDemoExitBtn').addEventListener('click', () => { if (confirm('Sair da demonstração? Suas configurações anteriores serão restauradas.')) dhDemoExit(); });
+          }
+          if (localStorage.getItem('dh_demo_tour_done') !== '1') setTimeout(() => dhDemoTour(false), 1100);
+        } catch (e) { console.warn('[demo ui]', e); }
+      }, 0);
+    }
+
+    // Tour guiado com spotlight (primeiro acesso da pessoa ao painel demo)
+    function dhDemoTour(force) {
+      if (!force && localStorage.getItem('dh_demo_tour_done') === '1') return;
+      const APP = /datahub/i.test(document.title) ? 'DataHub' : 'Painel Grupo VAI';
+      const STEPS = [
+        { center: true, title: 'Bem-vindo ao ' + APP + ' 👋', html: 'Você está num <b>painel de demonstração</b> com dados fictícios da <b>Boleiro Store</b>, uma loja de artigos esportivos. Tudo que você vê aqui, o painel monta sozinho com os dados do <b>seu CRM</b>.' },
+        { sel: '#dhKpis', title: 'Números que importam', html: 'Receita, ROAS, CAC, conversão e meta do mês, tudo calculado automaticamente. Sem planilha e sem depender de ninguém.' },
+        { sel: '#dhInsights', title: 'Insights automáticos', html: 'O painel lê os números e avisa o que está indo bem e onde está vazando dinheiro.' },
+        { tab: 'funnel', sel: '#funnelPyramid', title: 'Funil de vendas', html: 'Onde os leads travam, etapa por etapa, e quanto dinheiro está parado em cada uma.' },
+        { tab: 'sellers', sel: '#sellersPodium', title: 'Ranking de vendedores', html: 'Quem vende de verdade, quem segura lead e quem precisa de ajuda. Pódio sempre atualizado.' },
+        { tab: 'origin', sel: '#originRevenueChart', title: 'De onde vem o dinheiro', html: 'Receita por canal: Meta, Google, indicação, orgânico. Você descobre qual anúncio paga a conta.' },
+        { tab: 'roi', sel: '#roi_kpi_roas_card', title: 'Gastos & ROI', html: 'Quanto volta pra cada real investido: ROAS, CAC, lucro, margem e payback.' },
+        { center: true, cta: true, tab: 'overview', title: 'Quer isso com os SEUS dados?', html: 'Essa demonstração usa dados fictícios. Com os dados da sua empresa o painel fica pronto em dias. E a <b>reunião de diagnóstico é gratuita</b>.' }
+      ];
+      let idx = 0, hi = null, card = null;
+      const cleanup = () => { if (hi) hi.remove(); if (card) card.remove(); hi = card = null; try { localStorage.setItem('dh_demo_tour_done', '1'); } catch (e) {} };
+      const show = () => {
+        if (idx >= STEPS.length) return cleanup();
+        const st = STEPS[idx];
+        if (st.tab) {
+          const item = document.querySelector('.dh-item[data-key="' + st.tab + '"]') || document.querySelector('[data-bi-tab="' + st.tab + '"]');
+          if (item) item.click();
+        }
+        setTimeout(() => {
+          const target = !st.center && st.sel ? document.querySelector(st.sel) : null;
+          const el = (target && target.getBoundingClientRect().width > 0) ? target : null;
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          setTimeout(() => {
+            if (!hi) { hi = document.createElement('div'); hi.id = 'dhTourHi'; document.body.appendChild(hi); }
+            if (!card) { card = document.createElement('div'); card.id = 'dhTourCard'; document.body.appendChild(card); }
+            let r = el ? el.getBoundingClientRect() : null;
+            if (r && (r.width < 4 || r.height < 4)) r = null;
+            if (r) {
+              const pad = 8;
+              hi.style.top = (r.top - pad) + 'px'; hi.style.left = (r.left - pad) + 'px';
+              hi.style.width = (r.width + pad * 2) + 'px'; hi.style.height = (r.height + pad * 2) + 'px';
+            } else {
+              hi.style.top = '50%'; hi.style.left = '50%'; hi.style.width = '0px'; hi.style.height = '0px';
+            }
+            card.innerHTML = '<div class="dh-tour-steps">' + (idx + 1) + ' de ' + STEPS.length + '</div><h4>' + st.title + '</h4><div>' + st.html + '</div>'
+              + '<div class="dh-tour-btns">'
+              + (st.cta
+                ? '<a class="dh-tour-next" style="text-decoration:none" href="' + dhDemoWaLink() + '" target="_blank" rel="noopener">📅 Agendar reunião gratuita</a><button class="dh-tour-skip" data-act="done">Explorar sozinho</button>'
+                : '<button class="dh-tour-next" data-act="next">' + (idx === 0 ? 'Começar o tour →' : 'Próximo →') + '</button><button class="dh-tour-skip" data-act="done">Pular</button>')
+              + '</div>';
+            const cw = Math.min(360, window.innerWidth * 0.92);
+            if (r && window.innerWidth > 640) {
+              const below = r.bottom + 220 < window.innerHeight;
+              card.style.transform = '';
+              card.style.top = below ? (r.bottom + 14) + 'px' : '';
+              card.style.bottom = below ? '' : (window.innerHeight - r.top + 14) + 'px';
+              card.style.left = Math.max(12, Math.min(r.left, window.innerWidth - cw - 12)) + 'px';
+            } else {
+              card.style.top = '50%'; card.style.left = '50%'; card.style.bottom = '';
+              card.style.transform = 'translate(-50%,-50%)';
+            }
+            card.querySelectorAll('[data-act]').forEach(b => b.addEventListener('click', (ev) => {
+              const act = ev.currentTarget.getAttribute('data-act');
+              if (act === 'done') return cleanup();
+              idx++; show();
+            }));
+          }, st.tab ? 550 : 250);
+        }, 30);
+      };
+      show();
+    }
+
+    // Palma da mão: se já está conectado ao CRM (ou em demonstração), carrega o BI sozinho
+    if (typeof getDcKey === 'function' && (getDcKey() || dhIsDemo()) && typeof loadBi === 'function') {
       try { loadBi(); } catch (e) { console.warn('[auto-load BI]', e); }
+    }
+    // Modo demonstração: dashboard de conversas fictício + barra/tour
+    if (dhIsDemo()) {
+      try { syncDashboard(); } catch (e) {}
+      try { dhDemoInitUI(); } catch (e) {}
     }
   </script>
 
