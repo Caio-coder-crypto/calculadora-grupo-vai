@@ -2793,6 +2793,7 @@
     // pra quem usa a ferramenta saber DE QUEM são os dados na tela.
     // Silencioso: sem chave ou sem nome, apenas esconde o badge.
     async function loadClientName() {
+      if (dhIsDemo()) return;   // demo: o cliente é a Boleiro Store fictícia — nunca buscar o whoami real
       const wrap  = document.getElementById('clientContext');
       const badge = document.getElementById('clientNameBadge');
       if (!wrap || !badge) return;
