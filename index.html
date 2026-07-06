@@ -8441,29 +8441,36 @@
           // Prospecção usa API real — fica fora da demonstração (via CSS: imune ao timing do shell)
           if (!document.getElementById('dhDemoBar')) {
             const css = document.createElement('style');
-            css.textContent = '#dhDemoBar{position:fixed;left:0;right:0;bottom:0;z-index:70;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 16px;background:rgba(4,18,39,.94);backdrop-filter:blur(8px);border-top:2px solid var(--color-primary,#00C16A);color:#e2e8f0;font-size:13px}'
-              + '#dhDemoBar .dh-demo-acts{display:flex;gap:8px;align-items:center}'
-              + '#dhDemoBar a#dhDemoCta{background:var(--color-primary,#00C16A);color:#04121f;font-weight:800;padding:7px 14px;border-radius:9px;text-decoration:none;white-space:nowrap}'
-              + '#dhDemoBar button{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);color:#cbd5e1;padding:7px 11px;border-radius:9px;font-size:12px;cursor:pointer}'
+            css.textContent = '#dhDemoBar{position:fixed;left:0;right:0;bottom:0;z-index:70;display:flex;flex-wrap:nowrap;align-items:center;justify-content:space-between;gap:8px;padding:9px 14px;background:rgba(4,18,39,.94);backdrop-filter:blur(8px);border-top:2px solid var(--color-primary,#00C16A);color:#e2e8f0;font-size:13px}'
+              + '#dhDemoBar .dh-demo-txt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}'
+              + '#dhDemoBar .dh-demo-acts{display:flex;gap:7px;align-items:center;flex-shrink:0}'
+              + '#dhDemoBar a#dhDemoCta{background:var(--color-primary,#00C16A);color:#04121f;font-weight:800;padding:7px 13px;border-radius:9px;text-decoration:none;white-space:nowrap}'
+              + '#dhDemoBar a#dhDemoCta .dh-cta-short{display:none}'
+              + '#dhDemoBar button{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);color:#cbd5e1;padding:7px 10px;border-radius:9px;font-size:12px;cursor:pointer;white-space:nowrap}'
               + 'body.dh-demo main{padding-bottom:92px !important}'
               + 'body.dh-demo .dh-item[data-key="prospect"],body.dh-demo [data-bi-tab="prospect"]{display:none !important}'
-              + '@media (max-width:640px){#dhDemoBar{font-size:12px;padding:8px 10px}#dhDemoBar .dh-demo-sub{display:none}}'
-              + '#dhTourHi{position:fixed;z-index:95;border-radius:14px;box-shadow:0 0 0 9999px rgba(2,10,24,.82),0 0 0 3px var(--color-primary,#00C16A);transition:top .35s,left .35s,width .35s,height .35s;pointer-events:none}'
-              + '#dhTourCard{position:fixed;z-index:96;max-width:360px;background:#fff;color:#0f172a;border-radius:16px;padding:18px;box-shadow:0 24px 60px rgba(2,10,24,.45);font-size:14px;line-height:1.5}'
+              + '@media (max-width:640px){#dhDemoBar{font-size:12px;padding:7px 8px;gap:6px}#dhDemoBar .dh-demo-sub{display:none}'
+              +   '#dhDemoBar a#dhDemoCta{padding:7px 10px;font-size:12px}#dhDemoBar a#dhDemoCta .dh-cta-full{display:none}#dhDemoBar a#dhDemoCta .dh-cta-short{display:inline}'
+              +   '#dhDemoBar button{padding:6px 8px}#dhDemoBar .dh-btxt{display:none}}'
+              // Véu do tour em 4 painéis (nada "fura" por cima: z máximo; robusto contra sticky/z-index do app)
+              + '#dhTourVeil{position:fixed;inset:0;z-index:2147480000}'
+              + '#dhTourVeil .dh-tv{position:absolute;background:rgba(2,10,24,.82)}'
+              + '#dhTourRing{position:fixed;z-index:2147480001;border:3px solid var(--color-primary,#00C16A);border-radius:14px;pointer-events:none;box-shadow:0 8px 40px rgba(0,0,0,.35)}'
+              + '#dhTourCard{position:fixed;z-index:2147480002;max-width:360px;background:#fff;color:#0f172a;border-radius:16px;padding:18px;box-shadow:0 24px 60px rgba(2,10,24,.45);font-size:14px;line-height:1.5}'
               + '[data-theme="dark"] #dhTourCard{background:#0B2447;color:#E6EDF6}'
               + '#dhTourCard h4{font-weight:800;font-size:16px;margin-bottom:6px}'
               + '#dhTourCard .dh-tour-steps{font-size:11px;opacity:.6;margin-bottom:4px}'
-              + '#dhTourCard .dh-tour-btns{display:flex;gap:10px;margin-top:14px;align-items:center}'
+              + '#dhTourCard .dh-tour-btns{display:flex;gap:10px;margin-top:14px;align-items:center;flex-wrap:wrap}'
               + '#dhTourCard .dh-tour-next{background:var(--color-primary,#00C16A);color:#04121f;font-weight:800;border:0;padding:8px 16px;border-radius:9px;cursor:pointer}'
               + '#dhTourCard .dh-tour-skip{background:none;border:0;color:#94a3b8;cursor:pointer;font-size:12px}'
-              + '@media (max-width:640px){#dhTourCard{left:4vw !important;right:4vw !important;max-width:92vw;bottom:96px !important;top:auto !important;transform:none !important}}';
+              + '@media (max-width:640px){#dhTourCard{max-width:none}}';
             document.head.appendChild(css);
             const bar = document.createElement('div');
             bar.id = 'dhDemoBar';
             bar.innerHTML = '<span class="dh-demo-txt">🧪 <b>Demonstração</b><span class="dh-demo-sub"> · dados fictícios · Boleiro Store</span></span>'
               + '<span class="dh-demo-acts">'
-              + '<a id="dhDemoCta" href="' + dhDemoWaLink() + '" target="_blank" rel="noopener">Quero com meus dados →</a>'
-              + '<button id="dhDemoTourBtn" type="button" title="Rever o tour">🎓 Tour</button>'
+              + '<a id="dhDemoCta" href="' + dhDemoWaLink() + '" target="_blank" rel="noopener"><span class="dh-cta-full">Quero com meus dados →</span><span class="dh-cta-short">Meus dados →</span></a>'
+              + '<button id="dhDemoTourBtn" type="button" title="Rever o tour">🎓<span class="dh-btxt"> Tour</span></button>'
               + '<button id="dhDemoExitBtn" type="button" title="Sair da demonstração">Sair</button></span>';
             document.body.appendChild(bar);
             document.getElementById('dhDemoTourBtn').addEventListener('click', () => dhDemoTour(true));
@@ -8488,8 +8495,71 @@
         { tab: 'roi', sel: '#roi_kpi_roas_card', title: 'Gastos & ROI', html: 'Quanto volta pra cada real investido: ROAS, CAC, lucro, margem e payback.' },
         { center: true, cta: true, tab: 'overview', title: 'Quer isso com os SEUS dados?', html: 'Essa demonstração usa dados fictícios. Com os dados da sua empresa o painel fica pronto em dias. E a <b>reunião de diagnóstico é gratuita</b>.' }
       ];
-      let idx = 0, hi = null, card = null;
-      const cleanup = () => { if (hi) hi.remove(); if (card) card.remove(); hi = card = null; try { localStorage.setItem('dh_demo_tour_done', '1'); } catch (e) {} };
+      // Motor v2: véu em 4 painéis (z máximo — nada fura), scroll INSTANTÂNEO antes de medir
+      // (o smooth media no meio da animação e desalinhava o buraco), reposiciona em scroll/resize,
+      // card lateral no desktop e bottom-sheet no mobile.
+      let idx = 0, veil = null, ring = null, card = null, curTarget = null;
+      const mob = () => window.innerWidth <= 640;
+      const setR = (el, t, l, w, h) => { el.style.top = t + 'px'; el.style.left = l + 'px'; el.style.width = Math.max(0, w) + 'px'; el.style.height = Math.max(0, h) + 'px'; };
+      const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
+      function holeRect() {
+        if (!curTarget) return null;
+        const r = curTarget.getBoundingClientRect();
+        if (r.width < 4 || r.height < 4) return null;
+        const pad = 8, vw = window.innerWidth, vh = window.innerHeight;
+        // No mobile o card é bottom-sheet: o buraco termina ACIMA dele (anel nunca fica coberto)
+        let maxBot = vh - 6;
+        if (mob() && card) maxBot = Math.min(maxBot, vh - 78 - (card.offsetHeight || 200) - 10);
+        const top = Math.max(6, r.top - pad), left = Math.max(6, r.left - pad);
+        const rgt = Math.min(vw - 6, r.right + pad), bot = Math.min(maxBot, r.bottom + pad);
+        if (rgt - left < 20 || bot - top < 20) return null;   // alvo fora da viewport
+        return { top, left, w: rgt - left, h: bot - top };
+      }
+      function place() {
+        if (!veil) return;
+        const vw = window.innerWidth, vh = window.innerHeight;
+        const h = holeRect();
+        const ps = veil.children;
+        if (h) {
+          setR(ps[0], 0, 0, vw, h.top);                              // topo
+          setR(ps[1], h.top + h.h, 0, vw, vh - h.top - h.h);         // base
+          setR(ps[2], h.top, 0, h.left, h.h);                        // esquerda
+          setR(ps[3], h.top, h.left + h.w, vw - h.left - h.w, h.h);  // direita
+          ring.style.display = 'block';
+          setR(ring, h.top, h.left, h.w, h.h);
+        } else {
+          setR(ps[0], 0, 0, vw, vh); setR(ps[1], 0, 0, 0, 0); setR(ps[2], 0, 0, 0, 0); setR(ps[3], 0, 0, 0, 0);
+          ring.style.display = 'none';
+        }
+        // ---- card ----
+        card.style.right = 'auto'; card.style.bottom = 'auto'; card.style.transform = 'none';
+        if (mob()) { card.style.top = 'auto'; card.style.bottom = '78px'; card.style.left = '4vw'; card.style.right = '4vw'; return; }
+        if (!h) { card.style.top = '50%'; card.style.left = '50%'; card.style.transform = 'translate(-50%,-50%)'; return; }
+        const cw = 360, ch = card.offsetHeight || 220, gap = 14;
+        const spR = vw - (h.left + h.w), spL = h.left, spB = vh - (h.top + h.h), spT = h.top;
+        if (spR >= cw + gap + 10)      { card.style.left = (h.left + h.w + gap) + 'px'; card.style.top = clampN(h.top, 12, vh - ch - 12) + 'px'; }
+        else if (spL >= cw + gap + 10) { card.style.left = (h.left - gap - cw) + 'px';  card.style.top = clampN(h.top, 12, vh - ch - 12) + 'px'; }
+        else if (spB >= ch + gap + 10) { card.style.top = (h.top + h.h + gap) + 'px';   card.style.left = clampN(h.left, 12, vw - cw - 12) + 'px'; }
+        else if (spT >= ch + gap + 10) { card.style.top = (h.top - gap - ch) + 'px';    card.style.left = clampN(h.left, 12, vw - cw - 12) + 'px'; }
+        else { card.style.top = '16px'; card.style.left = '16px'; }   // alvo gigante: canto
+      }
+      const ensure = () => {
+        if (veil) return;
+        veil = document.createElement('div'); veil.id = 'dhTourVeil';
+        veil.innerHTML = '<div class="dh-tv"></div><div class="dh-tv"></div><div class="dh-tv"></div><div class="dh-tv"></div>';
+        document.body.appendChild(veil);
+        ring = document.createElement('div'); ring.id = 'dhTourRing'; document.body.appendChild(ring);
+        card = document.createElement('div'); card.id = 'dhTourCard'; document.body.appendChild(card);
+        window.addEventListener('scroll', place, true);
+        window.addEventListener('resize', place);
+      };
+      const cleanup = () => {
+        window.removeEventListener('scroll', place, true);
+        window.removeEventListener('resize', place);
+        [veil, ring, card].forEach(el => { if (el) el.remove(); });
+        veil = ring = card = curTarget = null;
+        try { localStorage.setItem('dh_demo_tour_done', '1'); } catch (e) {}
+      };
       const show = () => {
         if (idx >= STEPS.length) return cleanup();
         const st = STEPS[idx];
@@ -8498,45 +8568,30 @@
           if (item) item.click();
         }
         setTimeout(() => {
+          ensure();
           const target = !st.center && st.sel ? document.querySelector(st.sel) : null;
-          const el = (target && target.getBoundingClientRect().width > 0) ? target : null;
-          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          setTimeout(() => {
-            if (!hi) { hi = document.createElement('div'); hi.id = 'dhTourHi'; document.body.appendChild(hi); }
-            if (!card) { card = document.createElement('div'); card.id = 'dhTourCard'; document.body.appendChild(card); }
-            let r = el ? el.getBoundingClientRect() : null;
-            if (r && (r.width < 4 || r.height < 4)) r = null;
-            if (r) {
-              const pad = 8;
-              hi.style.top = (r.top - pad) + 'px'; hi.style.left = (r.left - pad) + 'px';
-              hi.style.width = (r.width + pad * 2) + 'px'; hi.style.height = (r.height + pad * 2) + 'px';
-            } else {
-              hi.style.top = '50%'; hi.style.left = '50%'; hi.style.width = '0px'; hi.style.height = '0px';
-            }
-            card.innerHTML = '<div class="dh-tour-steps">' + (idx + 1) + ' de ' + STEPS.length + '</div><h4>' + st.title + '</h4><div>' + st.html + '</div>'
-              + '<div class="dh-tour-btns">'
-              + (st.cta
-                ? '<a class="dh-tour-next" style="text-decoration:none" href="' + dhDemoWaLink() + '" target="_blank" rel="noopener">📅 Agendar reunião gratuita</a><button class="dh-tour-skip" data-act="done">Explorar sozinho</button>'
-                : '<button class="dh-tour-next" data-act="next">' + (idx === 0 ? 'Começar o tour →' : 'Próximo →') + '</button><button class="dh-tour-skip" data-act="done">Pular</button>')
-              + '</div>';
-            const cw = Math.min(360, window.innerWidth * 0.92);
-            if (r && window.innerWidth > 640) {
-              const below = r.bottom + 220 < window.innerHeight;
-              card.style.transform = '';
-              card.style.top = below ? (r.bottom + 14) + 'px' : '';
-              card.style.bottom = below ? '' : (window.innerHeight - r.top + 14) + 'px';
-              card.style.left = Math.max(12, Math.min(r.left, window.innerWidth - cw - 12)) + 'px';
-            } else {
-              card.style.top = '50%'; card.style.left = '50%'; card.style.bottom = '';
-              card.style.transform = 'translate(-50%,-50%)';
-            }
-            card.querySelectorAll('[data-act]').forEach(b => b.addEventListener('click', (ev) => {
-              const act = ev.currentTarget.getAttribute('data-act');
-              if (act === 'done') return cleanup();
-              idx++; show();
-            }));
-          }, st.tab ? 550 : 250);
-        }, 30);
+          curTarget = (target && target.getBoundingClientRect().width > 0) ? target : null;
+          if (curTarget) {
+            // Scroll INSTANTÂNEO de verdade: o CSS global tem scroll-behavior:smooth e
+            // behavior:'auto' herda o smooth (mede no meio da animação; e aba oculta suspende).
+            const _html = document.documentElement, _prev = _html.style.scrollBehavior;
+            _html.style.scrollBehavior = 'auto';
+            curTarget.scrollIntoView({ block: 'center' });
+            _html.style.scrollBehavior = _prev;
+          }
+          card.innerHTML = '<div class="dh-tour-steps">' + (idx + 1) + ' de ' + STEPS.length + '</div><h4>' + st.title + '</h4><div>' + st.html + '</div>'
+            + '<div class="dh-tour-btns">'
+            + (st.cta
+              ? '<a class="dh-tour-next" style="text-decoration:none" href="' + dhDemoWaLink() + '" target="_blank" rel="noopener">📅 Agendar reunião gratuita</a><button class="dh-tour-skip" data-act="done">Explorar sozinho</button>'
+              : '<button class="dh-tour-next" data-act="next">' + (idx === 0 ? 'Começar o tour →' : 'Próximo →') + '</button><button class="dh-tour-skip" data-act="done">Pular</button>')
+            + '</div>';
+          place(); setTimeout(place, 60);   // síncrono + refino (rAF fica suspenso em aba oculta)
+          card.querySelectorAll('[data-act]').forEach(b => b.addEventListener('click', (ev) => {
+            const act = ev.currentTarget.getAttribute('data-act');
+            if (act === 'done') return cleanup();
+            idx++; show();
+          }));
+        }, st.tab ? 600 : 120);
       };
       show();
     }
