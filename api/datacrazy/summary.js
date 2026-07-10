@@ -91,11 +91,12 @@ module.exports = async function handler(req, res) {
       fromCache = true;
     } else {
       [leadsRes, convsRes] = await Promise.all([
-        dcGetAll(apiKey, '/leads', {}, 200, 10),  // ~2k leads sampled (count de leads é fiel)
+        dcGetAll(apiKey, '/leads', {}, 200, 10, { deadlineMs: 15000 }),  // ~2k leads sampled (count de leads é fiel)
         // /conversations CAPA o count em 999 — não dá pra confiar nele. Paginamos
-        // pelos DADOS (ignoreCount) até o fim real, com teto de páginas + deadline
-        // pra não estourar o limite de 60s da função serverless.
-        dcGetAll(apiKey, '/conversations', {}, 300, 50, { ignoreCount: true, deadlineMs: 40000 })
+        // pelos DADOS (ignoreCount) até o fim real, em LOTES DE 3 páginas paralelas
+        // (bases grandes: ~3x mais conversas lidas no mesmo tempo), com deadline de 30s
+        // + timeout de 12s por página — margem folgada sob o limite de 60s do serverless.
+        dcGetAll(apiKey, '/conversations', {}, 300, 50, { ignoreCount: true, deadlineMs: 30000, batch: 3, timeoutMs: 12000 })
       ]);
       cache.set(ck, { at: Date.now(), leadsRes, convsRes });
     }
@@ -275,3 +276,5 @@ module.exports = async function handler(req, res) {
 };
 
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+
+module.exports.config = { maxDuration: 60 };   // redundante com vercel.json, mas explícito

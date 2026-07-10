@@ -170,7 +170,7 @@ async function getValidatedKey(req) {
  * Faz uma chamada GET autenticada na API do DataCrazy.
  * Retry com backoff exponencial em 429 (rate limit) e 503.
  */
-async function dcGet(apiKey, path, query = {}) {
+async function dcGet(apiKey, path, query = {}, opts = {}) {
   if (!apiKey) {
     const err = new Error('API key ausente.');
     err.status = 401;
@@ -188,13 +188,35 @@ async function dcGet(apiKey, path, query = {}) {
   const BACKOFF_MS  = [400, 1200, 3000];
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    const res = await fetch(url.toString(), {
+    // Timeout por request: uma página pendurada da API não pode segurar a função
+    // até o limite do serverless (o chamador trata e devolve o que já leu).
+    let fetchOpts = {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Accept': 'application/json'
       }
-    });
+    };
+    let timer = null;
+    if (opts.timeoutMs) {
+      const ctrl = new AbortController();
+      timer = setTimeout(() => ctrl.abort(), opts.timeoutMs);
+      fetchOpts.signal = ctrl.signal;
+    }
+    let res;
+    try {
+      res = await fetch(url.toString(), fetchOpts);
+    } catch (e) {
+      if (timer) clearTimeout(timer);
+      if (e && (e.name === 'AbortError' || /abort/i.test(e.message || ''))) {
+        const err = new Error(`DataCrazy ${path} → timeout após ${opts.timeoutMs}ms`);
+        err.code = 'UPSTREAM_TIMEOUT';
+        err.status = 504;
+        throw err;
+      }
+      throw e;
+    }
+    if (timer) clearTimeout(timer);
 
     if (res.ok) return res.json();
 
@@ -274,21 +296,41 @@ async function dcPost(apiKey, path, body) {
 async function dcGetAll(apiKey, path, baseQuery = {}, pageSize = 200, maxPages = 50, opts = {}) {
   const ignoreCount = !!opts.ignoreCount;
   const deadline = opts.deadlineMs ? Date.now() + opts.deadlineMs : null;
+  const batchSize = Math.max(1, opts.batch || 1);          // páginas em paralelo (default 1 = sequencial)
+  const perReqTimeout = opts.timeoutMs || 15000;           // teto por request (página pendurada não trava a função)
   const out = [];
   let total = null;
   let truncated = false;
   let page = 0;
-  for (; page < maxPages; page++) {
+  let done = false;
+  while (page < maxPages && !done) {
     if (page > 0) await sleep(80);
-    if (deadline && Date.now() > deadline) { truncated = true; break; }
-    const res = await dcGet(apiKey, path, { ...baseQuery, skip: page * pageSize, take: pageSize });
-    total = res.count;
-    const batch = res.data || [];
-    out.push(...batch);
-    if (batch.length < pageSize) break;                              // fim real dos dados
-    if (!ignoreCount && total != null && out.length >= total) break; // parada por count (ok p/ leads, onde count é fiel)
+    // Margem de 2s: melhor devolver truncado do que estourar o limite do serverless
+    if (deadline && Date.now() > deadline - 2000) { truncated = true; break; }
+    const timeoutMs = deadline ? Math.min(perReqTimeout, Math.max(2000, deadline - Date.now())) : perReqTimeout;
+    const n = Math.min(batchSize, maxPages - page);
+    const pages = Array.from({ length: n }, (_, i) => page + i);
+    let results;
+    try {
+      results = await Promise.all(pages.map(p =>
+        dcGet(apiKey, path, { ...baseQuery, skip: p * pageSize, take: pageSize }, { timeoutMs })
+      ));
+    } catch (e) {
+      // Página falhou/estourou o timeout: se já temos dados, devolve o que leu (truncado);
+      // se falhou logo na primeira leva, propaga o erro de verdade.
+      if (out.length > 0) { truncated = true; break; }
+      throw e;
+    }
+    for (const res of results) {
+      total = res.count;
+      const batch = res.data || [];
+      out.push(...batch);
+      if (batch.length < pageSize) done = true;                        // fim real dos dados
+    }
+    page += n;
+    if (!ignoreCount && total != null && out.length >= total) done = true; // parada por count (ok p/ leads)
   }
-  if (page >= maxPages) truncated = true;
+  if (page >= maxPages && !done) truncated = true;
   return { count: ignoreCount ? out.length : (total ?? out.length), data: out, truncated };
 }
 
