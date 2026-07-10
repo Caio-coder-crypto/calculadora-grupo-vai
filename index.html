@@ -1861,6 +1861,32 @@
           </div>
         </div>
 
+        <!-- Presets rápidos + Modo Orçamento (1 clique preenche tudo) -->
+        <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 mb-6">
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mr-1">Presets rápidos</span>
+            <button type="button" class="sim-preset px-3 py-1.5 rounded-full border border-slate-300 bg-white text-xs font-bold text-[#041227] hover:border-[var(--color-primary,#00A859)] transition" data-vol="1000">Inicial · 1 mil</button>
+            <button type="button" class="sim-preset px-3 py-1.5 rounded-full border border-slate-300 bg-white text-xs font-bold text-[#041227] hover:border-[var(--color-primary,#00A859)] transition" data-vol="5000">Pequeno · 5 mil</button>
+            <button type="button" class="sim-preset px-3 py-1.5 rounded-full border border-slate-300 bg-white text-xs font-bold text-[#041227] hover:border-[var(--color-primary,#00A859)] transition" data-vol="35000">Médio · 35 mil</button>
+            <button type="button" class="sim-preset px-3 py-1.5 rounded-full border border-slate-300 bg-white text-xs font-bold text-[#041227] hover:border-[var(--color-primary,#00A859)] transition" data-vol="150000">Grande · 150 mil</button>
+          </div>
+          <div class="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-slate-200">
+            <span class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mr-1">Modo orçamento</span>
+            <span class="text-sm text-slate-600">Tenho</span>
+            <div class="flex items-center rounded-lg border border-slate-300 bg-white px-2">
+              <span class="text-xs font-bold text-slate-400">R$</span>
+              <input id="simBudget" type="number" inputmode="numeric" min="0" placeholder="1500"
+                     class="w-24 px-2 py-1.5 text-sm font-semibold text-[#041227] bg-transparent focus:outline-none" />
+            </div>
+            <span class="text-sm text-slate-600">por mês.</span>
+            <button id="simBudgetBtn" type="button"
+                    class="px-3 py-1.5 rounded-lg text-xs font-bold text-white transition" style="background:var(--color-primary,#00A859)">
+              Quantas mensagens consigo? →
+            </button>
+          </div>
+          <p class="text-[11px] text-slate-400 mt-2">Presets e orçamento usam o mix típico: 60% marketing · 30% utilidade · 10% autenticação. Ajuste as quantidades depois, se quiser.</p>
+        </div>
+
         <!-- Grid: linhas de input à esquerda, gráfico à direita -->
         <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-8">
           <!-- Linhas -->
@@ -1899,16 +1925,72 @@
               <p class="pt-1"><span class="text-slate-400">Cotação aplicada:</span> <span class="font-semibold text-white" id="appliedRate">—</span></p>
             </div>
           </div>
+          <!-- Custo real no cartão (spread + IOF) e regra de out/2026 -->
+          <div class="mt-5 pt-4 border-t border-white/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div class="flex flex-col gap-2 text-sm">
+              <label class="flex items-center gap-2 cursor-pointer select-none">
+                <input id="simCardFees" type="checkbox" class="w-4 h-4 accent-[#00A859]" />
+                <span class="text-slate-300">Incluir custo do cartão <span class="text-slate-400">(spread <input id="simSpread" type="number" min="0" max="15" step="0.1" value="4" class="w-12 bg-white/10 rounded px-1 text-center text-white font-semibold" />% + IOF 2,38%)</span></span>
+              </label>
+              <label class="flex items-center gap-2 cursor-pointer select-none">
+                <input id="simOct2026" type="checkbox" class="w-4 h-4 accent-[#00A859]" />
+                <span class="text-slate-300">Simular regra de <b class="text-white">out/2026</b> <span class="text-slate-400">(Meta passa a cobrar Serviço como Utilidade)</span></span>
+              </label>
+            </div>
+            <div id="simCardTotalWrap" class="hidden text-sm sm:text-right">
+              <p class="text-slate-400 text-xs uppercase tracking-widest font-semibold">Total na fatura do cartão</p>
+              <p class="text-2xl font-extrabold" style="color:var(--color-primary,#00A859)" id="simCardTotal">R$ 0,00</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== Retorno sobre o investimento (ROI) + ponto de equilíbrio ===== -->
+        <div class="mt-8" id="simRoiBlock">
+          <div class="flex items-start justify-between gap-4 mb-4">
+            <div>
+              <h2 class="text-xl sm:text-2xl font-bold text-[#041227]">E quanto isso devolve? (ROI)</h2>
+              <p class="text-sm text-slate-500 mt-1">Estimativa sobre as mensagens de <b>marketing</b> simuladas acima, em 3 cenários de conversão.</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <label class="text-[11px] font-bold uppercase tracking-widest text-slate-500">Ticket médio</label>
+              <div class="flex items-center rounded-lg border border-slate-300 bg-white px-2">
+                <span class="text-xs font-bold text-slate-400">R$</span>
+                <input id="simTicket" type="number" inputmode="numeric" min="0" placeholder="250"
+                       class="w-24 px-2 py-2 text-sm font-bold text-[#041227] bg-transparent focus:outline-none" />
+              </div>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4" id="simRoiCards"></div>
+          <div class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <p class="text-sm font-bold text-[#041227]">⚖️ Ponto de equilíbrio</p>
+              <p class="text-xs text-slate-500 mt-0.5">Quanto você precisa vender só pra empatar com o custo da API neste volume.</p>
+            </div>
+            <div class="flex items-center gap-6 text-sm">
+              <div class="text-right">
+                <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Vendas p/ empatar</p>
+                <p class="text-2xl font-extrabold text-[#041227]" id="simBreakEvenSales">—</p>
+              </div>
+              <div class="text-right">
+                <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Conversão necessária</p>
+                <p class="text-2xl font-extrabold" style="color:var(--color-primary,#00A859)" id="simBreakEvenPct">—</p>
+              </div>
+            </div>
+          </div>
         </div>
 
         <p class="mt-6 text-xs text-slate-400 leading-relaxed">
-          * Valores baseados nas tarifas da Meta para o Brasil. As conversas são cobradas em janelas de 24 horas. Cotação USD/BRL via AwesomeAPI.
+          * Valores baseados nas tarifas da Meta para o Brasil. As conversas são cobradas em janelas de 24 horas. Cotação USD/BRL via AwesomeAPI. A partir de 01/10/2026 a Meta passa a cobrar mensagens de Serviço (janela de 24h) pela tarifa de Utilidade, sem desconto por volume.
         </p>
       </div>
     </section>
 
     <!-- Botões -->
-    <div class="mt-6 flex justify-center">
+    <div class="mt-6 flex flex-wrap justify-center gap-3">
+      <button id="simShareBtn" type="button"
+              class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-white font-bold transition shadow-sm" style="background:var(--color-primary,#00A859)">
+        🔗 Copiar link da simulação
+      </button>
       <button id="resetBtn" type="button"
               class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl border border-slate-200 bg-white text-[#041227] font-medium hover:bg-slate-50 transition shadow-sm">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
@@ -2348,12 +2430,20 @@
       { id: 'marketing', name: 'Marketing',     description: 'Promoções, ofertas e campanhas de divulgação.',                  rate: 0.0625, color: '#FFB81C', badge: 'bg-[#FFB81C]/15 text-[#7a5400] ring-[#FFB81C]/40' },
       { id: 'utility',   name: 'Utilidade',     description: 'Atualizações de pedidos, lembretes e notificações.',             rate: 0.0068, color: '#041227', badge: 'bg-[#041227]/5 text-[#041227] ring-[#041227]/20' },
       { id: 'auth',      name: 'Autenticação',  description: 'Códigos OTP e verificações em duas etapas.',                     rate: 0.0068, color: '#00A859', badge: 'bg-[#00A859]/10 text-[#00754d] ring-[#00A859]/30' },
-      { id: 'service',   name: 'Serviço',       description: 'Atendimento iniciado pelo cliente (sem custo por conversa).',    rate: 0.0000, color: '#94a3b8', badge: 'bg-slate-100 text-slate-600 ring-slate-200' }
+      { id: 'service',   name: 'Serviço',       description: 'Respostas na janela de 24h (atendimento humano ou bot). Grátis até 30/09/2026; depois a Meta cobra tarifa de Utilidade, sem desconto por volume.', rate: 0.0000, color: '#94a3b8', badge: 'bg-slate-100 text-slate-600 ring-slate-200' }
     ];
+    // Regra de 01/10/2026: mensagens de Serviço passam a custar a tarifa de Utilidade
+    const SERVICE_OCT2026_RATE = 0.0068;
+    function simEffRate(cat) { return (cat.id === 'service' && state.oct2026) ? SERVICE_OCT2026_RATE : cat.rate; }
 
     const state = {
       quantities: Object.fromEntries(CATEGORIES.map(c => [c.id, 0])),
-      usdBrl: null
+      usdBrl: null,
+      oct2026: false,      // simular regra de out/2026 (Serviço pago)
+      cardFees: false,     // incluir spread do cartão + IOF no total
+      spreadPct: 4,
+      ticket: 0,           // ticket médio p/ ROI
+      convs: [1, 2.5, 5]   // cenários de conversão (%): conservador / moderado / otimista
     };
 
     let chart = null;
@@ -2379,7 +2469,7 @@
               <div class="flex items-center gap-2 flex-wrap">
                 <h3 class="font-semibold text-[#041227]">${cat.name}</h3>
                 <span class="inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full ring-1 ${cat.badge}">
-                  US$ ${fmtRate(cat.rate)} / msg
+                  US$ ${fmtRate(simEffRate(cat))} / msg${(cat.id === 'service' && state.oct2026) ? ' · regra out/26' : ''}
                 </span>
               </div>
               <p class="text-xs text-slate-500 mt-1 leading-relaxed">${cat.description}</p>
@@ -2472,7 +2562,7 @@
       const chartCats = CATEGORIES.filter(c => c.rate > 0);
       const values = chartCats.map(cat => {
         const qty = state.quantities[cat.id] || 0;
-        const usd = qty * cat.rate;
+        const usd = qty * simEffRate(cat);
         return state.usdBrl ? usd * state.usdBrl : 0;
       });
       chart.data.datasets[0].data = values;
@@ -2487,7 +2577,7 @@
 
       CATEGORIES.forEach(cat => {
         const qty = state.quantities[cat.id] || 0;
-        const subUSD = qty * cat.rate;
+        const subUSD = qty * simEffRate(cat);
         const subBRL = state.usdBrl ? subUSD * state.usdBrl : 0;
         totalUSD += subUSD;
         totalMsgs += qty;
@@ -2504,6 +2594,7 @@
       document.getElementById('avgCost').textContent = totalMsgs > 0 && state.usdBrl ? fmtBRL(avg) : '—';
       document.getElementById('appliedRate').textContent = state.usdBrl ? `US$ 1 = ${fmtBRL(state.usdBrl)}` : '—';
 
+      simRenderExtras(totalBRL, totalMsgs);
       updateChart();
     }
 
@@ -2548,6 +2639,170 @@
       });
       recalc();
     });
+
+    // ======================================================================
+    // UPGRADES DO SIMULADOR — presets, modo orçamento, regra out/2026,
+    // custo no cartão (spread + IOF), ROI em 3 cenários, break-even e
+    // link compartilhável da simulação.
+    // ======================================================================
+    const SIM_MIX = { marketing: 0.6, utility: 0.3, auth: 0.1 };   // mix típico
+    const SIM_IOF = 0.0238;                                        // IOF 2026 (cartão internacional)
+
+    function simSetVolumes(map) {
+      CATEGORIES.forEach(cat => {
+        const v = Math.max(0, Math.round(map[cat.id] || 0));
+        state.quantities[cat.id] = v;
+        const el = document.getElementById('qty-' + cat.id);
+        if (el) el.value = v || '';
+      });
+      recalc();
+    }
+    function simApplyPreset(total) {
+      simSetVolumes({
+        marketing: total * SIM_MIX.marketing,
+        utility: total * SIM_MIX.utility,
+        auth: total * SIM_MIX.auth,
+        service: state.quantities.service || 0
+      });
+    }
+    document.querySelectorAll('.sim-preset').forEach(b => b.addEventListener('click', () => {
+      simApplyPreset(parseInt(b.getAttribute('data-vol'), 10) || 0);
+    }));
+
+    // Modo orçamento: R$ disponíveis -> volume que cabe, no mix típico
+    function simDimensionBudget() {
+      const budget = parseFloat(document.getElementById('simBudget').value);
+      if (!budget || budget <= 0 || !state.usdBrl) return;
+      const mixCostUSD = CATEGORIES.reduce((a, c) => a + (SIM_MIX[c.id] || 0) * simEffRate(c), 0);
+      if (mixCostUSD <= 0) return;
+      const volume = Math.floor(budget / (mixCostUSD * state.usdBrl));
+      simApplyPreset(volume);
+    }
+    document.getElementById('simBudgetBtn').addEventListener('click', simDimensionBudget);
+    document.getElementById('simBudget').addEventListener('keydown', (e) => { if (e.key === 'Enter') simDimensionBudget(); });
+
+    // Toggles do card total
+    document.getElementById('simOct2026').addEventListener('change', (e) => {
+      state.oct2026 = e.target.checked;
+      renderRows();                                        // atualiza badge/tarifa do Serviço
+      CATEGORIES.forEach(cat => { const el = document.getElementById('qty-' + cat.id); if (el) el.value = state.quantities[cat.id] || ''; });
+      recalc();
+    });
+    document.getElementById('simCardFees').addEventListener('change', (e) => { state.cardFees = e.target.checked; recalc(); });
+    document.getElementById('simSpread').addEventListener('input', (e) => {
+      const v = parseFloat(e.target.value);
+      state.spreadPct = isNaN(v) || v < 0 ? 0 : Math.min(15, v);
+      recalc();
+    });
+
+    // ROI: ticket médio + 3 cenários de conversão sobre as mensagens de MARKETING
+    const SIM_SCENARIOS = [
+      { key: 0, name: 'Conservador', emoji: '🛡️' },
+      { key: 1, name: 'Moderado', emoji: '⚖️' },
+      { key: 2, name: 'Otimista', emoji: '🚀' }
+    ];
+    document.getElementById('simTicket').addEventListener('input', (e) => {
+      const v = parseFloat(e.target.value);
+      state.ticket = isNaN(v) || v < 0 ? 0 : v;
+      recalc();
+    });
+
+    function simRenderExtras(totalBRL, totalMsgs) {
+      // ---- custo real no cartão (spread + IOF) ----
+      const wrap = document.getElementById('simCardTotalWrap');
+      if (wrap) {
+        wrap.classList.toggle('hidden', !state.cardFees || !totalBRL);
+        if (state.cardFees && totalBRL) {
+          const cardTotal = totalBRL * (1 + state.spreadPct / 100) * (1 + SIM_IOF);
+          document.getElementById('simCardTotal').textContent = fmtBRL(cardTotal);
+        }
+      }
+      // ---- ROI em 3 cenários ----
+      const cards = document.getElementById('simRoiCards');
+      if (!cards) return;
+      const baseMsgs = state.quantities.marketing || totalMsgs;   // conversão sobre marketing (fallback: total)
+      cards.innerHTML = SIM_SCENARIOS.map((sc, i) => {
+        const pct = state.convs[i];
+        const conversions = Math.floor(baseMsgs * pct / 100);
+        const revenue = conversions * state.ticket;
+        const profit = revenue - totalBRL;
+        const roi = totalBRL > 0 ? (profit / totalBRL) * 100 : 0;
+        const cpa = conversions > 0 ? totalBRL / conversions : 0;
+        const ok = profit >= 0;
+        const roiColor = !state.ticket || !baseMsgs ? '#94a3b8' : (ok ? 'var(--color-primary, #00C16A)' : '#ef4444');
+        return `
+        <div class="rounded-xl border border-slate-200 bg-white p-4">
+          <div class="flex items-center justify-between mb-3">
+            <p class="text-xs font-extrabold uppercase tracking-widest text-slate-500">${sc.emoji} ${sc.name}</p>
+            <span class="flex items-center gap-1 text-xs font-bold text-[#041227]">
+              <input data-conv="${i}" type="number" min="0" max="100" step="0.1" value="${pct}"
+                     class="sim-conv w-14 rounded border border-slate-200 bg-slate-50 px-1 py-0.5 text-center font-bold" />%
+            </span>
+          </div>
+          <div class="space-y-1.5 text-sm">
+            <div class="flex justify-between"><span class="text-slate-500">Vendas</span><b class="text-[#041227]">${fmtInt(conversions)}</b></div>
+            <div class="flex justify-between"><span class="text-slate-500">Custo por venda</span><b class="text-[#041227]">${conversions > 0 ? fmtBRL(cpa) : '—'}</b></div>
+            <div class="flex justify-between"><span class="text-slate-500">Receita</span><b class="text-[#041227]">${fmtBRL(revenue)}</b></div>
+            <div class="flex justify-between"><span class="text-slate-500">Lucro</span><b style="color:${roiColor}">${fmtBRL(profit)}</b></div>
+          </div>
+          <div class="mt-3 pt-3 border-t border-slate-100 text-center">
+            <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Retorno (ROI)</p>
+            <p class="text-3xl font-extrabold" style="color:${roiColor}">${(roi >= 0 ? '+' : '') + roi.toFixed(0)}%</p>
+          </div>
+        </div>`;
+      }).join('');
+      cards.querySelectorAll('.sim-conv').forEach(inp => inp.addEventListener('change', (e) => {
+        const i = parseInt(e.target.getAttribute('data-conv'), 10);
+        const v = parseFloat(e.target.value);
+        state.convs[i] = isNaN(v) || v < 0 ? 0 : Math.min(100, v);
+        recalc();
+      }));
+      // ---- break-even ----
+      const beSales = document.getElementById('simBreakEvenSales');
+      const bePct = document.getElementById('simBreakEvenPct');
+      if (beSales && bePct) {
+        if (state.ticket > 0 && totalBRL > 0 && baseMsgs > 0) {
+          const sales = Math.ceil(totalBRL / state.ticket);
+          beSales.textContent = fmtInt(sales);
+          bePct.textContent = (sales / baseMsgs * 100).toFixed(2).replace('.', ',') + '%';
+        } else {
+          beSales.textContent = '—';
+          bePct.textContent = '—';
+        }
+      }
+    }
+
+    // Link compartilhável: serializa a simulação na URL (?sim=...)
+    function simShareLink() {
+      const p = [
+        'm.' + (state.quantities.marketing || 0), 'u.' + (state.quantities.utility || 0),
+        'a.' + (state.quantities.auth || 0), 's.' + (state.quantities.service || 0),
+        't.' + (state.ticket || 0), 'c.' + state.convs.join('-'),
+        'o.' + (state.oct2026 ? 1 : 0), 'f.' + (state.cardFees ? 1 : 0), 'sp.' + state.spreadPct
+      ].join('_');
+      const url = location.origin + location.pathname + '?sim=' + encodeURIComponent(p) + '#reportAreaHeader';
+      const btn = document.getElementById('simShareBtn');
+      const done = () => { const old = btn.textContent; btn.textContent = '✓ Link copiado!'; setTimeout(() => { btn.textContent = old; }, 2000); };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done).catch(() => { prompt('Copie o link:', url); });
+      else prompt('Copie o link:', url);
+    }
+    document.getElementById('simShareBtn').addEventListener('click', simShareLink);
+
+    // Restaura simulação vinda de um link (chamada no boot, depois do renderRows inicial)
+    function simRestoreFromLink() {
+      try {
+        const raw = new URLSearchParams(location.search).get('sim');
+        if (!raw) return;
+        const kv = {};
+        decodeURIComponent(raw).split('_').forEach(tok => { const i = tok.indexOf('.'); if (i > 0) kv[tok.slice(0, i)] = tok.slice(i + 1); });
+        if (kv.t) { state.ticket = parseFloat(kv.t) || 0; const el = document.getElementById('simTicket'); if (el && state.ticket) el.value = state.ticket; }
+        if (kv.c) { const cs = kv.c.split('-').map(Number); if (cs.length === 3 && cs.every(n => !isNaN(n))) state.convs = cs; }
+        if (kv.o === '1') { state.oct2026 = true; const el = document.getElementById('simOct2026'); if (el) el.checked = true; renderRows(); }
+        if (kv.f === '1') { state.cardFees = true; const el = document.getElementById('simCardFees'); if (el) el.checked = true; }
+        if (kv.sp) { const v = parseFloat(kv.sp); if (!isNaN(v)) { state.spreadPct = v; const el = document.getElementById('simSpread'); if (el) el.value = v; } }
+        simSetVolumes({ marketing: parseInt(kv.m, 10) || 0, utility: parseInt(kv.u, 10) || 0, auth: parseInt(kv.a, 10) || 0, service: parseInt(kv.s, 10) || 0 });
+      } catch (e) { console.warn('[sim link]', e); }
+    }
 
     // ======================================================================
     // EXPORTAÇÃO PDF
@@ -8094,6 +8349,7 @@
     initChart();
     recalc();
     fetchQuote();
+    simRestoreFromLink();   // aplica simulação vinda de link compartilhado (?sim=...)
 
     // Ajuda / glossário (tocável — funciona no celular, onde o tooltip de hover não aparece)
     document.getElementById('helpBtn')?.addEventListener('click', () => document.getElementById('helpModal').classList.remove('hidden'));
