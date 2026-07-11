@@ -545,6 +545,7 @@
             <button data-bi-tab="origin" class="bi-tab whitespace-nowrap px-4 sm:px-5 py-3 text-sm font-semibold text-slate-500 hover:text-[#041227] hover:bg-slate-50 transition border-b-2 border-transparent">🎯 Origem</button>
             <button data-bi-tab="geo" class="bi-tab whitespace-nowrap px-4 sm:px-5 py-3 text-sm font-semibold text-slate-500 hover:text-[#041227] hover:bg-slate-50 transition border-b-2 border-transparent">🗺️ Geografia</button>
             <button data-bi-tab="service" class="bi-tab whitespace-nowrap px-4 sm:px-5 py-3 text-sm font-semibold text-slate-500 hover:text-[#041227] hover:bg-slate-50 transition border-b-2 border-transparent">💬 Atendimento</button>
+            <button data-bi-tab="meetings" class="bi-tab whitespace-nowrap px-4 sm:px-5 py-3 text-sm font-semibold text-slate-500 hover:text-[#041227] hover:bg-slate-50 transition border-b-2 border-transparent">📅 Reuniões</button>
           </nav>
             <!-- dica de scroll (só mobile): mostra que há mais abas pro lado -->
             <div class="pointer-events-none absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-white via-white/80 to-transparent sm:hidden flex items-center justify-end pr-1.5">
@@ -1476,6 +1477,91 @@
                   <tbody id="slaTable"></tbody>
                 </table>
               </div>
+            </div>
+          </div>
+
+          <!-- ===== REUNIÕES (campos adicionais do lead: data + status) ===== -->
+          <div data-bi-content="meetings" class="bi-content hidden p-6 space-y-5">
+            <div id="meetLoading" class="text-center py-10 text-sm text-slate-500">Carregando reuniões…</div>
+
+            <div id="meetEmpty" class="hidden rounded-xl border border-slate-200 bg-slate-50 p-6">
+              <p class="text-base font-bold text-[#041227]">📅 Nenhuma reunião mapeada ainda</p>
+              <p class="text-sm text-slate-600 mt-2 leading-relaxed" id="meetEmptyMsg">
+                Este painel lê os <b>campos adicionais do lead</b> no CRM:
+                <code class="bg-white px-1 rounded border border-slate-200">Data de reunião</code> (ou <code class="bg-white px-1 rounded border border-slate-200">Data do agendamento</code>),
+                <code class="bg-white px-1 rounded border border-slate-200">Status da reunião</code> (Realizada / No show),
+                <code class="bg-white px-1 rounded border border-slate-200">Status no show</code> (Reagendado / Cancelado) e
+                <code class="bg-white px-1 rounded border border-slate-200">Data do reagendamento</code>.
+                Configure-os como <b>obrigatórios para sair</b> das etapas de Reunião e No-show, e os dados aparecem aqui automaticamente.
+              </p>
+            </div>
+
+            <div id="meetData" class="hidden space-y-5">
+              <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                <div class="bg-[#041227] text-white rounded-xl p-4 relative overflow-hidden">
+                  <div class="absolute top-0 left-0 w-full h-1" style="background:var(--color-primary,#00A859)"></div>
+                  <p class="text-[10px] font-bold uppercase tracking-widest text-slate-300">📅 Agendadas</p>
+                  <p class="text-3xl font-extrabold mt-1" id="meet_scheduled">0</p>
+                  <p class="text-[10px] text-slate-400 mt-0.5">no período</p>
+                </div>
+                <div class="bg-white rounded-xl border border-slate-200 p-4">
+                  <p class="text-[10px] font-bold uppercase tracking-widest text-slate-500">✅ Realizadas</p>
+                  <p class="text-3xl font-extrabold mt-1" style="color:var(--color-primary,#00A859)" id="meet_done">0</p>
+                  <p class="text-[10px] text-slate-400 mt-0.5" id="meet_done_pct">—</p>
+                </div>
+                <div class="bg-white rounded-xl border border-slate-200 p-4">
+                  <p class="text-[10px] font-bold uppercase tracking-widest text-slate-500">👻 No-shows</p>
+                  <p class="text-3xl font-extrabold text-red-500 mt-1" id="meet_noshow">0</p>
+                  <p class="text-[10px] text-slate-400 mt-0.5" id="meet_noshow_rate">taxa: —</p>
+                </div>
+                <div class="bg-white rounded-xl border border-slate-200 p-4">
+                  <p class="text-[10px] font-bold uppercase tracking-widest text-slate-500">🔁 Reagendadas</p>
+                  <p class="text-3xl font-extrabold text-[#041227] mt-1" id="meet_resched">0</p>
+                  <p class="text-[10px] text-slate-400 mt-0.5">após no-show</p>
+                </div>
+                <div class="bg-white rounded-xl border border-slate-200 p-4">
+                  <p class="text-[10px] font-bold uppercase tracking-widest text-slate-500">🚫 Canceladas</p>
+                  <p class="text-3xl font-extrabold text-[#041227] mt-1" id="meet_cancel">0</p>
+                  <p class="text-[10px] text-slate-400 mt-0.5">após no-show</p>
+                </div>
+                <div class="bg-white rounded-xl border border-slate-200 p-4">
+                  <p class="text-[10px] font-bold uppercase tracking-widest text-slate-500">⏳ Sem status</p>
+                  <p class="text-3xl font-extrabold text-slate-400 mt-1" id="meet_pending">0</p>
+                  <p class="text-[10px] text-slate-400 mt-0.5">agendada, sem desfecho</p>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div class="bg-white rounded-lg border border-slate-200 overflow-hidden">
+                  <div class="px-4 py-3 border-b border-slate-200">
+                    <h4 class="text-sm font-bold text-[#041227]">Reuniões por vendedor</h4>
+                    <p class="text-[11px] text-slate-500 mt-0.5">Vendedor do negócio mais recente do lead. Período do filtro global.</p>
+                  </div>
+                  <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                      <thead class="bg-slate-50 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                        <tr>
+                          <th class="px-4 py-2 text-left">Vendedor</th>
+                          <th class="px-3 py-2 text-right">Agendadas</th>
+                          <th class="px-3 py-2 text-right">Realizadas</th>
+                          <th class="px-3 py-2 text-right">No-show</th>
+                          <th class="px-3 py-2 text-right">Taxa no-show</th>
+                        </tr>
+                      </thead>
+                      <tbody id="meetSellerTable"></tbody>
+                    </table>
+                  </div>
+                </div>
+                <div class="bg-white rounded-lg border border-slate-200 overflow-hidden">
+                  <div class="px-4 py-3 border-b border-slate-200">
+                    <h4 class="text-sm font-bold text-[#041227]">Próximas reuniões</h4>
+                    <p class="text-[11px] text-slate-500 mt-0.5">Agendadas de hoje em diante (independente do filtro).</p>
+                  </div>
+                  <div id="meetUpcoming" class="divide-y divide-slate-100"></div>
+                </div>
+              </div>
+
+              <p class="text-[11px] text-slate-400" id="meetFooter"></p>
             </div>
           </div>
         </div>
@@ -5542,6 +5628,7 @@
       else if (tab === 'origin') renderOrigin();
       else if (tab === 'geo') renderGeography();
       else if (tab === 'service') renderService();
+      else if (tab === 'meetings') renderMeetings();
       else if (tab === 'productivity') renderProductivity();
       else if (tab === 'roi') renderRoi();
     }
@@ -8403,6 +8490,117 @@
     document.getElementById('helpModal')?.addEventListener('click', (e) => { if (e.target.id === 'helpModal') e.target.classList.add('hidden'); });
 
     // ======================================================================
+    // REUNIÕES — lê os campos adicionais do LEAD via /api/datacrazy/meetings
+    // (Data de reunião / Status da reunião / Status no show / Data do reagendamento).
+    // Única forma de medir reunião no DataCrazy: a API não expõe histórico de etapas.
+    // ======================================================================
+    function loadMeetings(force) {
+      if (biState.meetingsLoading) return;
+      biState.meetingsLoading = true;
+      dcFetch('/api/datacrazy/meetings' + (force ? '?force=1' : ''))
+        .then(r => r.json())
+        .then(d => { biState.meetings = (d && !d.error) ? d : { error: (d && d.message) || 'Falha ao carregar' }; })
+        .catch(e => { biState.meetings = { error: e.message || 'Falha ao carregar' }; })
+        .finally(() => { biState.meetingsLoading = false; if (biState.activeTab === 'meetings') renderMeetings(); });
+    }
+    function renderMeetings() {
+      const L = document.getElementById('meetLoading'), E = document.getElementById('meetEmpty'), D = document.getElementById('meetData');
+      if (!L || !E || !D) return;
+      const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      const show = (el) => { [L, E, D].forEach(x => x.classList.add('hidden')); el.classList.remove('hidden'); };
+      if (typeof biBackend === 'function' && biBackend() === 'kommo') {
+        document.getElementById('meetEmptyMsg').innerHTML = 'O mapa de reuniões por campos adicionais está disponível apenas no backend <b>DataCrazy</b> por enquanto.';
+        show(E); return;
+      }
+      const M = biState.meetings;
+      if (!M) { show(L); loadMeetings(); return; }
+      if (M.error) {
+        document.getElementById('meetEmptyMsg').innerHTML = 'Erro ao carregar reuniões: <b>' + esc(M.error) + '</b>. Clique em "Atualizar Insights" pra tentar de novo.';
+        show(E); return;
+      }
+      const list = M.meetings || [];
+      if (!list.length) { show(E); return; }
+      show(D);
+
+      // Período do filtro global do BI aplicado sobre a DATA DA REUNIÃO
+      const { start, end } = getCurrentPeriodRange();
+      const period = biState.filters.period;
+      const inRange = (iso) => { if (!iso) return period === 'all'; const t = new Date(iso).getTime(); return t >= start && t < end; };
+      const isDone = (m) => /realiz/i.test(m.meetingStatus || '');
+      const isNoShow = (m) => /no\s*-?\s*show/i.test(m.meetingStatus || '');
+      const inP = list.filter(m => inRange(m.meetingDate));
+
+      const done = inP.filter(isDone).length;
+      const noshow = inP.filter(isNoShow).length;
+      const resched = inP.filter(m => /reagend/i.test(m.noShowStatus || '')).length;
+      const cancel = inP.filter(m => /cancel/i.test(m.noShowStatus || '')).length;
+      const pending = Math.max(0, inP.length - done - noshow);
+      const resolved = done + noshow;
+
+      document.getElementById('meet_scheduled').textContent = fmtInt(inP.length);
+      document.getElementById('meet_done').textContent = fmtInt(done);
+      document.getElementById('meet_done_pct').textContent = inP.length ? (done / inP.length * 100).toFixed(0) + '% das agendadas' : '—';
+      document.getElementById('meet_noshow').textContent = fmtInt(noshow);
+      document.getElementById('meet_noshow_rate').textContent = resolved ? 'taxa: ' + (noshow / resolved * 100).toFixed(0) + '%' : 'taxa: —';
+      document.getElementById('meet_resched').textContent = fmtInt(resched);
+      document.getElementById('meet_cancel').textContent = fmtInt(cancel);
+      document.getElementById('meet_pending').textContent = fmtInt(pending);
+
+      // Vendedor = atendente do negócio mais recente do lead
+      const dealByLead = {};
+      ((biState.raw && biState.raw.deals) || []).forEach(d => {
+        if (!d.leadId) return;
+        const c = dealByLead[d.leadId];
+        if (!c || new Date(d.createdAt) > new Date(c.createdAt)) dealByLead[d.leadId] = d;
+      });
+      const bySeller = {};
+      inP.forEach(m => {
+        const d = dealByLead[m.leadId];
+        const n = (d && d.attendantName) || 'Sem vendedor';
+        if (!bySeller[n]) bySeller[n] = { sch: 0, done: 0, ns: 0 };
+        bySeller[n].sch++;
+        if (isDone(m)) bySeller[n].done++;
+        if (isNoShow(m)) bySeller[n].ns++;
+      });
+      document.getElementById('meetSellerTable').innerHTML = Object.entries(bySeller)
+        .sort((a, b) => b[1].sch - a[1].sch)
+        .map(([n, s]) => {
+          const res = s.done + s.ns;
+          const rate = res ? (s.ns / res * 100).toFixed(0) + '%' : '—';
+          return '<tr class="border-t border-slate-100">'
+            + '<td class="px-4 py-2.5 font-semibold text-[#041227]">' + esc(n) + '</td>'
+            + '<td class="px-3 py-2.5 text-right">' + fmtInt(s.sch) + '</td>'
+            + '<td class="px-3 py-2.5 text-right font-bold" style="color:var(--color-primary,#00A859)">' + fmtInt(s.done) + '</td>'
+            + '<td class="px-3 py-2.5 text-right text-red-500 font-bold">' + fmtInt(s.ns) + '</td>'
+            + '<td class="px-3 py-2.5 text-right">' + rate + '</td>'
+            + '</tr>';
+        }).join('') || '<tr><td class="px-4 py-3 text-slate-400" colspan="5">Sem reuniões no período.</td></tr>';
+
+      // Próximas reuniões (independente do filtro): de hoje em diante
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const up = list
+        .filter(m => m.meetingDate && new Date(m.meetingDate).getTime() >= today.getTime())
+        .sort((a, b) => new Date(a.meetingDate) - new Date(b.meetingDate))
+        .slice(0, 8);
+      document.getElementById('meetUpcoming').innerHTML = up.map(m => {
+        const d = dealByLead[m.leadId];
+        const seller = (d && d.attendantName) || '';
+        const st = isDone(m) ? '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full text-white" style="background:var(--color-primary,#00A859)">Realizada</span>'
+          : isNoShow(m) ? '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500 text-white">No-show</span>'
+          : '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">Agendada</span>';
+        const dt = new Date(m.meetingDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'UTC' });
+        return '<div class="flex items-center justify-between px-4 py-2.5 text-sm">'
+          + '<div><b class="text-[#041227]">' + dt + '</b> · ' + esc(m.leadName) + (seller ? ' <span class="text-slate-400 text-xs">· ' + esc(seller) + '</span>' : '') + '</div>'
+          + st + '</div>';
+      }).join('') || '<div class="px-4 py-4 text-sm text-slate-400">Nenhuma reunião futura agendada.</div>';
+
+      document.getElementById('meetFooter').textContent =
+        list.length + ' reuniões mapeadas nos campos adicionais · campos detectados: ' + (M.fieldsDetected || []).join(', ')
+        + (M.truncated ? ' · base parcial (limite de leitura)' : '')
+        + ' · atualizado ' + new Date(M.fetchedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    // ======================================================================
     // MODO DEMONSTRAÇÃO (?demo=1) — painel fictício pra campanha de marketing.
     // Dados 100% gerados no navegador (Boleiro Store, artigos esportivos).
     // Sem chave, sem API. Backup/restauração das configs reais ao entrar/sair.
@@ -8707,7 +8905,7 @@
               + '#dhDemoBar a#dhDemoCta .dh-cta-short{display:none}'
               + '#dhDemoBar button{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);color:#cbd5e1;padding:7px 10px;border-radius:9px;font-size:12px;cursor:pointer;white-space:nowrap}'
               + 'body.dh-demo main{padding-bottom:92px !important}'
-              + 'body.dh-demo .dh-item[data-key="prospect"],body.dh-demo [data-bi-tab="prospect"]{display:none !important}'
+              + 'body.dh-demo .dh-item[data-key="prospect"],body.dh-demo [data-bi-tab="prospect"],body.dh-demo .dh-item[data-key="meetings"],body.dh-demo [data-bi-tab="meetings"]{display:none !important}'
               + '@media (max-width:640px){#dhDemoBar{font-size:12px;padding:7px 8px;gap:6px}#dhDemoBar .dh-demo-sub{display:none}'
               +   '#dhDemoBar a#dhDemoCta{padding:7px 10px;font-size:12px}#dhDemoBar a#dhDemoCta .dh-cta-full{display:none}#dhDemoBar a#dhDemoCta .dh-cta-short{display:inline}'
               +   '#dhDemoBar button{padding:6px 8px}#dhDemoBar .dh-btxt{display:none}}'
@@ -8981,6 +9179,7 @@
           {g:'Vendas'},
           {t:'Origem dos Leads', ic:'🎯', kind:'bi', key:'origin'},
           {t:'Funil de Vendas', ic:'🔁', kind:'bi', key:'funnel'},
+          {t:'Reuniões', ic:'📅', kind:'bi', key:'meetings'},
           {t:'Prospecção', ic:'🧲', kind:'bi', key:'prospect'},
           {t:'Gastos & ROI', ic:'💰', kind:'bi', key:'roi'},
           {t:'Geografia', ic:'🗺️', kind:'bi', key:'geo'},
