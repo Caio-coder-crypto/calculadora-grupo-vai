@@ -1879,6 +1879,9 @@
           </div>
         </div>
 
+        <!-- Falhas de disparo (conversas com erro / sem envio) -->
+        <div id="dashFailInfo" class="hidden bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 text-[12px] text-amber-900 leading-relaxed"></div>
+
         <!-- Metadados -->
         <p class="text-[11px] text-slate-400 text-center" id="dashFooter"></p>
       </div>
@@ -3468,14 +3471,26 @@
     });
 
     function renderDashboard(data) {
-      // KPIs
-      document.getElementById('kpiLeads').textContent = fmtInt(data.kpis.totalLeads);
-      // Conversas = NOVAS no período (mês atual), com comparativo vs mês anterior (feedback do cliente)
+      // KPIs ("+" quando a base é maior que a amostra paginada — /leads não expõe total)
+      document.getElementById('kpiLeads').textContent = fmtInt(data.kpis.totalLeads) + (data.kpis.totalLeadsTruncated ? '+' : '');
+      // Conversas COBRÁVEIS no mês = com ENVIO no mês (inclui conversa antiga reativada por disparo)
       const tmConv = (data.kpis.thisMonth && data.kpis.thisMonth.billable) || 0;
       const lmConv = (data.kpis.lastMonth && data.kpis.lastMonth.billable) || 0;
       document.getElementById('kpiConvs').textContent = fmtInt(tmConv);
       const convsSub = document.getElementById('kpiConvsSub');
-      if (convsSub) convsSub.innerHTML = 'novas neste mês · ' + deltaBadge(tmConv, lmConv);
+      if (convsSub) convsSub.innerHTML = 'com envio neste mês · ' + deltaBadge(tmConv, lmConv);
+      // Falhas de disparo: conversas com erro + criadas no mês sem nenhum envio
+      const fi = document.getElementById('dashFailInfo');
+      if (fi) {
+        const errs = data.kpis.errorConversations || 0;
+        const noSend = (data.kpis.thisMonth && data.kpis.thisMonth.createdWithoutSend) || 0;
+        if (errs || noSend) {
+          fi.classList.remove('hidden');
+          fi.innerHTML = '⚠️ <b>' + fmtInt(errs) + '</b> conversa' + (errs === 1 ? '' : 's') + ' com erro de envio'
+            + (noSend ? ' · <b>' + fmtInt(noSend) + '</b> criada' + (noSend === 1 ? '' : 's') + ' neste mês sem nenhuma mensagem enviada' : '')
+            + '. Falha não é cobrada pela Meta e fica fora do custo acima. Disparo que falha antes de criar conversa só aparece na ferramenta de disparo.';
+        } else fi.classList.add('hidden');
+      }
       document.getElementById('kpiCostNow').textContent = fmtBRL(data.kpis.thisMonth.costBRL);
       document.getElementById('kpiBillableNow').textContent =
         `${fmtInt(data.kpis.thisMonth.billable)} conversas cobráveis · ${fmtUSD(data.kpis.thisMonth.costUSD)}`;

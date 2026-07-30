@@ -91,7 +91,7 @@ module.exports = async function handler(req, res) {
       fromCache = true;
     } else {
       [leadsRes, convsRes] = await Promise.all([
-        dcGetAll(apiKey, '/leads', {}, 200, 10, { deadlineMs: 15000 }),  // ~2k leads sampled (count de leads é fiel)
+        dcGetAll(apiKey, '/leads', {}, 1000, 10, { deadlineMs: 20000, batch: 2, timeoutMs: 15000 }),  // até 10k leads (API não expõe total; truncated marca amostra)
         // /conversations CAPA o count em 999 — não dá pra confiar nele. Paginamos
         // pelos DADOS (ignoreCount) até o fim real, em LOTES DE 3 páginas paralelas
         // (bases grandes: ~3x mais conversas lidas no mesmo tempo), com deadline de 30s
@@ -177,13 +177,27 @@ module.exports = async function handler(req, res) {
     }
     const monthMap = Object.fromEntries(months.map(m => [m.month, m]));
 
+    // total = conversas CRIADAS no mês; billable = conversas com ENVIO no mês
+    // (pela data do último envio). Antes billable exigia "criada no mês": disparo
+    // pra conversa antiga reativava a janela (a Meta cobra) mas sumia da conta.
+    // Também conta falhas: statuses com 'error' e criadas no mês sem nenhum envio.
+    let errorConversations = 0;
+    let createdNoSendThisMonth = 0;
+    const nowYm = now.toISOString().slice(0, 7);
     for (const c of filteredConvs) {
-      if (!c.createdAt) continue;
-      const ym = c.createdAt.slice(0, 7);
-      const bucket = monthMap[ym];
-      if (!bucket) continue;
-      bucket.total++;
-      if (c.lastSendedMessageDate) bucket.billable++;
+      const st = Array.isArray(c.statuses) ? c.statuses : [];
+      if (st.includes('error')) errorConversations++;
+      if (c.createdAt) {
+        const ym = c.createdAt.slice(0, 7);
+        const bucket = monthMap[ym];
+        if (bucket) bucket.total++;
+        if (ym === nowYm && !c.lastSendedMessageDate) createdNoSendThisMonth++;
+      }
+      if (c.lastSendedMessageDate) {
+        const ymS = c.lastSendedMessageDate.slice(0, 7);
+        const bucketS = monthMap[ymS];
+        if (bucketS) bucketS.billable++;
+      }
     }
 
     // ---- Calcula custo estimado por mês ----
@@ -218,13 +232,16 @@ module.exports = async function handler(req, res) {
     send(res, 200, {
       kpis: {
         totalLeads: leadsRes.count,
+        totalLeadsTruncated: !!leadsRes.truncated,    // true = amostra (base maior que as páginas lidas)
         totalConversations: convsRes.data.length,     // REAL (paginado; ignora o teto de 999 da API)
         conversationsTruncated: !!convsRes.truncated, // true = parou por limite, total pode ser maior
         billableConversations: filteredConvs.length,  // conversas em instâncias OFICIAIS (cobráveis)
+        errorConversations,                           // conversas oficiais com status de ERRO de envio
         thisMonth: {
           billable: thisMonth.billable,
           costBRL: thisMonth.costBRL,
           costUSD: thisMonth.costUSD,
+          createdWithoutSend: createdNoSendThisMonth, // criadas no mês sem NENHUM envio (falha de disparo)
           projection
         },
         lastMonth: {
