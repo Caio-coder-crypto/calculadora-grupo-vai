@@ -1482,6 +1482,8 @@
 
           <!-- ===== REUNIÕES (campos adicionais do lead: data + status) ===== -->
           <div data-bi-content="meetings" class="bi-content hidden p-6 space-y-5">
+            <!-- Cal.com: a AGENDA vem de lá; o status Realizada/No-show continua no CRM -->
+            <div id="calcomBlock"></div>
             <div id="meetLoading" class="text-center py-10 text-sm text-slate-500">Carregando reuniões…</div>
 
             <div id="meetEmpty" class="hidden rounded-xl border border-slate-200 bg-slate-50 p-6">
@@ -8518,11 +8520,72 @@
         .catch(e => { biState.meetings = { error: e.message || 'Falha ao carregar' }; })
         .finally(() => { biState.meetingsLoading = false; if (biState.activeTab === 'meetings') renderMeetings(); });
     }
+    // ===== Cal.com (agenda online) — chave fica só no navegador (localStorage) =====
+    function calcomKey() { try { return localStorage.getItem('calcom_api_key') || ''; } catch (e) { return ''; } }
+    function loadCalcom(force) {
+      if (!calcomKey() || biState.calcomLoading) return;
+      biState.calcomLoading = true;
+      fetch('/api/calcom/bookings' + (force ? '?force=1' : ''), { headers: { 'X-CalCom-Key': calcomKey() } })
+        .then(r => r.json())
+        .then(d => { biState.calcom = (d && !d.error) ? d : { error: (d && d.message) || 'Falha ao carregar Cal.com' }; })
+        .catch(e => { biState.calcom = { error: e.message || 'Falha ao carregar Cal.com' }; })
+        .finally(() => { biState.calcomLoading = false; if (biState.activeTab === 'meetings') renderMeetings(); });
+    }
+    function renderCalcomBlock(escFn, range, period) {
+      const box = document.getElementById('calcomBlock');
+      if (!box) return;
+      if (!calcomKey()) {
+        box.innerHTML = '<div class="rounded-xl border border-slate-200 bg-white p-4 flex flex-col sm:flex-row sm:items-center gap-3">'
+          + '<div class="flex-1"><p class="text-sm font-bold text-[#041227]">🗓️ Conectar Cal.com</p>'
+          + '<p class="text-xs text-slate-500 mt-0.5">Traga as reuniões agendadas online direto pra cá. A chave fica só neste navegador.</p></div>'
+          + '<div class="flex items-center gap-2"><input id="calcomKeyInput" type="password" placeholder="cal_live_..." class="w-44 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-mono" />'
+          + '<button id="calcomConnectBtn" type="button" class="px-4 py-2 rounded-lg text-white text-sm font-bold" style="background:var(--color-primary,#00A859)">Conectar</button></div></div>';
+        const btn = document.getElementById('calcomConnectBtn');
+        if (btn) btn.addEventListener('click', () => {
+          const v = (document.getElementById('calcomKeyInput').value || '').trim();
+          if (!v) return;
+          try { localStorage.setItem('calcom_api_key', v); } catch (e) {}
+          biState.calcom = null; loadCalcom(true); renderMeetings();
+        });
+        return;
+      }
+      const C = biState.calcom;
+      if (!C) { box.innerHTML = '<div class="rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-500">🗓️ Carregando agenda do Cal.com…</div>'; loadCalcom(); return; }
+      if (C.error) {
+        box.innerHTML = '<div class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 flex items-center justify-between gap-3"><span>🗓️ Cal.com: ' + escFn(C.error) + '</span><button id="calcomDisconnect" class="underline font-semibold">trocar chave</button></div>';
+        const d1 = document.getElementById('calcomDisconnect');
+        if (d1) d1.addEventListener('click', () => { try { localStorage.removeItem('calcom_api_key'); } catch (e) {} biState.calcom = null; renderMeetings(); });
+        return;
+      }
+      const bs = C.bookings || [];
+      const nowT = Date.now();
+      const inR = (iso) => { if (!iso) return false; const t = new Date(iso).getTime(); return period === 'all' ? true : (t >= range.start && t < range.end); };
+      const agendadas = bs.filter(b => b.status === 'accepted' && inR(b.start)).length;
+      const futuras = bs.filter(b => b.status === 'accepted' && new Date(b.start).getTime() >= nowT).length;
+      const canceladas = bs.filter(b => b.status === 'cancelled' && inR(b.start)).length;
+      const reagendadas = bs.filter(b => b.rescheduled && inR(b.start)).length;
+      box.innerHTML = '<div class="rounded-xl border border-slate-200 bg-white p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">'
+        + '<p class="text-sm font-bold text-[#041227]">🗓️ Cal.com <span class="text-[10px] font-semibold text-white px-2 py-0.5 rounded-full ml-1" style="background:var(--color-primary,#00A859)">CONECTADO</span></p>'
+        + '<div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-600">'
+        + '<span><b class="text-[#041227]">' + fmtInt(agendadas) + '</b> agendadas no período</span>'
+        + '<span><b style="color:var(--color-primary,#00A859)">' + fmtInt(futuras) + '</b> futuras</span>'
+        + '<span><b class="text-red-500">' + fmtInt(canceladas) + '</b> canceladas</span>'
+        + (reagendadas ? '<span><b class="text-[#041227]">' + fmtInt(reagendadas) + '</b> reagendadas</span>' : '')
+        + '<button id="calcomDisconnect" class="text-[11px] text-slate-400 underline">desconectar</button></div></div>';
+      const d2 = document.getElementById('calcomDisconnect');
+      if (d2) d2.addEventListener('click', () => { try { localStorage.removeItem('calcom_api_key'); } catch (e) {} biState.calcom = null; renderMeetings(); });
+    }
+
     function renderMeetings() {
       const L = document.getElementById('meetLoading'), E = document.getElementById('meetEmpty'), D = document.getElementById('meetData');
       if (!L || !E || !D) return;
       const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
       const show = (el) => { [L, E, D].forEach(x => x.classList.add('hidden')); el.classList.remove('hidden'); };
+      // bloco Cal.com renderizado SEMPRE (mesmo sem campos do CRM configurados)
+      try {
+        const rr = getCurrentPeriodRange();
+        renderCalcomBlock(esc, rr, biState.filters.period);
+      } catch (e) { console.warn('[calcom]', e); }
       if (typeof biBackend === 'function' && biBackend() === 'kommo') {
         document.getElementById('meetEmptyMsg').innerHTML = 'O mapa de reuniões por campos adicionais está disponível apenas no backend <b>DataCrazy</b> por enquanto.';
         show(E); return;
@@ -8534,7 +8597,8 @@
         show(E); return;
       }
       const list = M.meetings || [];
-      if (!list.length) { show(E); return; }
+      const hasCalcom = !!((biState.calcom && biState.calcom.bookings) || []).length;
+      if (!list.length && !hasCalcom) { show(E); return; }   // Cal.com conectado segura a aba mesmo sem campos no CRM
       show(D);
 
       // Período do filtro global do BI aplicado sobre a DATA DA REUNIÃO
@@ -8591,23 +8655,39 @@
             + '</tr>';
         }).join('') || '<tr><td class="px-4 py-3 text-slate-400" colspan="5">Sem reuniões no período.</td></tr>';
 
-      // Próximas reuniões (independente do filtro): de hoje em diante
+      // Próximas reuniões (independente do filtro): CRM + Cal.com mesclados,
+      // dedupe por dia + primeiro nome (a mesma reunião pode existir nas 2 fontes)
       const today = new Date(); today.setHours(0, 0, 0, 0);
-      const up = list
+      const upcoming = [];
+      const seenKey = new Set();
+      const dedupeKey = (iso, name) => (iso || '').slice(0, 10) + '|' + String(name || '').trim().split(/\s+/)[0].toLowerCase();
+      list
         .filter(m => m.meetingDate && new Date(m.meetingDate).getTime() >= today.getTime())
-        .sort((a, b) => new Date(a.meetingDate) - new Date(b.meetingDate))
-        .slice(0, 8);
-      document.getElementById('meetUpcoming').innerHTML = up.map(m => {
-        const d = dealByLead[m.leadId];
-        const seller = (d && d.attendantName) || '';
-        const st = isDone(m) ? '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full text-white" style="background:var(--color-primary,#00A859)">Realizada</span>'
-          : isNoShow(m) ? '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500 text-white">No-show</span>'
-          : '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">Agendada</span>';
-        const dt = new Date(m.meetingDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'UTC' });
-        return '<div class="flex items-center justify-between px-4 py-2.5 text-sm">'
-          + '<div><b class="text-[#041227]">' + dt + '</b> · ' + esc(m.leadName) + (seller ? ' <span class="text-slate-400 text-xs">· ' + esc(seller) + '</span>' : '') + '</div>'
-          + st + '</div>';
-      }).join('') || '<div class="px-4 py-4 text-sm text-slate-400">Nenhuma reunião futura agendada.</div>';
+        .forEach(m => {
+          seenKey.add(dedupeKey(m.meetingDate, m.leadName));
+          const d = dealByLead[m.leadId];
+          const seller = (d && d.attendantName) || '';
+          const st = isDone(m) ? '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full text-white" style="background:var(--color-primary,#00A859)">Realizada</span>'
+            : isNoShow(m) ? '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500 text-white">No-show</span>'
+            : '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">Agendada</span>';
+          const dt = new Date(m.meetingDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'UTC' });
+          upcoming.push({ when: new Date(m.meetingDate).getTime(), html: '<div class="flex items-center justify-between px-4 py-2.5 text-sm">'
+            + '<div><b class="text-[#041227]">' + dt + '</b> · ' + esc(m.leadName) + (seller ? ' <span class="text-slate-400 text-xs">· ' + esc(seller) + '</span>' : '') + '</div>'
+            + st + '</div>' });
+        });
+      ((biState.calcom && biState.calcom.bookings) || [])
+        .filter(b => b.status === 'accepted' && b.start && new Date(b.start).getTime() >= today.getTime())
+        .forEach(b => {
+          if (seenKey.has(dedupeKey(b.start, b.name))) return;   // já veio do CRM
+          const dtObj = new Date(b.start);
+          const dt = dtObj.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) + ' ' + dtObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+          upcoming.push({ when: dtObj.getTime(), html: '<div class="flex items-center justify-between px-4 py-2.5 text-sm">'
+            + '<div><b class="text-[#041227]">' + dt + '</b> · ' + esc(b.name) + (b.host ? ' <span class="text-slate-400 text-xs">· ' + esc(b.host) + '</span>' : '') + '</div>'
+            + '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#041227] text-white">🗓️ Cal.com</span></div>' });
+        });
+      upcoming.sort((a, b) => a.when - b.when);
+      document.getElementById('meetUpcoming').innerHTML = upcoming.slice(0, 10).map(u => u.html).join('')
+        || '<div class="px-4 py-4 text-sm text-slate-400">Nenhuma reunião futura agendada.</div>';
 
       document.getElementById('meetFooter').textContent =
         list.length + ' reuniões mapeadas nos campos adicionais · campos detectados: ' + (M.fieldsDetected || []).join(', ')
