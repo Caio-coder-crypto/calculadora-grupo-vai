@@ -6,7 +6,7 @@
 // reunião, ligação, etc).
 // ============================================================
 
-const { dcGetAll, send, sendError, getValidatedKey, handleOptions } = require('./_client');
+const { dcGetAll, send, sendError, getValidatedKey, handleOptions } = require('../_client');
 
 // Heurística de categorização por palavra-chave no title/description
 const ACTIVITY_CATEGORIES = [

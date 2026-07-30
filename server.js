@@ -58,9 +58,13 @@ function invalidateApiCache() {
 }
 
 function loadApi(group, name) {
-  const full = path.join(ROOT, 'api', group, name + '.js');
-  if (!fs.existsSync(full)) return null;
-  return require(full);
+  // Handlers consolidados vivem em _handlers/ (o Vercel só cria 1 função por grupo);
+  // o dev server resolve direto pelo nome — primeiro _handlers/, depois a raiz do grupo.
+  for (const rel of [path.join('api', group, '_handlers', name + '.js'), path.join('api', group, name + '.js')]) {
+    const full = path.join(ROOT, rel);
+    if (fs.existsSync(full)) return require(full);
+  }
+  return null;
 }
 
 // Helper: wrapper que adiciona .status() e .send() compatíveis com Vercel

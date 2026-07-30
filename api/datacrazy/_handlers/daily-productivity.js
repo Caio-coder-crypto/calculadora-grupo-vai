@@ -12,7 +12,7 @@
 //   - explicação de como cada métrica é calculada (acaba a divergência)
 // ============================================================
 
-const { dcGetAll, send, sendError, getValidatedKey, handleOptions } = require('./_client');
+const { dcGetAll, send, sendError, getValidatedKey, handleOptions } = require('../_client');
 
 // Cache de 60s (igual aos outros endpoints)
 if (!globalThis.__dcProductivityCache) globalThis.__dcProductivityCache = new Map();

@@ -15,7 +15,7 @@
 // Exige a chave válida no header X-DataCrazy-Key (mesma do resto do app).
 // ============================================================
 
-const { getValidatedKey, getClientEmpresa, send, sendError, handleOptions } = require('./_client');
+const { getValidatedKey, getClientEmpresa, send, sendError, handleOptions } = require('../_client');
 
 module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return handleOptions(res);

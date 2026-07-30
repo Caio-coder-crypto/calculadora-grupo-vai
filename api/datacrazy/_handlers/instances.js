@@ -5,7 +5,7 @@
 // (cobradas) vs Evolution/não-oficial (sem custo).
 // ============================================================
 
-const { dcGetAll, send, sendError, getValidatedKey, handleOptions } = require('./_client');
+const { dcGetAll, send, sendError, getValidatedKey, handleOptions } = require('../_client');
 
 // Heurística pra sugerir se a instância é "Oficial Meta"
 // Provider/engine que indicam API Oficial:

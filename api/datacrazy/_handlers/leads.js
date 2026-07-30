@@ -3,7 +3,7 @@
 // Multi-tenant: lê chave do header X-DataCrazy-Key
 // ============================================================
 
-const { dcGetAll, send, sendError, getValidatedKey, handleOptions } = require('./_client');
+const { dcGetAll, send, sendError, getValidatedKey, handleOptions } = require('../_client');
 
 module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return handleOptions(res);

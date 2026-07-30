@@ -19,7 +19,7 @@
 // Cache em memória por 60s, por (chave + chunk).
 // ============================================================
 
-const { dcGetAll, dcGet, send, sendError, getValidatedKey, handleOptions } = require('./_client');
+const { dcGetAll, dcGet, send, sendError, getValidatedKey, handleOptions } = require('../_client');
 
 if (!globalThis.__dcBiCache) globalThis.__dcBiCache = new Map();
 const cache = globalThis.__dcBiCache;

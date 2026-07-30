@@ -10,7 +10,7 @@
 // Auth: header X-DataCrazy-Key (mesmo kill-switch dos outros endpoints).
 // ============================================================
 
-const { dcGet, dcPost, getValidatedKey, send, sendError } = require('./_client');
+const { dcGet, dcPost, getValidatedKey, send, sendError } = require('../_client');
 
 const APIFY_TOKEN   = process.env.APIFY_TOKEN || '';
 const DEFAULT_ACTOR = 'compass~crawler-google-places';  // Google Maps Scraper (compass)

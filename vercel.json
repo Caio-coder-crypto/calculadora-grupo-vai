@@ -4,8 +4,14 @@
     "api/datacrazy/*.js": {
       "maxDuration": 60
     },
+    "api/kommo/*.js": {
+      "maxDuration": 60
+    },
     "api/meta/*.js": {
       "maxDuration": 60
+    },
+    "api/calcom/*.js": {
+      "maxDuration": 30
     }
   },
   "headers": [

@@ -14,7 +14,7 @@
 //                       só a oficial é cobrada pela Meta.
 // ============================================================
 
-const { dcGetAll, send, sendError, getValidatedKey, handleOptions } = require('./_client');
+const { dcGetAll, send, sendError, getValidatedKey, handleOptions } = require('../_client');
 
 // Tarifas Meta para o Brasil (USD por conversa)
 const RATES = {

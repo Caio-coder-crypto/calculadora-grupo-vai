@@ -18,7 +18,7 @@
 // que siga a convenção de nomes.
 // ============================================================
 
-const { dcGetAll, send, sendError, getValidatedKey, handleOptions } = require('./_client');
+const { dcGetAll, send, sendError, getValidatedKey, handleOptions } = require('../_client');
 
 const FIELD_PATTERNS = {
   meetingDate:    /^data\s*(de\s+|da\s+|do\s+)?(reuni|agendamento)/i,
