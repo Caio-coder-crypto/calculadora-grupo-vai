@@ -8560,18 +8560,70 @@
       const bs = C.bookings || [];
       const nowT = Date.now();
       const inR = (iso) => { if (!iso) return false; const t = new Date(iso).getTime(); return period === 'all' ? true : (t >= range.start && t < range.end); };
-      const agendadas = bs.filter(b => b.status === 'accepted' && inR(b.start)).length;
+      // Classificação de cada reunião (fonte: Cal.com):
+      //  realizada = já passou, aceita, ninguém faltou · no-show = cliente faltou (absent)
+      const isNoShow = (b) => b.absent;
+      const isDoneB = (b) => b.status === 'accepted' && !b.absent && !b.absentHost && new Date(b.end || b.start).getTime() < nowT;
+      const inP = bs.filter(b => inR(b.start));
+      const agendadas = inP.filter(b => b.status !== 'cancelled').length;
+      const realizadas = inP.filter(isDoneB).length;
+      const noshows = inP.filter(isNoShow).length;
+      const resolved = realizadas + noshows;
+      const taxa = resolved ? (noshows / resolved * 100).toFixed(0) + '%' : '—';
       const futuras = bs.filter(b => b.status === 'accepted' && new Date(b.start).getTime() >= nowT).length;
-      const canceladas = bs.filter(b => b.status === 'cancelled' && inR(b.start)).length;
-      const reagendadas = bs.filter(b => b.rescheduled && inR(b.start)).length;
-      box.innerHTML = '<div class="rounded-xl border border-slate-200 bg-white p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">'
-        + '<p class="text-sm font-bold text-[#041227]">🗓️ Cal.com <span class="text-[10px] font-semibold text-white px-2 py-0.5 rounded-full ml-1" style="background:var(--color-primary,#00A859)">CONECTADO</span></p>'
-        + '<div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-600">'
-        + '<span><b class="text-[#041227]">' + fmtInt(agendadas) + '</b> agendadas no período</span>'
-        + '<span><b style="color:var(--color-primary,#00A859)">' + fmtInt(futuras) + '</b> futuras</span>'
-        + '<span><b class="text-red-500">' + fmtInt(canceladas) + '</b> canceladas</span>'
-        + (reagendadas ? '<span><b class="text-[#041227]">' + fmtInt(reagendadas) + '</b> reagendadas</span>' : '')
-        + '<button id="calcomDisconnect" class="text-[11px] text-slate-400 underline">desconectar</button></div></div>';
+      const canceladas = inP.filter(b => b.status === 'cancelled').length;
+      const reagendadas = inP.filter(b => b.rescheduled).length;
+      const ratings = inP.filter(b => b.rating != null);
+      const ratingAvg = ratings.length ? (ratings.reduce((a, b) => a + b.rating, 0) / ratings.length).toFixed(1) : null;
+
+      const chip = (label, val, color) => '<div class="bg-slate-50 rounded-lg px-3 py-2 text-center min-w-[86px]">'
+        + '<p class="text-[9px] font-bold uppercase tracking-widest text-slate-400">' + label + '</p>'
+        + '<p class="text-xl font-extrabold" style="color:' + (color || '#041227') + '">' + val + '</p></div>';
+
+      // Por TIPO de reunião = quem FAZ (Léo online, Rafa presencial/online...)
+      const byType = {};
+      inP.forEach(b => {
+        const k = b.eventTypeTitle || b.eventType || 'Sem tipo';
+        if (!byType[k]) byType[k] = { total: 0, done: 0, ns: 0, online: 0, pres: 0 };
+        if (b.status !== 'cancelled') byType[k].total++;
+        if (isDoneB(b)) byType[k].done++;
+        if (isNoShow(b)) byType[k].ns++;
+        if (b.mode === 'presencial') byType[k].pres++; else byType[k].online++;
+      });
+      const typeRows = Object.entries(byType).sort((a, b) => b[1].total - a[1].total).map(([k, s]) => {
+        const r = s.done + s.ns;
+        return '<tr class="border-t border-slate-100">'
+          + '<td class="px-3 py-2 font-semibold text-[#041227]">' + escFn(k) + '</td>'
+          + '<td class="px-2 py-2 text-center text-slate-500 text-xs">' + (s.pres && s.online ? s.online + ' on · ' + s.pres + ' pres' : (s.pres ? 'presencial' : 'online')) + '</td>'
+          + '<td class="px-2 py-2 text-right">' + fmtInt(s.total) + '</td>'
+          + '<td class="px-2 py-2 text-right font-bold" style="color:var(--color-primary,#00A859)">' + fmtInt(s.done) + '</td>'
+          + '<td class="px-2 py-2 text-right text-red-500 font-bold">' + fmtInt(s.ns) + '</td>'
+          + '<td class="px-2 py-2 text-right">' + (r ? (s.ns / r * 100).toFixed(0) + '%' : '—') + '</td>'
+          + '</tr>';
+      }).join('');
+
+      box.innerHTML = '<div class="rounded-xl border border-slate-200 bg-white p-4 space-y-3">'
+        + '<div class="flex items-center justify-between flex-wrap gap-2">'
+        + '<p class="text-sm font-bold text-[#041227]">🗓️ Agenda Cal.com <span class="text-[10px] font-semibold text-white px-2 py-0.5 rounded-full ml-1" style="background:var(--color-primary,#00A859)">CONECTADO</span></p>'
+        + '<button id="calcomDisconnect" class="text-[11px] text-slate-400 underline">desconectar</button></div>'
+        + '<div class="flex flex-wrap gap-2">'
+        + chip('Agendadas', fmtInt(agendadas))
+        + chip('Realizadas', fmtInt(realizadas), 'var(--color-primary,#00A859)')
+        + chip('No-show', fmtInt(noshows), noshows ? '#ef4444' : '#041227')
+        + chip('Taxa no-show', taxa, noshows ? '#ef4444' : '#041227')
+        + chip('Reagendadas', fmtInt(reagendadas))
+        + chip('Canceladas', fmtInt(canceladas))
+        + chip('Futuras', fmtInt(futuras), 'var(--color-primary,#00A859)')
+        + (ratingAvg ? chip('Avaliação', '⭐ ' + ratingAvg) : '')
+        + '</div>'
+        + '<div class="overflow-x-auto"><table class="w-full text-sm min-w-[480px]">'
+        + '<thead class="bg-slate-50 text-[9px] font-bold uppercase tracking-widest text-slate-500"><tr>'
+        + '<th class="px-3 py-1.5 text-left">Tipo de reunião · quem faz</th><th class="px-2 py-1.5 text-center">Modalidade</th>'
+        + '<th class="px-2 py-1.5 text-right">Agendadas</th><th class="px-2 py-1.5 text-right">Realizadas</th>'
+        + '<th class="px-2 py-1.5 text-right">No-show</th><th class="px-2 py-1.5 text-right">Taxa</th></tr></thead>'
+        + '<tbody>' + (typeRows || '<tr><td class="px-3 py-2 text-slate-400" colspan="6">Sem reuniões no período.</td></tr>') + '</tbody></table></div>'
+        + '<p class="text-[10px] text-slate-400">No-show e realizada saem do Cal.com (marque o não-comparecimento lá, no agendamento). Quem agenda (SDR ou o próprio cliente pelo link) a API do Cal.com não separa. A conversão reunião → venda continua no CRM.</p>'
+        + '</div>';
       const d2 = document.getElementById('calcomDisconnect');
       if (d2) d2.addEventListener('click', () => { try { localStorage.removeItem('calcom_api_key'); } catch (e) {} biState.calcom = null; renderMeetings(); });
     }
@@ -8682,7 +8734,8 @@
           const dtObj = new Date(b.start);
           const dt = dtObj.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) + ' ' + dtObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
           upcoming.push({ when: dtObj.getTime(), html: '<div class="flex items-center justify-between px-4 py-2.5 text-sm">'
-            + '<div><b class="text-[#041227]">' + dt + '</b> · ' + esc(b.name) + (b.host ? ' <span class="text-slate-400 text-xs">· ' + esc(b.host) + '</span>' : '') + '</div>'
+            + '<div><b class="text-[#041227]">' + dt + '</b> · ' + esc(b.name)
+            + ' <span class="text-slate-400 text-xs">· ' + esc(b.eventTypeTitle || b.host || '') + ' · ' + (b.mode === 'presencial' ? '🏢 presencial' : '💻 online') + '</span></div>'
             + '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#041227] text-white">🗓️ Cal.com</span></div>' });
         });
       upcoming.sort((a, b) => a.when - b.when);

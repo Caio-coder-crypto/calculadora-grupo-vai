@@ -65,26 +65,49 @@ module.exports = async function handler(req, res) {
       if (!(d.pagination && d.pagination.hasNextPage)) break;
     }
 
+    // Tipos de evento (nome amigável por slug) — é o "quem FAZ a reunião"
+    // quando a operação usa uma conta única com um tipo por consultor.
+    const typeMap = {};
+    try {
+      const et = await (await fetch('https://api.cal.com/v2/event-types', { headers: { ...H, 'cal-api-version': '2024-06-14' } })).json();
+      (et.data || []).forEach(t => { if (t.slug) typeMap[t.slug] = { title: t.title || t.slug, length: t.lengthInMinutes || null }; });
+    } catch (e) { /* opcional */ }
+
+    // Modalidade da reunião: link de vídeo = online; endereço/presencial = presencial
+    const modeOf = (b) => {
+      const loc = typeof b.location === 'string' ? b.location : JSON.stringify(b.location || '');
+      if (b.meetingUrl || /integrations:|meet|zoom|teams|link|conferencing/i.test(loc)) return 'online';
+      if (/address|inPerson|atendee|presencial/i.test(loc) || (loc && loc.length > 2)) return 'presencial';
+      return 'online';
+    };
+
     const bookings = all.map(b => {
       const at = (b.attendees && b.attendees[0]) || {};
+      const slug = (b.eventType && b.eventType.slug) || '';
       return {
         uid: b.uid,
         title: b.title || '',
         start: b.start,
         end: b.end,
+        duration: b.duration || null,
+        createdAt: b.createdAt || null,                       // quando foi AGENDADA
         status: b.status,                                     // accepted | cancelled | rejected | pending
         name: at.name || '',
         email: at.email || '',
         phone: findPhone(b.bookingFieldsResponses),
-        absent: !!at.absent,                                  // no-show marcado no Cal.com (se usarem)
+        absent: !!at.absent,                                  // no-show do cliente (marcado no Cal.com)
+        absentHost: !!b.absentHost,                           // no-show do CONSULTOR
         host: (b.hosts && b.hosts[0] && b.hosts[0].name) || '',
-        eventType: (b.eventType && b.eventType.slug) || '',
+        eventType: slug,
+        eventTypeTitle: (typeMap[slug] && typeMap[slug].title) || slug,
+        mode: modeOf(b),                                      // online | presencial
+        rating: (typeof b.rating === 'number' && b.rating > 0) ? b.rating : null,
         cancellationReason: b.cancellationReason || '',
         rescheduled: !!b.rescheduledByEmail
       };
     });
 
-    const payload = { bookings, counts: { total: bookings.length }, fetchedAt: new Date().toISOString(), cached: false };
+    const payload = { bookings, eventTypes: typeMap, counts: { total: bookings.length }, fetchedAt: new Date().toISOString(), cached: false };
     cache.set(ck, { at: Date.now(), payload });
     return send(res, 200, payload);
   } catch (err) {
