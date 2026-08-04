@@ -448,6 +448,10 @@
                     class="inline-flex items-center gap-1.5 text-xs font-semibold text-[#041227] bg-[#FFB81C]/15 hover:bg-[#FFB81C]/25 ring-1 ring-[#FFB81C]/40 px-3 py-1.5 rounded-lg transition">
               🎯 Configurar Metas
             </button>
+            <button id="unitsOpenBtn" type="button"
+                    class="inline-flex items-center gap-1.5 text-xs font-semibold text-[#041227] bg-slate-100 hover:bg-slate-200 ring-1 ring-slate-300 px-3 py-1.5 rounded-lg transition">
+              📦 Unidades
+            </button>
           </div>
         </div>
 
@@ -605,6 +609,11 @@
               <div class="bg-slate-50 rounded-lg p-3 border border-slate-200">
                 <p class="text-[9px] font-bold uppercase tracking-widest text-slate-500">📅 Negócios novos</p>
                 <p class="text-lg font-bold text-[#041227] mt-1" id="kpiNewDeals">0</p>
+              </div>
+              <div class="hidden bg-[#041227] rounded-lg p-3 border border-slate-700" id="kpiUnitsCard">
+                <p class="text-[9px] font-bold uppercase tracking-widest text-slate-300">📦 Volume vendido</p>
+                <p class="text-lg font-bold text-white mt-1 tabular-nums" id="kpiUnitsVolume">0</p>
+                <p class="text-[10px] mt-0.5" style="color:var(--color-primary,#00A859)" id="kpiUnitsDetail">—</p>
               </div>
               <div class="bg-[#00A859]/5 rounded-lg p-3 border border-[#00A859]/30">
                 <p class="text-[9px] font-bold uppercase tracking-widest text-[#00754d]">💵 CAC WhatsApp</p>
@@ -975,6 +984,11 @@
                   <p class="text-[9px] font-bold uppercase tracking-widest text-[#7a5400]">📐 Itens por pedido</p>
                   <p class="text-lg font-bold text-[#041227] mt-1 tabular-nums" id="prodKpiItemsPerDeal">0</p>
                 </div>
+                <div class="hidden bg-[#041227] rounded-lg p-3 border border-slate-700" id="prodKpiVolumeCard">
+                  <p class="text-[9px] font-bold uppercase tracking-widest text-slate-300">📦 Volume no período</p>
+                  <p class="text-lg font-bold text-white mt-1 tabular-nums" id="prodKpiVolume">0</p>
+                  <p class="text-[10px] mt-0.5" style="color:var(--color-primary,#00A859)" id="prodKpiVolumeSub">—</p>
+                </div>
               </div>
 
               <!-- Gráfico + Tabela -->
@@ -996,6 +1010,7 @@
                           <th class="px-3 py-2 text-left">Produto</th>
                           <th class="px-3 py-2 text-right">Pedidos</th>
                           <th class="px-3 py-2 text-right">Unid.</th>
+                          <th class="px-3 py-2 text-right hidden" id="prodThVolume">Vol.</th>
                           <th class="px-3 py-2 text-right">Receita</th>
                           <th class="px-3 py-2 text-right" title="Participação na receita de produtos">% Mix</th>
                           <th class="px-3 py-2 text-right" title="Preço unitário médio praticado">Preço méd.</th>
@@ -5631,6 +5646,7 @@
 
       // Re-render aba ativa + footer
       renderActiveTab();
+      renderUnitsKpis();   // lente de volume (litros/kg) na Visão Geral, se ativa
       const ts = new Date(biState.raw.fetchedAt).toLocaleString('pt-BR');
       document.getElementById('biFooter').textContent =
         `Última carga: ${ts} · ${biState.raw.cached ? 'cache' : 'fresco'} · Total na conta: ${fmtInt(biState.raw.counts.deals)} deals, ${biState.raw.counts.attendants} vendedores, ${biState.raw.counts.pipelines} pipelines.`;
@@ -8223,8 +8239,10 @@
       const scopeDeals = getProductScopeDeals();
 
       // Agrega por produto (chave: id → sku → nome)
+      const uCfg = unitCfg();
+      const unitOn = !!uCfg.enabled;
       const map = {};
-      let totalRevenue = 0, totalUnits = 0;
+      let totalRevenue = 0, totalUnits = 0, totalVolume = 0;
       const dealsWithProd = new Set();
       for (const d of scopeDeals) {
         const lines = d.products || [];
@@ -8232,12 +8250,15 @@
         dealsWithProd.add(d.id);
         for (const ln of lines) {
           const key = ln.id || ln.sku || ln.name || 'sem-id';
-          const e = map[key] || (map[key] = { key, name: ln.name || 'Produto sem nome', sku: ln.sku, catalogPrice: ln.catalogPrice || 0, units: 0, revenue: 0, deals: new Set() });
+          const e = map[key] || (map[key] = { key, name: ln.name || 'Produto sem nome', sku: ln.sku, catalogPrice: ln.catalogPrice || 0, units: 0, revenue: 0, volume: 0, deals: new Set() });
+          const vol = (ln.quantity || 0) * unitPerOf(ln.name);
           e.units    += (ln.quantity || 0);
           e.revenue  += (ln.total || 0);
+          e.volume   += vol;
           e.deals.add(d.id);
           totalUnits   += (ln.quantity || 0);
           totalRevenue += (ln.total || 0);
+          totalVolume  += vol;
         }
       }
 
@@ -8246,10 +8267,20 @@
 
       const rows = Object.values(map).map(p => ({
         key: p.key, name: p.name, sku: p.sku, catalogPrice: p.catalogPrice,
-        units: p.units, revenue: p.revenue, dealsCount: p.deals.size,
+        units: p.units, revenue: p.revenue, volume: p.volume, dealsCount: p.deals.size,
         avgPrice: p.units > 0 ? p.revenue / p.units : 0,
         share: totalRevenue > 0 ? (p.revenue / totalRevenue * 100) : 0
       })).sort((a, b) => metricVal(b) - metricVal(a));
+
+      // ---- Lente de volume (litros/kg/...) ----
+      const volCard = document.getElementById('prodKpiVolumeCard');
+      const volTh = document.getElementById('prodThVolume');
+      if (volCard) volCard.classList.toggle('hidden', !unitOn);
+      if (volTh) { volTh.classList.toggle('hidden', !unitOn); volTh.textContent = 'Vol. (' + uCfg.label + ')'; }
+      if (unitOn && volCard) {
+        document.getElementById('prodKpiVolume').textContent = fmtVol(totalVolume) + ' ' + uCfg.label;
+        document.getElementById('prodKpiVolumeSub').textContent = totalVolume > 0 ? fmtBRL(totalRevenue / totalVolume) + ' por ' + uCfg.label : 'mapeie os produtos em 📦 Unidades';
+      }
 
       // ---- KPIs ----
       document.getElementById('prodKpiRevenue').textContent = fmtBRL(totalRevenue);
@@ -8307,6 +8338,7 @@
           </td>
           <td class="px-3 py-2 text-right tabular-nums">${fmtInt(p.dealsCount)}</td>
           <td class="px-3 py-2 text-right tabular-nums">${fmtInt(p.units)}</td>
+          ${unitOn ? `<td class="px-3 py-2 text-right tabular-nums font-semibold text-[#041227]">${p.volume > 0 ? fmtVol(p.volume) : '—'}</td>` : ''}
           <td class="px-3 py-2 text-right font-bold tabular-nums">${fmtBRL(p.revenue)}</td>
           <td class="px-3 py-2 text-right">
             <div class="flex items-center justify-end gap-1.5">
@@ -8316,7 +8348,7 @@
           </td>
           <td class="px-3 py-2 text-right tabular-nums">${p.avgPrice > 0 ? fmtBRL(p.avgPrice) : '—'}</td>
         </tr>
-      `).join('') || '<tr><td colspan="7" class="text-center text-slate-400 py-6 text-sm">Sem produtos neste período/escopo</td></tr>';
+      `).join('') || `<tr><td colspan="${unitOn ? 8 : 7}" class="text-center text-slate-400 py-6 text-sm">Sem produtos neste período/escopo</td></tr>`;
 
       // Drill-down: clique no produto → lista os deals que contêm aquele item
       document.querySelectorAll('[data-prod-key]').forEach(row => {
@@ -8505,6 +8537,142 @@
     };
     document.getElementById('helpCloseBtn')?.addEventListener('click', () => document.getElementById('helpModal').classList.add('hidden'));
     document.getElementById('helpModal')?.addEventListener('click', (e) => { if (e.target.id === 'helpModal') e.target.classList.add('hidden'); });
+
+    // ======================================================================
+    // UNIDADES DE MEDIDA — lente de VOLUME sobre os produtos (litros, kg...).
+    // Nicho-agnóstico: chopeira mede litros, açougue kg, confecção peças.
+    // Config por navegador (dc_unit_config_v1): rótulo + volume por unidade de
+    // cada produto (auto-sugerido pelo NOME: "Barril 30L" → 30, "600ml" → 0,6).
+    // ======================================================================
+    const UNIT_STORAGE = 'dc_unit_config_v1';
+    function unitCfg() {
+      try { return JSON.parse(localStorage.getItem(UNIT_STORAGE) || 'null') || { enabled: false, label: 'L', per: {} }; }
+      catch (e) { return { enabled: false, label: 'L', per: {} }; }
+    }
+    function unitKeyOf(name) { return String(name || '').trim().toLowerCase(); }
+    function unitParseFromName(name, label) {
+      const s = String(name || '');
+      let m;
+      if (/^l$/i.test(label)) {
+        m = s.match(/(\d+(?:[.,]\d+)?)\s*(ml|litros?|lts?|l)\b/i);
+        if (m) { const v = parseFloat(m[1].replace(',', '.')); return /^ml$/i.test(m[2]) ? v / 1000 : v; }
+      } else if (/kg/i.test(label)) {
+        m = s.match(/(\d+(?:[.,]\d+)?)\s*(kg|quilos?|gramas?|g)\b/i);
+        if (m) { const v = parseFloat(m[1].replace(',', '.')); return /^(g|gramas?)$/i.test(m[2]) ? v / 1000 : v; }
+      } else if (/^m$/i.test(label)) {
+        m = s.match(/(\d+(?:[.,]\d+)?)\s*(cm|metros?|m)\b/i);
+        if (m) { const v = parseFloat(m[1].replace(',', '.')); return /^cm$/i.test(m[2]) ? v / 100 : v; }
+      } else if (/^un$/i.test(label)) return 1;
+      return null;
+    }
+    function unitPerOf(name) {
+      const c = unitCfg();
+      if (!c.enabled) return 0;
+      const v = c.per[unitKeyOf(name)];
+      return (typeof v === 'number' && v > 0) ? v : 0;
+    }
+    function dealVolume(d) { let t = 0; (d.products || []).forEach(ln => { t += (ln.quantity || 0) * unitPerOf(ln.name); }); return t; }
+    function fmtVol(v) { return new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }).format(v || 0); }
+
+    function renderUnitsKpis() {
+      const cfg = unitCfg();
+      const card = document.getElementById('kpiUnitsCard');
+      if (!card) return;
+      if (!cfg.enabled || !biState.raw) { card.classList.add('hidden'); return; }
+      let vol = 0, rev = 0;
+      try {
+        (getWonInFilteredPeriod() || []).forEach(d => { vol += dealVolume(d); rev += (d.total || 0); });
+      } catch (e) { return; }
+      card.classList.remove('hidden');
+      document.getElementById('kpiUnitsVolume').textContent = fmtVol(vol) + ' ' + cfg.label;
+      document.getElementById('kpiUnitsDetail').textContent = vol > 0 ? fmtBRL(rev / vol) + ' por ' + cfg.label + ' vendido' : 'mapeie os produtos em 📦 Unidades';
+    }
+
+    function openUnitsModal() {
+      const cfg = unitCfg();
+      const escU = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      // Catálogo real: agrega produtos de TODOS os deals carregados
+      const agg = {};
+      ((biState.raw && biState.raw.deals) || []).forEach(d => (d.products || []).forEach(ln => {
+        const k = unitKeyOf(ln.name);
+        if (!k) return;
+        const e = agg[k] || (agg[k] = { name: ln.name, qty: 0, revenue: 0 });
+        e.qty += ln.quantity || 0; e.revenue += ln.total || 0;
+      }));
+      const items = Object.values(agg).sort((a, b) => b.revenue - a.revenue);
+
+      let ov = document.getElementById('unitsModal'); if (ov) ov.remove();
+      ov = document.createElement('div');
+      ov.id = 'unitsModal';
+      ov.className = 'fixed inset-0 z-[70] bg-black/50 flex items-center justify-center p-4';
+      const label = cfg.label || 'L';
+      ov.innerHTML = '<div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col">'
+        + '<div class="p-5 border-b border-slate-200">'
+        + '<div class="flex items-center justify-between">'
+        + '<h3 class="text-lg font-bold text-[#041227]">📦 Unidades de medida</h3>'
+        + '<button id="unitsClose" class="text-slate-400 hover:text-slate-600 text-xl leading-none">✕</button></div>'
+        + '<p class="text-xs text-slate-500 mt-1">Meça o negócio na unidade que importa: litros de chope, quilos, metros. O painel ganha volume vendido, R$ por unidade e volume por produto.</p>'
+        + '<div class="flex flex-wrap items-center gap-3 mt-3">'
+        + '<label class="flex items-center gap-2 text-sm font-semibold text-[#041227]"><input id="unitsEnabled" type="checkbox" class="w-4 h-4" ' + (cfg.enabled ? 'checked' : '') + '/> Ativar</label>'
+        + '<select id="unitsLabelSel" class="rounded-lg border border-slate-300 px-2 py-1.5 text-sm">'
+        + ['L|Litros (L)', 'kg|Quilos (kg)', 'm|Metros (m)', 'un|Unidades (un)'].map(o => { const [v, t] = o.split('|'); return '<option value="' + v + '"' + (label === v ? ' selected' : '') + '>' + t + '</option>'; }).join('')
+        + '</select>'
+        + '<span class="text-[11px] text-slate-400">Sugestões preenchidas pelo nome do produto. Ajuste e salve.</span></div></div>'
+        + '<div class="flex-1 overflow-y-auto p-5">'
+        + (items.length ? '<table class="w-full text-sm"><thead class="text-[10px] font-bold uppercase tracking-widest text-slate-500"><tr>'
+          + '<th class="text-left pb-2">Produto</th><th class="text-right pb-2">Vendas</th><th class="text-right pb-2 w-32"><span class="units-col-label">' + escU(label) + '</span> por unidade</th></tr></thead><tbody>'
+          + items.map(it => {
+            const k = unitKeyOf(it.name);
+            const cur = cfg.per[k];
+            const sug = unitParseFromName(it.name, label);
+            const val = (typeof cur === 'number' && cur > 0) ? cur : (sug || '');
+            return '<tr class="border-t border-slate-100">'
+              + '<td class="py-2 pr-3 font-semibold text-[#041227]">' + escU(it.name) + '</td>'
+              + '<td class="py-2 text-right text-slate-500 tabular-nums">' + fmtInt(it.qty) + '</td>'
+              + '<td class="py-2 text-right"><input data-unit-key="' + escU(k) + '" type="number" min="0" step="0.01" value="' + val + '" class="w-24 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-right text-sm" /></td></tr>';
+          }).join('') + '</tbody></table>'
+          : '<p class="text-sm text-slate-400 text-center py-8">Nenhum produto encontrado nos negócios carregados. Cadastre produtos nos negócios do CRM e recarregue o BI.</p>')
+        + '</div>'
+        + '<div class="p-4 border-t border-slate-200 flex justify-end gap-2">'
+        + '<button id="unitsCancel" class="px-4 py-2 rounded-lg border border-slate-200 text-sm text-slate-600">Cancelar</button>'
+        + '<button id="unitsSave" class="px-5 py-2 rounded-lg text-white text-sm font-bold" style="background:var(--color-primary,#00A859)">Salvar</button></div></div>';
+      document.body.appendChild(ov);
+      const close = () => ov.remove();
+      document.getElementById('unitsClose').addEventListener('click', close);
+      document.getElementById('unitsCancel').addEventListener('click', close);
+      ov.addEventListener('click', (e) => { if (e.target === ov) close(); });
+      // Trocar a unidade re-sugere os campos ainda não preenchidos manualmente
+      document.getElementById('unitsLabelSel').addEventListener('change', (e) => {
+        const nl = e.target.value;
+        ov.querySelectorAll('.units-col-label').forEach(el => el.textContent = nl);
+        ov.querySelectorAll('[data-unit-key]').forEach(inp => {
+          const k = inp.getAttribute('data-unit-key');
+          const manual = cfg.per[k];
+          if (!(typeof manual === 'number' && manual > 0)) {
+            const it = items.find(x => unitKeyOf(x.name) === k);
+            const sug = it ? unitParseFromName(it.name, nl) : null;
+            inp.value = sug || '';
+          }
+        });
+      });
+      document.getElementById('unitsSave').addEventListener('click', () => {
+        const per = {};
+        ov.querySelectorAll('[data-unit-key]').forEach(inp => {
+          const v = parseFloat(inp.value);
+          if (!isNaN(v) && v > 0) per[inp.getAttribute('data-unit-key')] = v;
+        });
+        const next = {
+          enabled: document.getElementById('unitsEnabled').checked,
+          label: document.getElementById('unitsLabelSel').value,
+          per
+        };
+        try { localStorage.setItem(UNIT_STORAGE, JSON.stringify(next)); } catch (e) {}
+        close();
+        renderUnitsKpis();
+        if (typeof renderActiveTab === 'function') renderActiveTab();
+      });
+    }
+    { const ub = document.getElementById('unitsOpenBtn'); if (ub) ub.addEventListener('click', openUnitsModal); }
 
     // ======================================================================
     // REUNIÕES — lê os campos adicionais do LEAD via /api/datacrazy/meetings
