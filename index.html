@@ -8281,6 +8281,7 @@
         document.getElementById('prodKpiVolume').textContent = fmtVol(totalVolume) + ' ' + uCfg.label;
         document.getElementById('prodKpiVolumeSub').textContent = totalVolume > 0 ? fmtBRL(totalRevenue / totalVolume) + ' por ' + uCfg.label : 'mapeie os produtos em 📦 Unidades';
       }
+      renderStockBlock();   // cobertura de estoque (se declarado no modal Unidades)
 
       // ---- KPIs ----
       document.getElementById('prodKpiRevenue').textContent = fmtBRL(totalRevenue);
@@ -8617,19 +8618,23 @@
         + '<select id="unitsLabelSel" class="rounded-lg border border-slate-300 px-2 py-1.5 text-sm">'
         + ['L|Litros (L)', 'kg|Quilos (kg)', 'm|Metros (m)', 'un|Unidades (un)'].map(o => { const [v, t] = o.split('|'); return '<option value="' + v + '"' + (label === v ? ' selected' : '') + '>' + t + '</option>'; }).join('')
         + '</select>'
-        + '<span class="text-[11px] text-slate-400">Sugestões preenchidas pelo nome do produto. Ajuste e salve.</span></div></div>'
+        + '<label class="flex items-center gap-1.5 text-[11px] text-slate-500">Contagem de estoque em'
+        + '<input id="unitsStockAt" type="date" value="' + escU(cfg.stockAt || new Date().toISOString().slice(0, 10)) + '" class="rounded-lg border border-slate-300 px-2 py-1 text-xs" /></label>'
+        + '<span class="text-[11px] text-slate-400">Sugestões preenchidas pelo nome do produto. Estoque é opcional: preencha só o que quiser acompanhar.</span></div></div>'
         + '<div class="flex-1 overflow-y-auto p-5">'
         + (items.length ? '<table class="w-full text-sm"><thead class="text-[10px] font-bold uppercase tracking-widest text-slate-500"><tr>'
-          + '<th class="text-left pb-2">Produto</th><th class="text-right pb-2">Vendas</th><th class="text-right pb-2 w-32"><span class="units-col-label">' + escU(label) + '</span> por unidade</th></tr></thead><tbody>'
+          + '<th class="text-left pb-2">Produto</th><th class="text-right pb-2">Vendas</th><th class="text-right pb-2 w-28"><span class="units-col-label">' + escU(label) + '</span> por unidade</th><th class="text-right pb-2 w-28">Estoque (<span class="units-col-label">' + escU(label) + '</span>)</th></tr></thead><tbody>'
           + items.map(it => {
             const k = unitKeyOf(it.name);
             const cur = cfg.per[k];
             const sug = unitParseFromName(it.name, label);
             const val = (typeof cur === 'number' && cur > 0) ? cur : (sug || '');
+            const stk = (cfg.stock && typeof cfg.stock[k] === 'number' && cfg.stock[k] > 0) ? cfg.stock[k] : '';
             return '<tr class="border-t border-slate-100">'
               + '<td class="py-2 pr-3 font-semibold text-[#041227]">' + escU(it.name) + '</td>'
               + '<td class="py-2 text-right text-slate-500 tabular-nums">' + fmtInt(it.qty) + '</td>'
-              + '<td class="py-2 text-right"><input data-unit-key="' + escU(k) + '" type="number" min="0" step="0.01" value="' + val + '" class="w-24 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-right text-sm" /></td></tr>';
+              + '<td class="py-2 text-right"><input data-unit-key="' + escU(k) + '" type="number" min="0" step="0.01" value="' + val + '" class="w-20 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-right text-sm" /></td>'
+              + '<td class="py-2 text-right"><input data-stock-key="' + escU(k) + '" type="number" min="0" step="0.1" value="' + stk + '" placeholder="—" class="w-20 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-right text-sm" /></td></tr>';
           }).join('') + '</tbody></table>'
           : '<p class="text-sm text-slate-400 text-center py-8">Nenhum produto encontrado nos negócios carregados. Cadastre produtos nos negócios do CRM e recarregue o BI.</p>')
         + '</div>'
@@ -8656,15 +8661,21 @@
         });
       });
       document.getElementById('unitsSave').addEventListener('click', () => {
-        const per = {};
+        const per = {}, stock = {}, names = {};
         ov.querySelectorAll('[data-unit-key]').forEach(inp => {
           const v = parseFloat(inp.value);
           if (!isNaN(v) && v > 0) per[inp.getAttribute('data-unit-key')] = v;
         });
+        ov.querySelectorAll('[data-stock-key]').forEach(inp => {
+          const v = parseFloat(inp.value);
+          if (!isNaN(v) && v > 0) stock[inp.getAttribute('data-stock-key')] = v;
+        });
+        items.forEach(it => { names[unitKeyOf(it.name)] = it.name; });
         const next = {
           enabled: document.getElementById('unitsEnabled').checked,
           label: document.getElementById('unitsLabelSel').value,
-          per
+          per, stock, names,
+          stockAt: (document.getElementById('unitsStockAt').value || new Date().toISOString().slice(0, 10))
         };
         try { localStorage.setItem(UNIT_STORAGE, JSON.stringify(next)); } catch (e) {}
         close();
@@ -8672,6 +8683,72 @@
         if (typeof renderActiveTab === 'function') renderActiveTab();
       });
     }
+    // ---- Cobertura de ESTOQUE (declarado no modal, baixa pelo vendido no CRM) ----
+    function renderStockBlock() {
+      const cfg = unitCfg();
+      const volCard = document.getElementById('prodKpiVolumeCard');
+      if (!volCard) return;
+      let block = document.getElementById('prodStockBlock');
+      const stockKeys = Object.keys(cfg.stock || {});
+      if (!cfg.enabled || !stockKeys.length || !biState.raw) { if (block) block.classList.add('hidden'); return; }
+      if (!block) {
+        block = document.createElement('div');
+        block.id = 'prodStockBlock';
+        block.className = 'mt-4';
+        const anchor = volCard.closest('.grid') || volCard.parentElement;
+        anchor.insertAdjacentElement('afterend', block);
+      }
+      block.classList.remove('hidden');
+      const escS = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const since = cfg.stockAt ? new Date(cfg.stockAt + 'T00:00:00-03:00').getTime() : 0;
+
+      // Consumo por produto DESDE a contagem (todos os deals ganhos; ignora o filtro de período)
+      const consumed = {};
+      let volSum = 0, dealsN = 0;
+      (biState.raw.deals || []).forEach(d => {
+        if (!isWon(d)) return;
+        const t = new Date(d.statusChangedAt || d.lastMovedAt || d.createdAt).getTime();
+        if (t < since) return;
+        let dv = 0;
+        (d.products || []).forEach(ln => {
+          const vol = (ln.quantity || 0) * unitPerOf(ln.name);
+          if (vol > 0) { const k = unitKeyOf(ln.name); consumed[k] = (consumed[k] || 0) + vol; dv += vol; }
+        });
+        if (dv > 0) { volSum += dv; dealsN++; }
+      });
+      const avgPerDeal = dealsN ? volSum / dealsN : 0;
+
+      let totRemain = 0, totStock = 0, critical = 0;
+      const rowsHtml = stockKeys.map(k => {
+        const stockV = cfg.stock[k];
+        const used = consumed[k] || 0;
+        const remain = Math.max(0, stockV - used);
+        totRemain += remain; totStock += stockV;
+        const pct = stockV > 0 ? remain / stockV * 100 : 0;
+        const low = remain <= 0 || pct < 10, warn = !low && pct < 20;
+        if (low || warn) critical++;
+        const color = low ? '#ef4444' : warn ? '#f59e0b' : 'var(--color-primary,#00A859)';
+        const badge = remain <= 0 ? '🔴 ESGOTADO' : (low ? '🔴' : warn ? '⚠️' : '') + ' ' + pct.toFixed(0) + '%';
+        const name = (cfg.names && cfg.names[k]) || k;
+        return '<div class="flex items-center gap-3 py-2 border-t border-slate-100">'
+          + '<div class="flex-1 min-w-0"><p class="text-sm font-semibold text-[#041227] truncate">' + escS(name) + '</p>'
+          + '<div class="mt-1 h-1.5 rounded-full bg-slate-100 overflow-hidden"><div class="h-full rounded-full" style="width:' + Math.max(2, Math.min(100, pct)).toFixed(0) + '%;background:' + color + '"></div></div></div>'
+          + '<div class="text-right whitespace-nowrap"><p class="text-sm font-bold tabular-nums" style="color:' + color + '">' + fmtVol(remain) + ' / ' + fmtVol(stockV) + ' ' + cfg.label + '</p>'
+          + '<p class="text-[10px] text-slate-400">' + badge + '</p></div></div>';
+      }).join('');
+
+      const sinceLabel = cfg.stockAt ? new Date(cfg.stockAt + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
+      block.innerHTML = '<div class="bg-white rounded-lg border ' + (critical ? 'border-amber-300' : 'border-slate-200') + ' p-4">'
+        + '<div class="flex items-center justify-between flex-wrap gap-2 mb-1">'
+        + '<h4 class="text-sm font-bold text-[#041227]">📦 Cobertura de estoque <span class="text-[10px] font-semibold text-slate-400">· contagem de ' + sinceLabel + '</span></h4>'
+        + '<div class="text-right"><span class="text-sm font-extrabold tabular-nums text-[#041227]">' + fmtVol(totRemain) + ' ' + cfg.label + ' restantes</span>'
+        + (avgPerDeal > 0 ? '<span class="text-[11px] text-slate-500 ml-2">≈ ' + fmtInt(Math.floor(totRemain / avgPerDeal)) + ' pedidos no ritmo médio (' + fmtVol(avgPerDeal) + ' ' + cfg.label + '/pedido)</span>' : '')
+        + '</div></div>'
+        + rowsHtml
+        + '<p class="text-[10px] text-slate-400 mt-2">Baixa automática pelo que foi VENDIDO no CRM desde a contagem. Venda fora do CRM não desconta: refaça a contagem no 📦 Unidades quando fizer inventário.</p>'
+        + '</div>';
+    }
+
     { const ub = document.getElementById('unitsOpenBtn'); if (ub) ub.addEventListener('click', openUnitsModal); }
 
     // ======================================================================
