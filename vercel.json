@@ -1,5 +1,11 @@
 {
   "version": 2,
+  "crons": [
+    {
+      "path": "/api/datacrazy/daily-report-send",
+      "schedule": "0 11 * * *"
+    }
+  ],
   "functions": {
     "api/datacrazy/*.js": {
       "maxDuration": 60

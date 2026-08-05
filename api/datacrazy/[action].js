@@ -14,6 +14,7 @@ const HANDLERS = {
   'bi-leads':           () => require('./_handlers/bi-leads.js'),
   'conversations':      () => require('./_handlers/conversations.js'),
   'daily-report':       () => require('./_handlers/daily-report.js'),
+  'daily-report-send':  () => require('./_handlers/daily-report-send.js'),
   'daily-productivity': () => require('./_handlers/daily-productivity.js'),
   'instances':          () => require('./_handlers/instances.js'),
   'leads':              () => require('./_handlers/leads.js'),
