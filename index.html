@@ -761,7 +761,8 @@
 
             <!-- CANAIS DE AQUISIÇÃO (chips agrupados) -->
             <div class="bg-white rounded-xl border border-slate-200 p-4">
-              <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-3">Canais de Aquisição</p>
+              <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-1">Canais de Aquisição</p>
+              <p id="funnelAcqScope" class="text-[10px] text-slate-400 mb-3"></p>
               <div id="funnelAcqChips" class="flex flex-wrap gap-2"></div>
             </div>
 
@@ -7841,10 +7842,38 @@
       document.getElementById('funnelConversion').textContent = (denom > 0 ? (wonDeals.length / denom * 100) : 0).toFixed(1) + '%';
 
       // ===== Item 7 — Chips de Canal de Aquisição (buckets de alto nível) =====
-      const acqSource = biState.filtered || [];   // leads = deals criados no período
+      // AQUISIÇÃO SE CONTA POR LEAD, não por negócio (ago/2026). Antes isto percorria
+      // biState.filtered (deals): um lead com 2 negócios contava 2x e lead sem negócio
+      // não contava nunca — os chips diziam 84 "tráfego pago" onde o CRM tem 41 leads.
+      // Agora usa a base de leads pela data de criação DO LEAD, em todas as pipelines,
+      // mesmo recorte da aba Origem. Sem a base de leads, cai no modo antigo e avisa.
+      const acqLeads = (biState.raw && Array.isArray(biState.raw.leads)) ? biState.raw.leads : null;
+      const acqRange = getCurrentPeriodRange();
+      const acqAtt = biState.filters.attendant;
+      let acqSource, acqByLead;
+      if (acqLeads) {
+        acqByLead = true;
+        acqSource = acqLeads.filter(l => {
+          if (!l.createdAt) return false;
+          const t = new Date(l.createdAt).getTime();
+          if (!(t >= acqRange.start && t < acqRange.end)) return false;
+          if (acqAtt !== '__all__' && l.attendantId !== acqAtt) return false;
+          return true;
+        }).map(l => ({ leadTags: l.tags || [] }));   // shape que getDealAcqBucket espera
+      } else {
+        acqByLead = false;
+        acqSource = biState.filtered || [];
+      }
       const acqTotal = acqSource.length || 1;
       const acqCounts = {};
       for (const d of acqSource) { const b = getDealAcqBucket(d); acqCounts[b] = (acqCounts[b] || 0) + 1; }
+      const acqLabelEl = document.getElementById('funnelAcqScope');
+      if (acqLabelEl) {
+        acqLabelEl.textContent = acqByLead
+          ? `${fmtInt(acqSource.length)} leads criados no período · todas as pipelines`
+          : `${fmtInt(acqSource.length)} negócios criados no período (base de leads indisponível — número infla quando um lead tem vários negócios)`;
+        acqLabelEl.className = acqByLead ? 'text-[10px] text-slate-400 font-normal normal-case tracking-normal' : 'text-[10px] text-amber-600 font-normal normal-case tracking-normal';
+      }
       const chipsEl = document.getElementById('funnelAcqChips');
       const acqItems = ACQ_BUCKETS.filter(b => acqCounts[b.key]).sort((a, b) => acqCounts[b.key] - acqCounts[a.key]);
       chipsEl.innerHTML = acqItems.length ? acqItems.map(b => {
