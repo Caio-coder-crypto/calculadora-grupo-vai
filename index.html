@@ -452,6 +452,10 @@
                     class="inline-flex items-center gap-1.5 text-xs font-semibold text-[#041227] bg-slate-100 hover:bg-slate-200 ring-1 ring-slate-300 px-3 py-1.5 rounded-lg transition">
               📦 Unidades
             </button>
+            <button id="dailyReportBtn" type="button"
+                    class="inline-flex items-center gap-1.5 text-xs font-semibold text-[#041227] bg-[#25D366]/15 hover:bg-[#25D366]/25 ring-1 ring-[#25D366]/50 px-3 py-1.5 rounded-lg transition">
+              💬 Resumo do dia
+            </button>
           </div>
         </div>
 
@@ -2207,6 +2211,41 @@
             <button id="kommoSave" type="button" class="flex-1 px-4 py-2.5 rounded-lg bg-[#7C3AED] text-white hover:bg-[#6D28D9] font-bold text-sm transition shadow-lg">Salvar e conectar (Kommo)</button>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- MODAL RESUMO DO DIA — texto pronto pra mandar no WhatsApp     -->
+  <!-- ============================================================ -->
+  <div id="dailyReportModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#041227]/80 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[88vh] overflow-hidden flex flex-col">
+      <div class="bg-[#041227] text-white p-5 relative flex-shrink-0">
+        <div class="absolute top-0 left-0 w-full h-1 flex">
+          <span class="flex-1 bg-[#25D366]"></span>
+          <span class="flex-1 bg-[#00A859]"></span>
+        </div>
+        <button id="dailyReportClose" type="button" class="absolute top-4 right-4 text-slate-300 hover:text-white">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-5 h-5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <h3 class="text-lg font-bold flex items-center gap-2">💬 Resumo do dia</h3>
+        <p class="text-sm text-slate-300 mt-1">Texto pronto pra colar no WhatsApp. Escolha o dia e copie.</p>
+      </div>
+
+      <div class="bg-slate-50 border-b border-slate-200 p-3 flex-shrink-0 flex items-center gap-2 flex-wrap">
+        <label class="text-xs font-semibold text-slate-600">Dia:</label>
+        <input type="date" id="dailyReportDate" class="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm" />
+        <button id="dailyReportReload" type="button" class="text-xs font-semibold bg-[#041227] text-white px-3 py-1.5 rounded-lg hover:bg-[#0a2140] transition">Gerar</button>
+        <span id="dailyReportStatus" class="text-xs text-slate-500"></span>
+      </div>
+
+      <div class="p-5 overflow-y-auto flex-1">
+        <pre id="dailyReportText" class="whitespace-pre-wrap font-sans text-sm bg-slate-50 border border-slate-200 rounded-xl p-4 text-[#041227] leading-relaxed">Carregando…</pre>
+        <p id="dailyReportNote" class="text-[11px] text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 mt-3 hidden"></p>
+      </div>
+
+      <div class="border-t border-slate-200 p-4 flex items-center justify-end gap-2 flex-shrink-0">
+        <button id="dailyReportCopy" type="button" class="text-sm font-semibold bg-[#25D366] text-white px-4 py-2 rounded-lg hover:bg-[#1eb85a] transition">📋 Copiar mensagem</button>
       </div>
     </div>
   </div>
@@ -5436,6 +5475,73 @@
         setBiView('biError');
       }
     }
+
+    // ===== Resumo do dia (texto pronto pro WhatsApp) =====
+    // Só PREVIEW: gera e mostra. O disparo automático é um passo separado —
+    // mensagem recorrente indo pra cliente não se liga sem validação humana.
+    function dailyReportYesterdayISO() {
+      const brt = new Date(Date.now() - 3 * 3600000);
+      const y = new Date(Date.UTC(brt.getUTCFullYear(), brt.getUTCMonth(), brt.getUTCDate() - 1));
+      return y.toISOString().slice(0, 10);
+    }
+
+    async function loadDailyReport() {
+      const dateEl = document.getElementById('dailyReportDate');
+      const textEl = document.getElementById('dailyReportText');
+      const statusEl = document.getElementById('dailyReportStatus');
+      const noteEl = document.getElementById('dailyReportNote');
+      const pipeline = biState.filters.pipeline !== '__all__' ? biState.filters.pipeline : '';
+      textEl.textContent = 'Gerando…';
+      statusEl.textContent = '';
+      noteEl.classList.add('hidden');
+      try {
+        const qs = '?date=' + encodeURIComponent(dateEl.value || dailyReportYesterdayISO()) +
+                   (pipeline ? '&pipelineId=' + encodeURIComponent(pipeline) : '');
+        const res = await dcFetch('/api/datacrazy/daily-report' + qs);
+        const raw = await res.text();
+        let data;
+        try { data = JSON.parse(raw); } catch { throw new Error(`Resposta inesperada (HTTP ${res.status}).`); }
+        if (!res.ok || data.error) throw new Error(data.message || `HTTP ${res.status}`);
+        textEl.textContent = data.text || '(vazio)';
+        statusEl.textContent = `${fmtInt(data.scanned?.businesses || 0)} negócios · ${fmtInt(data.scanned?.leads || 0)} leads lidos`;
+        if (data.precision?.note) {
+          noteEl.textContent = '⚠️ ' + data.precision.note;
+          noteEl.classList.remove('hidden');
+        }
+      } catch (err) {
+        textEl.textContent = 'Falha ao gerar: ' + (err.message || err);
+      }
+    }
+
+    (function wireDailyReport() {
+      const btn = document.getElementById('dailyReportBtn');
+      const modal = document.getElementById('dailyReportModal');
+      if (!btn || !modal) return;
+      btn.addEventListener('click', () => {
+        const dateEl = document.getElementById('dailyReportDate');
+        if (!dateEl.value) dateEl.value = dailyReportYesterdayISO();
+        modal.classList.remove('hidden');
+        loadDailyReport();
+      });
+      document.getElementById('dailyReportClose').addEventListener('click', () => modal.classList.add('hidden'));
+      modal.addEventListener('click', e => { if (e.target === modal) modal.classList.add('hidden'); });
+      document.getElementById('dailyReportReload').addEventListener('click', loadDailyReport);
+      document.getElementById('dailyReportCopy').addEventListener('click', async () => {
+        const txt = document.getElementById('dailyReportText').textContent || '';
+        const b = document.getElementById('dailyReportCopy');
+        try {
+          await navigator.clipboard.writeText(txt);
+          b.textContent = '✅ Copiado!';
+        } catch {
+          // clipboard bloqueado (http, permissão) → fallback que sempre funciona
+          const ta = document.createElement('textarea');
+          ta.value = txt; document.body.appendChild(ta); ta.select();
+          document.execCommand('copy'); ta.remove();
+          b.textContent = '✅ Copiado!';
+        }
+        setTimeout(() => { b.textContent = '📋 Copiar mensagem'; }, 1800);
+      });
+    })();
 
     // ===== Backend selecionável: DataCrazy (padrão) ou Kommo =====
     // Liga em: localStorage.dc_backend='kommo' (ou abra a página com ?backend=kommo).
