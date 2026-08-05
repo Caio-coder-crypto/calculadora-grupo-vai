@@ -31,7 +31,7 @@
 // sem torrar mensagem no WhatsApp de ninguém.
 // ============================================================
 
-const { dcGetAll, send, sendError, handleOptions } = require('../_client');
+const { dcGetAll, send, sendError, handleOptions, validateApiKey } = require('../_client');
 const { buildDailyReport } = require('./_daily-report-core.js');
 
 function parseTargets() {
@@ -115,6 +115,10 @@ module.exports = async function handler(req, res) {
     for (const t of targets) {
       const label = t.label || t.phone;
       try {
+        // Kill switch também vale pro automático: cliente inadimplente/desconhecido
+        // não pode continuar recebendo relatório porque o cron não passa pelo
+        // getValidatedKey dos handlers normais. Lança 401/403 e cai no catch.
+        await validateApiKey(t.key, 'config');
         const report = await buildDailyReport(t.key, { date: dateOverride, pipelineId: t.pipelineId || null });
         const phone = normalizePhone(t.phone);
         if (dry) {

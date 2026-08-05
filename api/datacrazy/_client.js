@@ -377,6 +377,7 @@ module.exports = {
   sendError,
   getApiKey,           // mantido por compatibilidade (uso interno)
   getValidatedKey,     // novo — use este nos handlers
+  validateApiKey,      // p/ fluxos SEM request (cron): valida a chave direto
   getClientEmpresa,    // nome do cliente (empresa) p/ cabeçalho do painel
   handleOptions,
   API_BASE,
