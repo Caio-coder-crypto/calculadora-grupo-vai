@@ -2239,6 +2239,7 @@
           <option value="__all__">Todas as categorias</option>
           <option value="channel">📍 Canal</option>
           <option value="sub_origin">🎯 Sub-origem</option>
+          <option value="import_list">📥 Importação/Outbound</option>
           <option value="geography">🗺️ Geografia</option>
           <option value="status">📊 Status</option>
           <option value="other">📦 Outros</option>
@@ -4154,6 +4155,17 @@
         // Estados por extenso
         { pattern: /^\s*(acre|alagoas|amap[áa]|amazonas|bahia|cear[áa]|distrito federal|esp[íi]rito santo|goi[áa]s|maranh[ãa]o|mato grosso|mato grosso do sul|minas gerais|par[áa]|para[íi]ba|paran[áa]|pernambuco|piau[íi]|rio de janeiro|rio grande do norte|rio grande do sul|rond[ôo]nia|roraima|santa catarina|s[ãa]o paulo|sergipe|tocantins)\s*$/i, name: '__UF_FULL__' }
       ],
+      // Listas importadas / prospecção fria. NÃO são canal de aquisição: entram na
+      // base por upload, não por mídia. Ficam fora dos denominadores de % de canal
+      // pra não diluir a leitura de ROI (senão uma planilha de 243 nomes vira "41,8%
+      // não mapeado" e esconde que o rastreio dos leads REAIS está saudável).
+      // Poucos padrões automáticos de propósito — o nome da lista é sempre do cliente,
+      // então o caminho normal é marcar a tag como "Importação" na modal de canais.
+      import_list: [
+        { pattern: /^\s*importa[çc][ãa]o.*$/i,                             name: 'Importação' },
+        { pattern: /^\s*lista\s+.*$/i,                                     name: 'Lista importada' },
+        { pattern: /^\s*(base\s*fria|cold\s*list|mailing)\s*$/i,           name: 'Base fria' }
+      ],
       status: [
         { pattern: /^\s*(closer|sdr|atendente|key\s*account)\s*$/i,        name: '__ROLE__' },
         { pattern: /^\s*cliente\s*ativo\s*$/i,                             name: 'Cliente Ativo' },
@@ -4201,14 +4213,25 @@
       return { category: 'other', normalizedName: raw };
     }
 
+    // Baldes especiais — não são canais, são estados de rastreamento.
+    // Ficam fora dos denominadores de % de canal (ver renderFunnel/renderOrigin).
+    const UNTRACKED_BUCKET = 'Não rastreado';
+    // Sem espaços em volta da barra de propósito: channelRoot() separa canal de
+    // sub-origem por ' / ', e este rótulo não pode ser fatiado em pai/filho.
+    const IMPORT_BUCKET    = 'Importação/Outbound';
+    function isNonChannelBucket(name) {
+      return name === UNTRACKED_BUCKET || name === IMPORT_BUCKET;
+    }
+
     /**
      * Compõe o "canal" final de um lead/deal a partir de suas tags.
      *
-     * REGRA DE NEGÓCIO: ausência de tag = ORGÂNICO.
-     * Se o lead não tem nenhuma tag de canal/sub-origem, é porque chegou
-     * sem rastreamento — ou seja, veio direto/orgânico (nada de Meta, Google,
-     * Link Bio, Instagram, etc.). Vale especialmente para clientes que ainda
-     * não têm automação de tagging de origem no DataCrazy.
+     * REGRA DE NEGÓCIO (revisada ago/2026): ausência de tag = NÃO RASTREADO.
+     * Antes isto virava "Orgânico", partindo do princípio de que quem não tem
+     * tag de canal chegou direto. Na prática o balde virou depósito de falha de
+     * tagueamento (47% da base da Happy Day em julho) e o painel afirmava que
+     * metade da aquisição era orgânica sem nenhuma evidência disso.
+     * Orgânico agora exige a tag explícita; o resto é declarado não rastreado.
      *
      * Lógica:
      *   - 1+ channel + 1+ sub → "Channel / Sub" (combina os primeiros)
@@ -4223,17 +4246,33 @@
         : (tagsOrLead?.leadTags || tagsOrLead?.tags || []).map(t => typeof t === 'string' ? t : (t.name || ''));
 
       const channels = [], subs = [];
+      let isImport = false;
       for (const t of tags) {
         if (!t) continue;
         const c = classifyTag(t, overrides);
         if (c.category === 'channel') channels.push(t);
         else if (c.category === 'sub_origin') subs.push(t);
+        else if (c.category === 'import_list') isImport = true;
       }
 
-      // Sem nenhum canal nem sub-origem → orgânico (regra de negócio)
-      if (channels.length === 0 && subs.length === 0) return 'Orgânico';
+      // Lista importada sem canal declarado → não é aquisição de mídia.
+      // (Se a lista TAMBÉM tem canal marcado, o canal vence — importação de uma
+      // campanha específica continua sendo daquele canal.)
+      if (isImport && channels.length === 0 && subs.length === 0) return IMPORT_BUCKET;
+
+      // Sem canal nem sub-origem = SEM RASTREIO. Antes isto retornava 'Orgânico',
+      // o que misturava orgânico real com falha de tagueamento e inflava o canal
+      // orgânico — na Happy Day, 47% de julho caía nesse balde silenciosamente.
+      if (channels.length === 0 && subs.length === 0) return UNTRACKED_BUCKET;
       // Só sub-origem → entrou pelo placement orgânico (sem ad pago associado)
       if (channels.length === 0) return subs[0] + ' (orgânico)';
+      // Com mais de um canal, o PAGO vence — mesma prioridade de getDealPlatform,
+      // senão um lead com ["Orgânico","TIKTOK"] cai em Orgânico aqui e em Tráfego
+      // Pago nos chips. Empate entre pagos mantém a ordem original.
+      if (channels.length > 1) {
+        const paidFirst = channels.filter(t => { const p = autoPlatformForTag(t); return p && p !== 'organic'; });
+        if (paidFirst.length) channels.unshift(...paidFirst.splice(0, 1));
+      }
       // Só canal → usa o nome do canal direto
       if (subs.length === 0) return channels[0];
       // Canal + sub → composição
@@ -4336,21 +4375,30 @@
       return null;
     }
     // Plataforma de um deal: 1) de-para manual (tag), 2) auto por canal,
-    // 3) sem tag = orgânico, 4) tem tag 'other' (provável campanha) = não mapeado.
+    // 3) tag de lista importada = 'import', 4) nada reconhecido = 'unmapped'.
+    //
+    // UNIFICAÇÃO (ago/2026): esta função e composeChannel davam respostas
+    // diferentes pro MESMO registro — sem tag virava 'organic' aqui e 'Orgânico'
+    // lá, mas tag não reconhecida virava 'unmapped' aqui e 'Orgânico' lá. Os dois
+    // painéis discordavam em ~250 registros. Agora a regra é uma só:
+    // orgânico exige tag explícita de orgânico; o resto é não rastreado.
     function getDealPlatform(deal, map) {
       map = map || getChannelPlatformMap();
       const tags = deal.leadTags || [];
       const PAID = ['meta', 'google', 'tiktok', 'other'];
-      let organicSeen = false;
+      let organicSeen = false, importSeen = false;
       for (const t of tags) {
         const p = map[t] || autoPlatformForTag(t);   // de-para manual vence o auto NA MESMA tag
-        if (!p) continue;
+        if (!p) {
+          if (classifyTag(t).category === 'import_list') importSeen = true;
+          continue;
+        }
         if (PAID.includes(p)) return p;               // canal PAGO sempre vence (independe da ordem das tags)
         if (p === 'organic') organicSeen = true;
       }
-      if (organicSeen) return 'organic';
-      if (tags.length === 0) return 'organic';
-      return tags.some(t => classifyTag(t).category === 'other') ? 'unmapped' : 'organic';
+      if (organicSeen) return 'organic';              // só com tag explícita de orgânico
+      if (importSeen)  return 'import';               // lista importada sem canal declarado
+      return 'unmapped';                              // sem tag, ou só tags que não dizem origem
     }
 
     // ===== Item 7 — Buckets de Canal de Aquisição (alto nível, pros chips do funil) =====
@@ -4362,11 +4410,15 @@
       { key: 'reactivation', label: 'Reativação',        color: '#F59E0B', icon: '🔄' },
       { key: 'referral',     label: 'Indicação',         color: '#EAB308', icon: '⭐' },
       { key: 'organic',      label: 'Orgânico',          color: '#10B981', icon: '🌱' },
-      { key: 'unmapped',     label: 'Não mapeado',       color: '#94A3B8', icon: '⚠️' }
+      { key: 'import',       label: 'Importação/Outbound', color: '#64748B', icon: '📥' },
+      { key: 'unmapped',     label: 'Não rastreado',     color: '#94A3B8', icon: '⚠️' }
     ];
+    // Buckets que NÃO são canal de aquisição — ficam fora do denominador das %.
+    const NON_CHANNEL_ACQ = ['import', 'unmapped'];
     function getDealAcqBucket(deal) {
       const plat = getDealPlatform(deal);
       if (['meta', 'google', 'tiktok', 'other'].includes(plat)) return 'paid';  // reusa o de-para (Sales Hunter→Meta vira Tráfego Pago)
+      if (plat === 'import') return 'import';
       for (const t of (deal.leadTags || [])) {
         const n = (t || '').toLowerCase();
         if (/indica|referral/.test(n)) return 'referral';
@@ -4487,6 +4539,7 @@
     const CATEGORY_LABELS = {
       channel: '📍 Canal',
       sub_origin: '🎯 Sub-origem',
+      import_list: '📥 Importação/Outbound',
       geography: '🗺️ Geografia',
       status: '📊 Status',
       other: '📦 Outros'
@@ -4494,6 +4547,7 @@
     const CATEGORY_COLORS = {
       channel: 'bg-[#00A859]/10 text-[#00754d] ring-[#00A859]/30',
       sub_origin: 'bg-[#FFB81C]/15 text-[#7a5400] ring-[#FFB81C]/40',
+      import_list: 'bg-slate-200/70 text-slate-700 ring-slate-300',
       geography: 'bg-sky-50 text-sky-700 ring-sky-200',
       status: 'bg-violet-50 text-violet-700 ring-violet-200',
       other: 'bg-slate-100 text-slate-600 ring-slate-200'
@@ -4563,6 +4617,7 @@
                       class="tag-cat-select text-xs rounded-md border border-slate-200 bg-white px-2 py-1 focus:outline-none focus:ring-1 focus:ring-[#00A859]">
                 <option value="channel" ${c.category === 'channel' ? 'selected' : ''}>📍 Canal</option>
                 <option value="sub_origin" ${c.category === 'sub_origin' ? 'selected' : ''}>🎯 Sub-origem</option>
+                <option value="import_list" ${c.category === 'import_list' ? 'selected' : ''}>📥 Importação/Outbound</option>
                 <option value="geography" ${c.category === 'geography' ? 'selected' : ''}>🗺️ Geografia</option>
                 <option value="status" ${c.category === 'status' ? 'selected' : ''}>📊 Status</option>
                 <option value="other" ${c.category === 'other' ? 'selected' : ''}>📦 Outros</option>
@@ -7864,9 +7919,14 @@
         acqByLead = false;
         acqSource = biState.filtered || [];
       }
-      const acqTotal = acqSource.length || 1;
       const acqCounts = {};
       for (const d of acqSource) { const b = getDealAcqBucket(d); acqCounts[b] = (acqCounts[b] || 0) + 1; }
+      // % de canal se calcula sobre quem TEM canal. Importação e não rastreado ficam
+      // visíveis, mas fora do denominador — senão uma planilha importada de 243 nomes
+      // dilui todos os canais e o painel sugere que a mídia performou pior do que performou.
+      let acqChannelTotal = 0;
+      for (const [k, v] of Object.entries(acqCounts)) if (!NON_CHANNEL_ACQ.includes(k)) acqChannelTotal += v;
+      const acqTotal = acqChannelTotal || 1;
       const acqLabelEl = document.getElementById('funnelAcqScope');
       if (acqLabelEl) {
         acqLabelEl.textContent = acqByLead
@@ -7877,12 +7937,16 @@
       const chipsEl = document.getElementById('funnelAcqChips');
       const acqItems = ACQ_BUCKETS.filter(b => acqCounts[b.key]).sort((a, b) => acqCounts[b.key] - acqCounts[a.key]);
       chipsEl.innerHTML = acqItems.length ? acqItems.map(b => {
-        const c = acqCounts[b.key], pct = (c / acqTotal * 100).toFixed(1);
-        return `<div class="inline-flex items-center gap-2 rounded-xl px-3 py-2 border" style="background:${b.color}14; border-color:${b.color}55">
+        const c = acqCounts[b.key];
+        const offScale = NON_CHANNEL_ACQ.includes(b.key);
+        const meta = offScale
+          ? '<span class="text-[10px] font-semibold text-slate-400">(fora do %)</span>'
+          : `<span class="text-[10px] font-semibold text-slate-400">(${(c / acqTotal * 100).toFixed(1)}%)</span>`;
+        return `<div class="inline-flex items-center gap-2 rounded-xl px-3 py-2 border${offScale ? ' border-dashed' : ''}" style="background:${b.color}14; border-color:${b.color}55" ${offScale ? 'title="Não é canal de aquisição — contabilizado, mas fora do cálculo de percentual dos canais."' : ''}>
             <span class="text-base">${b.icon}</span>
             <div class="leading-tight">
               <p class="text-[9px] font-bold uppercase tracking-widest text-slate-500">${escapeHTML(b.label)}</p>
-              <p class="text-sm font-extrabold text-[#041227]">${fmtInt(c)} <span class="text-[10px] font-semibold text-slate-400">(${pct}%)</span></p>
+              <p class="text-sm font-extrabold text-[#041227]">${fmtInt(c)} ${meta}</p>
             </div>
           </div>`;
       }).join('') : '<p class="text-xs text-slate-400">Sem leads no período.</p>';
@@ -8339,9 +8403,10 @@
       document.getElementById('originTable').innerHTML = rows.map(r => {
         // Só detalha as sub-origens quando elas existem de fato (ex.: Meta ADS / Form. Nativo)
         const showChildren = r.children.length > 1 || r.children[0].name !== r.name;
+        const offScale = isNonChannelBucket(r.name);
         const parent = `
-        <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer" data-origin-name="${escapeAttr(r.name)}" data-origin-level="root">
-          <td class="px-4 py-2 font-semibold text-[#041227]">${escapeHTML(r.name)} <span class="text-[10px] text-slate-400 ml-1">clique →</span></td>
+        <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer${offScale ? ' bg-slate-50/60' : ''}" data-origin-name="${escapeAttr(r.name)}" data-origin-level="root">
+          <td class="px-4 py-2 font-semibold ${offScale ? 'text-slate-500' : 'text-[#041227]'}">${escapeHTML(r.name)}${offScale ? ' <span class="text-[9px] font-normal text-slate-400" title="Não é canal de aquisição — está aqui para auditoria de rastreamento.">não é canal</span>' : ''} <span class="text-[10px] text-slate-400 ml-1">clique →</span></td>
           <td class="px-4 py-2 text-right font-semibold">${fmtInt(r.leads)}</td>
           <td class="px-4 py-2 text-right">${fmtInt(r.total)}</td>
           <td class="px-4 py-2 text-right text-[#00754d] font-semibold">${fmtInt(r.won)}</td>
