@@ -11,6 +11,7 @@
 const HANDLERS = {
   'activities':         () => require('./_handlers/activities.js'),
   'bi-data':            () => require('./_handlers/bi-data.js'),
+  'bi-leads':           () => require('./_handlers/bi-leads.js'),
   'conversations':      () => require('./_handlers/conversations.js'),
   'daily-productivity': () => require('./_handlers/daily-productivity.js'),
   'instances':          () => require('./_handlers/instances.js'),

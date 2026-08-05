@@ -915,10 +915,11 @@
                 <h4 class="text-sm font-bold text-[#041227]">ROI detalhado por canal</h4>
                 <p class="text-[11px] text-slate-500 mt-0.5">Agrupado por canal. Sub-origens aparecem recuadas sob o canal-pai. Ordenado por receita.</p>
                 <p class="text-[11px] text-slate-400 mt-1 leading-relaxed">
-                  <strong class="text-slate-500">Leads</strong> e <strong class="text-slate-500">Deals</strong> contam o que foi <em>criado</em> no período ·
-                  <strong class="text-slate-500">Ganhos</strong> e <strong class="text-slate-500">Perdidos</strong> contam o que foi <em>fechado</em> no período (podem se referir a negócios criados antes, por isso às vezes somam mais que Deals) ·
-                  tudo restrito ao pipeline selecionado acima.
+                  <strong class="text-slate-500">Leads</strong> = aquisição: conta o lead pela data de criação <em>do lead</em>, em <strong class="text-slate-500">todas as pipelines</strong> (inclusive quem ainda não virou negócio). É a coluna que bate 1:1 com a tela de Leads do CRM ·
+                  <strong class="text-slate-500">Deals</strong> = negócios criados no período, <em>restritos ao pipeline selecionado</em>; um lead com 2 negócios conta 2× ·
+                  <strong class="text-slate-500">Ganhos</strong> e <strong class="text-slate-500">Perdidos</strong> contam o que foi <em>fechado</em> no período, mesmo que criado antes (por isso podem superar Deals).
                 </p>
+                <p id="originLeadModeNote" class="text-[11px] mt-1.5 hidden"></p>
               </div>
               <div class="overflow-x-auto">
                 <table class="w-full min-w-[780px] text-sm">
@@ -5300,6 +5301,45 @@
       return data;
     }
 
+    // Carga de LEADS (aba Origem / canal de aquisição).
+    // Separado dos deals de propósito: aquisição se conta por LEAD e pela data de
+    // criação DO LEAD — inclusive quem ainda não virou negócio, que não existe em
+    // /businesses. É o que faz a aba Origem bater com a tela de Leads do CRM.
+    const BI_LEAD_CHUNK = 5000;
+
+    async function fetchBiLeadsChunk(skip, force) {
+      const qs = '?leadsSkip=' + skip + '&leadsTake=' + BI_LEAD_CHUNK + (force ? '&force=1' : '');
+      const res = await dcFetch('/api/datacrazy/bi-leads' + qs);
+      const rawText = await res.text();
+      let data;
+      try { data = JSON.parse(rawText); } catch { throw new Error(`Resposta inesperada em bi-leads (HTTP ${res.status}).`); }
+      if (!res.ok || data.error) throw new Error(data.message || `HTTP ${res.status}`);
+      return data;
+    }
+
+    // Devolve TODOS os leads da base (ou null se falhar — a aba Origem cai no modo
+    // por negócio e avisa, em vez de derrubar o BI inteiro).
+    async function loadBiLeads(force) {
+      try {
+        const first = await fetchBiLeadsChunk(0, force);
+        let all = Array.isArray(first.leads) ? first.leads.slice() : [];
+        const total = first.leadsTotal || all.length;
+        let guard = 0;
+        for (let skip = BI_LEAD_CHUNK; skip < total && guard < 40; skip += BI_LEAD_CHUNK) {
+          guard++;
+          const el = document.getElementById('biLoadingMsg');
+          if (el) el.textContent = `Carregando ${fmtInt(all.length)} de ${fmtInt(total)} leads…`;
+          const chunk = await fetchBiLeadsChunk(skip, force);
+          if (Array.isArray(chunk.leads)) all.push(...chunk.leads);
+          if (!chunk.hasMore) break;
+        }
+        return all;
+      } catch (err) {
+        console.warn('[bi] leads indisponíveis, aba Origem cai no modo por negócio:', err);
+        return null;
+      }
+    }
+
     async function loadBi(force = false) {
       if (dhIsDemo()) return loadDemoBI();                      // modo demonstração (dados fictícios, sem API)
       if (biBackend() === 'kommo') return loadKommoBI(force);   // backend Kommo (gated por localStorage dc_backend)
@@ -5324,8 +5364,11 @@
           if (!chunk.hasMore) break;
         }
 
-        // Monta o dataset completo: metadados do 1º chunk + TODOS os deals
-        const data = { ...first, deals: allDeals };
+        // Leads (aba Origem). Falha aqui não derruba o BI — vira fallback por negócio.
+        const allLeads = await loadBiLeads(force);
+
+        // Monta o dataset completo: metadados do 1º chunk + TODOS os deals + leads
+        const data = { ...first, deals: allDeals, leads: allLeads };
         biState.raw = data;
         computeLostStageIds();   // detecta etapas de perda (p/ classificar perda por etapa, igual ao CRM)
         populateBiFilters(data);
@@ -7353,7 +7396,7 @@
         sellerMap[d.attendantId].won++;
         sellerMap[d.attendantId].revenue += d.total || 0;
       }
-      const topSellers = Object.values(sellerMap).sort((a, b) => b.revenue - a.revenue);
+      const topSellers = Object.values(sellerMap).sort((a, b) => (b.revenue - a.revenue) || (b.leads - a.leads) || (b.total - a.total));
       const topSeller = topSellers[0];
       if (topSeller) {
         document.getElementById('kpiTopSellerName').textContent = topSeller.name;
@@ -7372,7 +7415,7 @@
         originMap[channel].count++;
         originMap[channel].revenue += d.total || 0;
       }
-      const topOrigins = Object.values(originMap).sort((a, b) => b.revenue - a.revenue);
+      const topOrigins = Object.values(originMap).sort((a, b) => (b.revenue - a.revenue) || (b.leads - a.leads) || (b.total - a.total));
       const topOrigin = topOrigins[0];
       if (topOrigin) {
         document.getElementById('kpiTopOriginName').textContent = topOrigin.name;
@@ -7992,7 +8035,7 @@
         role: getRoleFor(s.id),
         avgTicket: s.won > 0 ? s.revenue / s.won : 0,
         conversionRate: (s.won + s.lost) > 0 ? (s.won / (s.won + s.lost) * 100) : 0
-      })).sort((a, b) => b.revenue - a.revenue);
+      })).sort((a, b) => (b.revenue - a.revenue) || (b.leads - a.leads) || (b.total - a.total));
 
       // Aplica filtro de papel (atual: sellersFilter)
       if (biState.sellersFilter && biState.sellersFilter !== 'all') {
@@ -8100,17 +8143,45 @@
       // Agrupa por CANAL COMPOSTO (channel + sub_origin combinados).
       const byOrigin = {};
       const getBucket = (channel) => {
-        if (!byOrigin[channel]) byOrigin[channel] = { name: channel, total: 0, won: 0, lost: 0, revenue: 0, cycleDaysSum: 0, cycleDaysCount: 0, leadIds: new Set() };
+        if (!byOrigin[channel]) byOrigin[channel] = { name: channel, leads: 0, total: 0, won: 0, lost: 0, revenue: 0, cycleDaysSum: 0, cycleDaysCount: 0, leadIds: new Set() };
         return byOrigin[channel];
       };
 
-      // Contagem total (deals criados no período) + leads únicos.
-      // Deals conta negócio (um lead com 2 negócios conta 2x); leadIds dedupa por lead —
-      // é o número que reconcilia com a tela de Leads do CRM.
+      // ---- LEADS: a métrica de AQUISIÇÃO ----
+      // Conta o LEAD pela data de criação DO LEAD, em todas as pipelines, incluindo
+      // quem ainda não virou negócio. É o único recorte que bate 1:1 com a tela de
+      // Leads do CRM (filtro por tag + data de criação) — e é o que responde
+      // "quantos leads esse canal me trouxe?". Pipeline NÃO se aplica: lead não
+      // pertence a pipeline, negócio é que pertence.
+      const rawLeads = (biState.raw && Array.isArray(biState.raw.leads)) ? biState.raw.leads : null;
+      const leadModeOn = !!rawLeads;
+      const periodRange = getCurrentPeriodRange();
+      let leadsInPeriod = [];
+      if (leadModeOn) {
+        const { attendant } = biState.filters;
+        leadsInPeriod = rawLeads.filter(l => {
+          if (!l.createdAt) return false;
+          const t = new Date(l.createdAt).getTime();
+          if (!(t >= periodRange.start && t < periodRange.end)) return false;
+          if (attendant !== '__all__' && l.attendantId !== attendant) return false;
+          return true;
+        });
+        for (const l of leadsInPeriod) {
+          getBucket(composeChannel(l.tags || [], overrides)).leads++;
+        }
+      }
+
+      // ---- DEALS: a métrica de PIPELINE ----
+      // Negócios criados no período, respeitando o filtro de pipeline/vendedor.
+      // Um lead com 2 negócios conta 2x aqui — por isso Deals ≠ Leads.
       for (const d of dealsCreated) {
         const bucket = getBucket(composeChannel(d.leadTags || [], overrides));
         bucket.total++;
         if (d.leadId) bucket.leadIds.add(d.leadId);
+      }
+      // Fallback (endpoint de leads indisponível): usa leads distintos entre os deals.
+      if (!leadModeOn) {
+        for (const b of Object.values(byOrigin)) b.leads = b.leadIds.size;
       }
       // Receita (ganhos por statusChangedAt no período)
       for (const d of wonInPeriod) {
@@ -8133,27 +8204,48 @@
 
       const derive = (o) => ({
         ...o,
-        leads: o.leadIds.size,
         avgTicket: o.won > 0 ? o.revenue / o.won : 0,
         conversionRate: (o.won + o.lost) > 0 ? (o.won / (o.won + o.lost) * 100) : 0,
         avgCycleDays: o.cycleDaysCount > 0 ? o.cycleDaysSum / o.cycleDaysCount : null
       });
 
-      const variants = Object.values(byOrigin).map(derive).sort((a, b) => b.revenue - a.revenue);
+      const variants = Object.values(byOrigin).map(derive).sort((a, b) => (b.revenue - a.revenue) || (b.leads - a.leads) || (b.total - a.total));
 
       // Consolida sub-origens dentro do canal-pai: "Meta ADS / Form. Nativo" soma em "Meta ADS".
       // Sem isso o mesmo canal aparece fatiado em várias linhas e nenhuma bate com o CRM.
       const byRoot = {};
       for (const v of variants) {
         const root = channelRoot(v.name);
-        if (!byRoot[root]) byRoot[root] = { name: root, total: 0, won: 0, lost: 0, revenue: 0, cycleDaysSum: 0, cycleDaysCount: 0, leadIds: new Set(), children: [] };
+        if (!byRoot[root]) byRoot[root] = { name: root, leads: 0, total: 0, won: 0, lost: 0, revenue: 0, cycleDaysSum: 0, cycleDaysCount: 0, leadIds: new Set(), children: [] };
         const g = byRoot[root];
         g.children.push(v);
+        g.leads += v.leads;
         g.total += v.total; g.won += v.won; g.lost += v.lost; g.revenue += v.revenue;
         g.cycleDaysSum += v.cycleDaysSum; g.cycleDaysCount += v.cycleDaysCount;
         v.leadIds.forEach(id => g.leadIds.add(id));
       }
-      const rows = Object.values(byRoot).map(derive).sort((a, b) => b.revenue - a.revenue);
+      const rows = Object.values(byRoot).map(derive).sort((a, b) => (b.revenue - a.revenue) || (b.leads - a.leads) || (b.total - a.total));
+
+      // Aviso de contexto: quando há filtro de pipeline, Leads e Deals medem escopos
+      // diferentes de propósito — sem dizer isso, a divergência parece bug.
+      const noteEl = document.getElementById('originLeadModeNote');
+      if (noteEl) {
+        const pipeSel = document.getElementById('biFilterPipeline');
+        const pipeName = pipeSel && pipeSel.selectedIndex >= 0 ? pipeSel.options[pipeSel.selectedIndex].text : '';
+        if (!leadModeOn) {
+          noteEl.className = 'text-[11px] mt-1.5 text-amber-600';
+          noteEl.textContent = '⚠️ Base de leads indisponível — a coluna Leads está mostrando leads distintos entre os negócios do pipeline, não a base completa de aquisição.';
+          noteEl.classList.remove('hidden');
+        } else if (biState.filters.pipeline !== '__all__') {
+          noteEl.className = 'text-[11px] mt-1.5 text-sky-700 bg-sky-50 border border-sky-100 rounded px-2 py-1';
+          noteEl.innerHTML = `ℹ️ <strong>${fmtInt(leadsInPeriod.length)} leads</strong> criados no período (todas as pipelines) · as colunas de negócio abaixo mostram só <strong>${escapeHTML(pipeName)}</strong>. Se Deals ficou bem abaixo de Leads, é porque esses leads têm negócio em outro funil — ou ainda não têm negócio nenhum.`;
+          noteEl.classList.remove('hidden');
+        } else {
+          noteEl.className = 'text-[11px] mt-1.5 text-slate-400';
+          noteEl.textContent = `${fmtInt(leadsInPeriod.length)} leads criados no período.`;
+          noteEl.classList.remove('hidden');
+        }
+      }
 
       // Identifica o canal mais rápido e mais lento (entre os que têm ciclo calculado)
       const cyclesWithValue = rows.filter(r => r.avgCycleDays !== null && r.won > 0);
@@ -8658,7 +8750,7 @@
         const e = agg[k] || (agg[k] = { name: ln.name, qty: 0, revenue: 0 });
         e.qty += ln.quantity || 0; e.revenue += ln.total || 0;
       }));
-      const items = Object.values(agg).sort((a, b) => b.revenue - a.revenue);
+      const items = Object.values(agg).sort((a, b) => (b.revenue - a.revenue) || (b.leads - a.leads) || (b.total - a.total));
 
       let ov = document.getElementById('unitsModal'); if (ov) ov.remove();
       ov = document.createElement('div');
