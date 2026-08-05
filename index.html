@@ -913,19 +913,25 @@
             <div class="bg-white rounded-lg border border-slate-200 overflow-hidden">
               <div class="px-4 py-3 border-b border-slate-200">
                 <h4 class="text-sm font-bold text-[#041227]">ROI detalhado por canal</h4>
-                <p class="text-[11px] text-slate-500 mt-0.5">Soma deals dos leads com cada tag/source. Ordenado por receita.</p>
+                <p class="text-[11px] text-slate-500 mt-0.5">Agrupado por canal. Sub-origens aparecem recuadas sob o canal-pai. Ordenado por receita.</p>
+                <p class="text-[11px] text-slate-400 mt-1 leading-relaxed">
+                  <strong class="text-slate-500">Leads</strong> e <strong class="text-slate-500">Deals</strong> contam o que foi <em>criado</em> no período ·
+                  <strong class="text-slate-500">Ganhos</strong> e <strong class="text-slate-500">Perdidos</strong> contam o que foi <em>fechado</em> no período (podem se referir a negócios criados antes, por isso às vezes somam mais que Deals) ·
+                  tudo restrito ao pipeline selecionado acima.
+                </p>
               </div>
               <div class="overflow-x-auto">
-                <table class="w-full min-w-[680px] text-sm">
+                <table class="w-full min-w-[780px] text-sm">
                   <thead class="bg-slate-50 text-[10px] font-bold uppercase tracking-widest text-slate-500">
                     <tr>
                       <th class="px-4 py-2 text-left">Origem</th>
-                      <th class="px-4 py-2 text-right">Deals</th>
-                      <th class="px-4 py-2 text-right">Ganhos</th>
-                      <th class="px-4 py-2 text-right">Perdidos</th>
+                      <th class="px-4 py-2 text-right" title="Leads únicos (sem repetir quem tem mais de um negócio) criados no período, dentro do pipeline selecionado. É este número que bate com a tela de Leads do CRM.">Leads</th>
+                      <th class="px-4 py-2 text-right" title="Negócios criados no período. Um lead com 2 negócios conta 2 vezes.">Deals</th>
+                      <th class="px-4 py-2 text-right" title="Negócios FECHADOS COMO GANHOS no período (a criação pode ter sido antes)">Ganhos</th>
+                      <th class="px-4 py-2 text-right" title="Negócios FECHADOS COMO PERDIDOS no período (a criação pode ter sido antes)">Perdidos</th>
                       <th class="px-4 py-2 text-right">Receita</th>
                       <th class="px-4 py-2 text-right">Ticket Médio</th>
-                      <th class="px-4 py-2 text-right">Conv. %</th>
+                      <th class="px-4 py-2 text-right" title="Ganhos ÷ (Ganhos + Perdidos) — só sobre negócios fechados no período. Não usa a coluna Deals.">Conv. %</th>
                       <th class="px-4 py-2 text-right" title="Tempo médio entre criação e fechamento ganho">⏱️ Ciclo (dias)</th>
                     </tr>
                   </thead>
@@ -4230,6 +4236,16 @@
       if (subs.length === 0) return channels[0];
       // Canal + sub → composição
       return `${channels[0]} / ${subs[0]}`;
+    }
+
+    /**
+     * Extrai o canal-pai de um rótulo composto por composeChannel().
+     * "Meta ADS / Form. Nativo" → "Meta ADS" · "Meta ADS" → "Meta ADS"
+     * "Link Bio (orgânico)" fica intacto (não é sub de canal pago).
+     */
+    function channelRoot(composedName) {
+      const i = (composedName || '').indexOf(' / ');
+      return i === -1 ? composedName : composedName.slice(0, i);
     }
 
     // ======================================================================
@@ -8084,13 +8100,17 @@
       // Agrupa por CANAL COMPOSTO (channel + sub_origin combinados).
       const byOrigin = {};
       const getBucket = (channel) => {
-        if (!byOrigin[channel]) byOrigin[channel] = { name: channel, total: 0, won: 0, lost: 0, revenue: 0, cycleDaysSum: 0, cycleDaysCount: 0 };
+        if (!byOrigin[channel]) byOrigin[channel] = { name: channel, total: 0, won: 0, lost: 0, revenue: 0, cycleDaysSum: 0, cycleDaysCount: 0, leadIds: new Set() };
         return byOrigin[channel];
       };
 
-      // Contagem total (deals criados no período)
+      // Contagem total (deals criados no período) + leads únicos.
+      // Deals conta negócio (um lead com 2 negócios conta 2x); leadIds dedupa por lead —
+      // é o número que reconcilia com a tela de Leads do CRM.
       for (const d of dealsCreated) {
-        getBucket(composeChannel(d.leadTags || [], overrides)).total++;
+        const bucket = getBucket(composeChannel(d.leadTags || [], overrides));
+        bucket.total++;
+        if (d.leadId) bucket.leadIds.add(d.leadId);
       }
       // Receita (ganhos por statusChangedAt no período)
       for (const d of wonInPeriod) {
@@ -8111,12 +8131,29 @@
         getBucket(composeChannel(d.leadTags || [], overrides)).lost++;
       }
 
-      const rows = Object.values(byOrigin).map(o => ({
+      const derive = (o) => ({
         ...o,
+        leads: o.leadIds.size,
         avgTicket: o.won > 0 ? o.revenue / o.won : 0,
         conversionRate: (o.won + o.lost) > 0 ? (o.won / (o.won + o.lost) * 100) : 0,
         avgCycleDays: o.cycleDaysCount > 0 ? o.cycleDaysSum / o.cycleDaysCount : null
-      })).sort((a, b) => b.revenue - a.revenue);
+      });
+
+      const variants = Object.values(byOrigin).map(derive).sort((a, b) => b.revenue - a.revenue);
+
+      // Consolida sub-origens dentro do canal-pai: "Meta ADS / Form. Nativo" soma em "Meta ADS".
+      // Sem isso o mesmo canal aparece fatiado em várias linhas e nenhuma bate com o CRM.
+      const byRoot = {};
+      for (const v of variants) {
+        const root = channelRoot(v.name);
+        if (!byRoot[root]) byRoot[root] = { name: root, total: 0, won: 0, lost: 0, revenue: 0, cycleDaysSum: 0, cycleDaysCount: 0, leadIds: new Set(), children: [] };
+        const g = byRoot[root];
+        g.children.push(v);
+        g.total += v.total; g.won += v.won; g.lost += v.lost; g.revenue += v.revenue;
+        g.cycleDaysSum += v.cycleDaysSum; g.cycleDaysCount += v.cycleDaysCount;
+        v.leadIds.forEach(id => g.leadIds.add(id));
+      }
+      const rows = Object.values(byRoot).map(derive).sort((a, b) => b.revenue - a.revenue);
 
       // Identifica o canal mais rápido e mais lento (entre os que têm ciclo calculado)
       const cyclesWithValue = rows.filter(r => r.avgCycleDays !== null && r.won > 0);
@@ -8163,43 +8200,64 @@
       });
 
       // Tabela com drill-down clicável + coluna de ciclo
-      document.getElementById('originTable').innerHTML = rows.map(r => {
-        let cycleCell;
-        if (r.avgCycleDays === null) {
-          cycleCell = '<span class="text-slate-400">—</span>';
-        } else {
-          // Badge colorido: 🚀 mais rápido, 🐢 mais lento, normal os demais
-          let prefix = '';
-          let color = 'text-[#041227]';
-          if (cyclesWithValue.length > 1 && r.avgCycleDays === fastestCycle) {
-            prefix = '🚀 ';
-            color = 'text-[#00754d] font-bold';
-          } else if (cyclesWithValue.length > 1 && r.avgCycleDays === slowestCycle) {
-            prefix = '🐢 ';
-            color = 'text-red-600 font-bold';
-          }
-          cycleCell = `<span class="${color}">${prefix}${r.avgCycleDays.toFixed(1)}</span>`;
+      const cycleCellFor = (r, isChild) => {
+        if (r.avgCycleDays === null) return '<span class="text-slate-400">—</span>';
+        // Badge colorido: 🚀 mais rápido, 🐢 mais lento, normal os demais (só no nível do canal)
+        let prefix = '';
+        let color = isChild ? 'text-slate-500' : 'text-[#041227]';
+        if (!isChild && cyclesWithValue.length > 1 && r.avgCycleDays === fastestCycle) {
+          prefix = '🚀 ';
+          color = 'text-[#00754d] font-bold';
+        } else if (!isChild && cyclesWithValue.length > 1 && r.avgCycleDays === slowestCycle) {
+          prefix = '🐢 ';
+          color = 'text-red-600 font-bold';
         }
-        return `
-        <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer" data-origin-name="${escapeAttr(r.name)}">
+        return `<span class="${color}">${prefix}${r.avgCycleDays.toFixed(1)}</span>`;
+      };
+
+      document.getElementById('originTable').innerHTML = rows.map(r => {
+        // Só detalha as sub-origens quando elas existem de fato (ex.: Meta ADS / Form. Nativo)
+        const showChildren = r.children.length > 1 || r.children[0].name !== r.name;
+        const parent = `
+        <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer" data-origin-name="${escapeAttr(r.name)}" data-origin-level="root">
           <td class="px-4 py-2 font-semibold text-[#041227]">${escapeHTML(r.name)} <span class="text-[10px] text-slate-400 ml-1">clique →</span></td>
+          <td class="px-4 py-2 text-right font-semibold">${fmtInt(r.leads)}</td>
           <td class="px-4 py-2 text-right">${fmtInt(r.total)}</td>
           <td class="px-4 py-2 text-right text-[#00754d] font-semibold">${fmtInt(r.won)}</td>
           <td class="px-4 py-2 text-right text-red-600">${fmtInt(r.lost)}</td>
           <td class="px-4 py-2 text-right font-bold">${fmtBRL(r.revenue)}</td>
           <td class="px-4 py-2 text-right">${r.avgTicket > 0 ? fmtBRL(r.avgTicket) : '—'}</td>
           <td class="px-4 py-2 text-right">${r.conversionRate.toFixed(1)}%</td>
-          <td class="px-4 py-2 text-right">${cycleCell}</td>
-        </tr>
-      `; }).join('') || '<tr><td colspan="8" class="text-center text-slate-400 py-6 text-sm">Sem dados</td></tr>';
+          <td class="px-4 py-2 text-right">${cycleCellFor(r, false)}</td>
+        </tr>`;
+        if (!showChildren) return parent;
+        const kids = r.children.map(c => `
+        <tr class="border-t border-slate-50 bg-slate-50/40 hover:bg-slate-100 cursor-pointer text-[13px] text-slate-600" data-origin-name="${escapeAttr(c.name)}" data-origin-level="variant">
+          <td class="px-4 py-1.5 pl-10">↳ ${escapeHTML(c.name === r.name ? 'sem sub-origem' : c.name.slice(r.name.length + 3))}</td>
+          <td class="px-4 py-1.5 text-right">${fmtInt(c.leads)}</td>
+          <td class="px-4 py-1.5 text-right">${fmtInt(c.total)}</td>
+          <td class="px-4 py-1.5 text-right text-[#00754d]">${fmtInt(c.won)}</td>
+          <td class="px-4 py-1.5 text-right text-red-500">${fmtInt(c.lost)}</td>
+          <td class="px-4 py-1.5 text-right">${fmtBRL(c.revenue)}</td>
+          <td class="px-4 py-1.5 text-right">${c.avgTicket > 0 ? fmtBRL(c.avgTicket) : '—'}</td>
+          <td class="px-4 py-1.5 text-right">${c.conversionRate.toFixed(1)}%</td>
+          <td class="px-4 py-1.5 text-right">${cycleCellFor(c, true)}</td>
+        </tr>`).join('');
+        return parent + kids;
+      }).join('') || '<tr><td colspan="9" class="text-center text-slate-400 py-6 text-sm">Sem dados</td></tr>';
 
-      // Wire up clicks
+      // Wire up clicks — linha do canal abre todas as sub-origens juntas; sub-linha abre só ela
       document.querySelectorAll('[data-origin-name]').forEach(row => {
         row.addEventListener('click', () => {
           const originName = row.dataset.originName;
+          const isRoot = row.dataset.originLevel === 'root';
           // Respeita os filtros ativos da aba (período/pipeline/vendedor) — dealsCreated = biState.filtered
-          const originDeals = dealsCreated.filter(d => composeChannel(d.leadTags || [], overrides) === originName);
-          openDrillDown(`Canal: ${originName}`, `${originDeals.length} deals de leads deste canal`, originDeals);
+          const originDeals = dealsCreated.filter(d => {
+            const composed = composeChannel(d.leadTags || [], overrides);
+            return isRoot ? channelRoot(composed) === originName : composed === originName;
+          });
+          const uniqueLeads = new Set(originDeals.map(d => d.leadId).filter(Boolean)).size;
+          openDrillDown(`Canal: ${originName}`, `${uniqueLeads} leads · ${originDeals.length} deals criados no período`, originDeals);
         });
       });
 
