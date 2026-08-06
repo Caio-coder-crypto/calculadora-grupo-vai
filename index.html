@@ -9189,8 +9189,8 @@
       });
       const typeRows = Object.entries(byType).sort((a, b) => b[1].total - a[1].total).map(([k, s]) => {
         const r = s.done + s.ns;
-        return '<tr class="border-t border-slate-100">'
-          + '<td class="px-3 py-2 font-semibold text-[#041227]">' + escFn(k) + '</td>'
+        return '<tr class="border-t border-slate-100 cursor-pointer hover:bg-slate-50" data-caltype="' + escFn(k) + '" title="Clique pra ver a agenda e os leads">'
+          + '<td class="px-3 py-2 font-semibold text-[#041227]">' + escFn(k) + ' <span class="text-slate-300">›</span></td>'
           + '<td class="px-2 py-2 text-center text-slate-500 text-xs">' + (s.pres && s.online ? s.online + ' on · ' + s.pres + ' pres' : (s.pres ? 'presencial' : 'online')) + '</td>'
           + '<td class="px-2 py-2 text-right">' + fmtInt(s.total) + '</td>'
           + '<td class="px-2 py-2 text-right font-bold" style="color:var(--color-primary,#00A859)">' + fmtInt(s.done) + '</td>'
@@ -9221,10 +9221,100 @@
         + '<th class="px-2 py-1.5 text-right">Agendadas</th><th class="px-2 py-1.5 text-right">Realizadas</th>'
         + '<th class="px-2 py-1.5 text-right">No-show</th><th class="px-2 py-1.5 text-right">Taxa</th></tr></thead>'
         + '<tbody>' + (typeRows || '<tr><td class="px-3 py-2 text-slate-400" colspan="6">Sem reuniões no período.</td></tr>') + '</tbody></table></div>'
-        + '<p class="text-[10px] text-slate-400">No-show e realizada saem do Cal.com (marque o não-comparecimento lá, no agendamento). Quem agenda (SDR ou o próprio cliente pelo link) a API do Cal.com não separa. A conversão reunião → venda continua no CRM.</p>'
+        + renderCalcomConversion(escFn)
+        + '<p class="text-[10px] text-slate-400">No-show e realizada saem do Cal.com (marque o não-comparecimento lá, no agendamento). Quem agenda (SDR ou o próprio cliente pelo link) a API do Cal.com não separa.</p>'
         + '</div>';
       const d2 = document.getElementById('calcomDisconnect');
       if (d2) d2.addEventListener('click', () => { try { localStorage.removeItem('calcom_api_key'); } catch (e) {} biState.calcom = null; renderMeetings(); });
+      box.querySelectorAll('[data-caltype]').forEach(tr => tr.addEventListener('click', () => openCalcomAgenda(tr.getAttribute('data-caltype'))));
+    }
+
+    // Conversão pós-reunião por MODALIDADE, cruzando com as TAGS do CRM
+    // (calcom_online / calcom_presencial nos leads). Taxa = ganhos / resolvidos.
+    function renderCalcomConversion(escFn) {
+      const crmDeals = biState.filtered || [];
+      const modeDeals = (re) => crmDeals.filter(d => (d.leadTags || []).some(t => re.test(String(t))));
+      const mk = (label, list) => {
+        const won = list.filter(isWon);
+        const resolved = won.length + list.filter(isLost).length;
+        return { label, n: list.length, won: won.length, rate: resolved ? won.length / resolved * 100 : null, rev: won.reduce((a, d) => a + (d.total || 0), 0) };
+      };
+      const co = mk('💻 Online', modeDeals(/online/i));
+      const cp = mk('🏢 Presencial', modeDeals(/presencial/i));
+      if (!co.n && !cp.n) {
+        return '<div class="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-[11px] text-slate-500">🎯 <b>Conversão por modalidade:</b> marque as tags <code>calcom_online</code> / <code>calcom_presencial</code> nos leads do CRM e a taxa de fechamento de cada uma aparece aqui.</div>';
+      }
+      const row = (c) => '<tr class="border-t border-slate-100">'
+        + '<td class="px-3 py-2 font-semibold text-[#041227]">' + c.label + '</td>'
+        + '<td class="px-2 py-2 text-right">' + fmtInt(c.n) + '</td>'
+        + '<td class="px-2 py-2 text-right font-bold" style="color:var(--color-primary,#00A859)">' + fmtInt(c.won) + '</td>'
+        + '<td class="px-2 py-2 text-right font-bold">' + (c.rate != null ? c.rate.toFixed(0) + '%' : '—') + '</td>'
+        + '<td class="px-2 py-2 text-right tabular-nums">' + fmtBRL(c.rev) + '</td></tr>';
+      let verdict = '';
+      if (co.rate != null && cp.rate != null && co.rate > 0 && cp.rate > 0) {
+        const better = cp.rate >= co.rate ? cp : co;
+        const worse = better === cp ? co : cp;
+        verdict = '<p class="text-[11px] font-semibold mt-1" style="color:var(--color-primary,#00A859)">' + better.label + ' fecha ' + (better.rate / worse.rate).toFixed(1).replace('.', ',') + 'x a taxa de ' + worse.label + ' neste período.</p>';
+      }
+      return '<div class="mt-1"><p class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">🎯 Conversão pós-reunião · tags do CRM · período do filtro</p>'
+        + '<div class="overflow-x-auto"><table class="w-full text-sm min-w-[420px]">'
+        + '<thead class="bg-slate-50 text-[9px] font-bold uppercase tracking-widest text-slate-500"><tr>'
+        + '<th class="px-3 py-1.5 text-left">Modalidade</th><th class="px-2 py-1.5 text-right">Leads c/ tag</th>'
+        + '<th class="px-2 py-1.5 text-right">Ganhos</th><th class="px-2 py-1.5 text-right">Taxa</th><th class="px-2 py-1.5 text-right">Receita</th></tr></thead>'
+        + '<tbody>' + row(co) + row(cp) + '</tbody></table></div>' + verdict + '</div>';
+    }
+
+    // Agenda por consultor: lista os agendamentos do tipo clicado, casando cada
+    // participante com o lead do CRM (por nome) pra mostrar a etapa no funil.
+    function openCalcomAgenda(typeTitle) {
+      const C = biState.calcom;
+      if (!C || !C.bookings) return;
+      const escA = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      const bs = C.bookings
+        .filter(b => (b.eventTypeTitle || b.eventType || 'Sem tipo') === typeTitle)
+        .sort((a, b) => new Date(b.start) - new Date(a.start));
+      const byName = {};
+      ((biState.raw && biState.raw.deals) || []).forEach(d => {
+        const k = String(d.leadName || '').trim().toLowerCase();
+        if (!k) return;
+        const c = byName[k];
+        if (!c || new Date(d.createdAt) > new Date(c.createdAt)) byName[k] = d;
+      });
+      const nowT = Date.now();
+      let ov = document.getElementById('calcomAgendaModal'); if (ov) ov.remove();
+      ov = document.createElement('div');
+      ov.id = 'calcomAgendaModal';
+      ov.className = 'fixed inset-0 z-[70] bg-black/50 flex items-center justify-center p-4';
+      ov.innerHTML = '<div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col">'
+        + '<div class="p-5 border-b border-slate-200 flex items-center justify-between">'
+        + '<div><h3 class="text-lg font-bold text-[#041227]">🗓️ ' + escA(typeTitle) + '</h3>'
+        + '<p class="text-xs text-slate-500 mt-0.5">' + fmtInt(bs.length) + ' agendamentos · lead casado com o CRM pelo nome</p></div>'
+        + '<button id="calAgClose" class="text-slate-400 hover:text-slate-600 text-xl leading-none">✕</button></div>'
+        + '<div class="flex-1 overflow-y-auto p-4 divide-y divide-slate-100">'
+        + (bs.slice(0, 60).map(b => {
+          const dt = new Date(b.start);
+          const fut = dt.getTime() >= nowT;
+          const st = b.status === 'cancelled'
+            ? '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">Cancelada</span>'
+            : b.absent ? '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500 text-white">No-show</span>'
+            : fut ? '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#041227] text-white">Agendada</span>'
+            : '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full text-white" style="background:var(--color-primary,#00A859)">Realizada</span>';
+          const deal = byName[String(b.name || '').trim().toLowerCase()];
+          const crm = deal
+            ? (isWon(deal) ? '<span class="text-[11px] font-bold" style="color:var(--color-primary,#00A859)">🏆 GANHO no CRM</span>'
+              : isLost(deal) ? '<span class="text-[11px] text-red-500 font-semibold">perdido no CRM</span>'
+              : '<span class="text-[11px] text-slate-500">no CRM: ' + escA(deal.stageName || '') + '</span>')
+            : '<span class="text-[11px] text-slate-300">sem lead no CRM com esse nome</span>';
+          return '<div class="py-2.5 flex items-center justify-between gap-3">'
+            + '<div class="min-w-0"><p class="text-sm font-semibold text-[#041227] truncate">' + escA(b.name || '(sem nome)') + '</p>'
+            + '<p class="text-[11px] text-slate-500">' + dt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) + ' ' + dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+            + ' · ' + (b.mode === 'presencial' ? '🏢 presencial' : '💻 online') + ' · ' + crm + '</p></div>'
+            + st + '</div>';
+        }).join('') || '<p class="text-sm text-slate-400 text-center py-8">Sem agendamentos deste tipo.</p>')
+        + '</div></div>';
+      document.body.appendChild(ov);
+      document.getElementById('calAgClose').addEventListener('click', () => ov.remove());
+      ov.addEventListener('click', (e) => { if (e.target === ov) ov.remove(); });
     }
 
     function renderMeetings() {

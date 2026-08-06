@@ -85,6 +85,12 @@ module.exports = async function handler(req, res) {
     const bookings = all.map(b => {
       const at = (b.attendees && b.attendees[0]) || {};
       const slug = (b.eventType && b.eventType.slug) || '';
+      // Nome do CLIENTE: o que foi digitado no formulário vence — em agendamento
+      // interno (SDR agenda logada) o attendee[0] pode vir como o próprio consultor.
+      const fr = b.bookingFieldsResponses || {};
+      const hostName = (b.hosts && b.hosts[0] && b.hosts[0].name) || '';
+      let clientName = (typeof fr.name === 'string' && fr.name.trim()) ? fr.name.trim() : (at.name || '');
+      if (clientName === hostName && Array.isArray(b.guests) && b.guests.length) clientName = String(b.guests[0]);
       return {
         uid: b.uid,
         title: b.title || '',
@@ -93,7 +99,7 @@ module.exports = async function handler(req, res) {
         duration: b.duration || null,
         createdAt: b.createdAt || null,                       // quando foi AGENDADA
         status: b.status,                                     // accepted | cancelled | rejected | pending
-        name: at.name || '',
+        name: clientName,
         email: at.email || '',
         phone: findPhone(b.bookingFieldsResponses),
         absent: !!at.absent,                                  // no-show do cliente (marcado no Cal.com)
