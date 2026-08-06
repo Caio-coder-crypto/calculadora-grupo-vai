@@ -9168,6 +9168,8 @@
       const futuras = bs.filter(b => b.status === 'accepted' && new Date(b.start).getTime() >= nowT).length;
       const canceladas = inP.filter(b => b.status === 'cancelled').length;
       const reagendadas = inP.filter(b => b.rescheduled).length;
+      const online = inP.filter(b => b.status !== 'cancelled' && b.mode !== 'presencial').length;
+      const presencial = inP.filter(b => b.status !== 'cancelled' && b.mode === 'presencial').length;
       const ratings = inP.filter(b => b.rating != null);
       const ratingAvg = ratings.length ? (ratings.reduce((a, b) => a + b.rating, 0) / ratings.length).toFixed(1) : null;
 
@@ -9203,6 +9205,8 @@
         + '<button id="calcomDisconnect" class="text-[11px] text-slate-400 underline">desconectar</button></div>'
         + '<div class="flex flex-wrap gap-2">'
         + chip('Agendadas', fmtInt(agendadas))
+        + chip('💻 Online', fmtInt(online))
+        + chip('🏢 Presencial', fmtInt(presencial))
         + chip('Realizadas', fmtInt(realizadas), 'var(--color-primary,#00A859)')
         + chip('No-show', fmtInt(noshows), noshows ? '#ef4444' : '#041227')
         + chip('Taxa no-show', taxa, noshows ? '#ef4444' : '#041227')

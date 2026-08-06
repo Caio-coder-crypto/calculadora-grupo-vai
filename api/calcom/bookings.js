@@ -73,11 +73,12 @@ module.exports = async function handler(req, res) {
       (et.data || []).forEach(t => { if (t.slug) typeMap[t.slug] = { title: t.title || t.slug, length: t.lengthInMinutes || null }; });
     } catch (e) { /* opcional */ }
 
-    // Modalidade da reunião: link de vídeo = online; endereço/presencial = presencial
+    // Modalidade: o que vale é o LOCATION escolhido no agendamento — endereço físico
+    // = presencial; link de vídeo = online. (meetingUrl NÃO serve de critério:
+    // o Cal.com gera um link de Meet até pros agendamentos presenciais.)
     const modeOf = (b) => {
-      const loc = typeof b.location === 'string' ? b.location : JSON.stringify(b.location || '');
-      if (b.meetingUrl || /integrations:|meet|zoom|teams|link|conferencing/i.test(loc)) return 'online';
-      if (/address|inPerson|atendee|presencial/i.test(loc) || (loc && loc.length > 2)) return 'presencial';
+      const loc = typeof b.location === 'string' ? b.location : '';
+      if (loc && !/^https?:\/\//i.test(loc) && !/^integrations?:/i.test(loc)) return 'presencial';
       return 'online';
     };
 
