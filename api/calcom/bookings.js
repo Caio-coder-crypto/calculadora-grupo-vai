@@ -40,7 +40,10 @@ module.exports = async function handler(req, res) {
     const key = req.headers['x-calcom-key'];
     if (!key) return send(res, 401, { error: true, code: 'NO_CALCOM_KEY', message: 'Chave do Cal.com ausente. Conecte na aba Reuniões.' });
 
-    const ck = String(key).slice(-12);
+    // Índice do cache = SHA-256 da chave inteira. Com os 12 últimos chars,
+    // quem conhecesse o sufixo (preview de chave costuma mostrar o fim) recebia
+    // a agenda da vítima direto do cache, sem a chave nunca ser validada.
+    const ck = require('crypto').createHash('sha256').update(String(key)).digest('hex');
     const force = (req.query || {}).force === '1';
     const cached = cache.get(ck);
     if (!force && cached && (Date.now() - cached.at) < CACHE_TTL_MS) {

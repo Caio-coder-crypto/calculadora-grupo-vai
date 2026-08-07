@@ -72,7 +72,16 @@ async function doSearch(body, res) {
   const location = (body.location || '').toString().trim();
   const quantity = Math.min(MAX_QTY, Math.max(1, parseInt(body.quantity || '20', 10) || 20));
   const minStars = (body.minStars || '').toString().trim();
-  const actor    = (body.actor || DEFAULT_ACTOR).toString().trim().replace('/', '~');
+  // ALLOWLIST de Actor: o valor ia interpolado no path da API da Apify junto com o
+  // token da conta. O replace('/','~') trocava só a PRIMEIRA barra, então
+  // "a/../../v2/qualquer-coisa" virava POST autenticado em qualquer endpoint da
+  // Apify — e mesmo sem traversal dava pra rodar qualquer Actor pago da conta.
+  const ACTOR_ALLOWLIST = new Set([DEFAULT_ACTOR, 'compass~crawler-google-places']);
+  const actorRaw = (body.actor || DEFAULT_ACTOR).toString().trim().replace(/\//g, '~');
+  if (!ACTOR_ALLOWLIST.has(actorRaw) || !/^[a-zA-Z0-9_-]+~[a-zA-Z0-9_.-]+$/.test(actorRaw)) {
+    return send(res, 400, { error: true, code: 'ACTOR_NOT_ALLOWED', message: 'Actor não permitido.' });
+  }
+  const actor = actorRaw;
 
   if (!segment)  return send(res, 400, { error: true, message: 'Informe o segmento (ex.: "clínica de estética").' });
   if (!location) return send(res, 400, { error: true, message: 'Informe a cidade/localização (ex.: "Fortaleza, CE, Brazil").' });
@@ -86,16 +95,19 @@ async function doSearch(body, res) {
   };
   if (minStars) apifyInput.placeMinimumStars = minStars;
 
+  // Token da Apify via header Authorization (em query string ele fica gravado no
+  // access log do destino e em qualquer intermediário do caminho).
   const apifyUrl = `https://api.apify.com/v2/acts/${actor}/run-sync-get-dataset-items`
-    + `?token=${encodeURIComponent(APIFY_TOKEN)}&timeout=120&memory=1024`;
+    + `?timeout=120&memory=1024`;
   const apifyRes = await fetch(apifyUrl, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + APIFY_TOKEN },
     body: JSON.stringify(apifyInput)
   });
   if (!apifyRes.ok) {
     const t = await apifyRes.text().catch(() => '');
-    return send(res, 502, { error: true, code: 'APIFY_ERROR', message: `Apify HTTP ${apifyRes.status}: ${t.slice(0, 200)}` });
+    console.error('[prospect] Apify HTTP', apifyRes.status, t.slice(0, 300));
+    return send(res, 502, { error: true, code: 'APIFY_ERROR', message: 'Falha na busca de prospecção. Tente novamente.' });
   }
   const places = await apifyRes.json().catch(() => []);
   const items = (Array.isArray(places) ? places : [])
@@ -119,6 +131,10 @@ async function doSearch(body, res) {
 async function doImport(apiKey, body, res) {
   const leads      = Array.isArray(body.leads) ? body.leads : [];
   const pipelineId = (body.pipelineId || '').toString().trim();
+  // pipelineId entra no PATH do upstream: barra/".." reescreveriam a rota.
+  if (pipelineId && !/^[a-zA-Z0-9_-]{6,64}$/.test(pipelineId)) {
+    return send(res, 400, { error: true, message: 'Funil inválido.' });
+  }
   const tagName    = (body.tag || 'Outbound Apify').toString().trim();
   const segment    = (body.segment || '').toString().trim();
 

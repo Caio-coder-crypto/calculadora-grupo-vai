@@ -25,7 +25,8 @@ const LEAD_PAGE = 1000;    // take por página (mesmo teto da API usado em /busi
 const MAX_CHUNK = 5000;    // teto por resposta (~600 KB, folgado sob o limite do Vercel)
 
 function cacheKey(apiKey) {
-  return apiKey ? apiKey.slice(-16) : 'anon';
+  // hash da chave inteira: indexar por sufixo permitia colisao entre tenants
+  return apiKey ? require('crypto').createHash('sha256').update(apiKey).digest('hex') : 'anon';
 }
 
 // Só o que a análise de canal precisa. Nada de telefone/email —

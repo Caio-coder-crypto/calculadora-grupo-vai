@@ -12,15 +12,36 @@
 
 function getConfig(req) {
   const h = (req && req.headers) || {};
-  const token = h['x-kommo-token'] || h['X-Kommo-Token'] || process.env.KOMMO_TOKEN || '';
-  const sub   = (h['x-kommo-subdomain'] || h['X-Kommo-Subdomain'] || process.env.KOMMO_SUBDOMAIN || '')
-    .toString().trim().replace(/\.kommo\.com.*$/i, '').replace(/^https?:\/\//i, '');
+  const hdrToken = h['x-kommo-token'] || h['X-Kommo-Token'] || '';
+  const hdrSub   = h['x-kommo-subdomain'] || h['X-Kommo-Subdomain'] || '';
+
+  // SSRF: o subdomínio ia direto pro HOSTNAME da URL. Com "evil.com#" a base virava
+  // https://evil.com#.kommo.com/api/v4 e o fetch mandava o Bearer pro host do atacante.
+  // Agora: allowlist estrita de rótulo DNS + verificação do hostname final.
+  // E credencial não se mistura: se o subdomínio vem do cliente, o token TEM que vir
+  // do cliente também (senão um anônimo exfiltraria o KOMMO_TOKEN do servidor).
+  const fromHeader = !!String(hdrSub).trim();
+  const token = fromHeader ? String(hdrToken).trim() : (process.env.KOMMO_TOKEN || '');
+  const sub = (fromHeader ? String(hdrSub) : (process.env.KOMMO_SUBDOMAIN || ''))
+    .toString().trim().replace(/^https?:\/\//i, '').replace(/\.kommo\.com.*$/i, '');
+
   if (!token || !sub) {
-    const e = new Error('Kommo não configurado. Defina KOMMO_SUBDOMAIN e KOMMO_TOKEN (ou envie X-Kommo-Subdomain / X-Kommo-Token).');
+    const e = new Error('Kommo não configurado. Envie X-Kommo-Subdomain e X-Kommo-Token.');
     e.status = 401; e.code = 'NO_KOMMO_CONFIG';
     throw e;
   }
-  return { token, sub, base: `https://${sub}.kommo.com/api/v4` };
+  if (!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(sub)) {
+    const e = new Error('Subdomínio Kommo inválido.');
+    e.status = 400; e.code = 'BAD_SUBDOMAIN';
+    throw e;
+  }
+  const base = `https://${sub}.kommo.com/api/v4`;
+  if (new URL(base).hostname !== `${sub.toLowerCase()}.kommo.com`) {
+    const e = new Error('Subdomínio Kommo inválido.');
+    e.status = 400; e.code = 'BAD_SUBDOMAIN';
+    throw e;
+  }
+  return { token, sub, base };
 }
 
 async function kGet(cfg, path, query, attempt = 0) {

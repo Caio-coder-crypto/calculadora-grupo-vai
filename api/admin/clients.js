@@ -49,12 +49,13 @@ async function listClients(supabase, req, res) {
 
   if (error) throw new Error('Erro Supabase: ' + error.message);
 
-  // Não retorna a api_key completa por segurança — apenas os últimos 12 chars
+  // NUNCA retorna a api_key completa: uma senha de admin comprometida daria
+  // acesso direto ao CRM de TODOS os tenants. O id (UUID) identifica o cliente
+  // nas operações de edição/remoção — a chave não precisa trafegar.
   const safe = data.map(c => ({
     id: c.id,
     empresa: c.empresa,
-    api_key_preview: c.api_key ? '…' + c.api_key.slice(-12) : '',
-    api_key_full: c.api_key,  // necessário pra cliente saber qual é em caso de edição
+    api_key_preview: c.api_key ? '…' + c.api_key.slice(-8) : '',
     is_active: c.is_active,
     created_at: c.created_at
   }));

@@ -67,6 +67,16 @@ function normalizeLead(l, stageMap, userMap, sellerSet) {
 module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return handleOptions(res);
   try {
+    // Este endpoint não passa pelo kill switch do Supabase: a autorização é a
+    // POSSE do token do Kommo. Exigimos que ele venha do CLIENTE (header) —
+    // com o fallback de env, um GET anônimo baixava a base inteira do tenant.
+    const h = req.headers || {};
+    if (!(h['x-kommo-token'] || h['X-Kommo-Token']) || !(h['x-kommo-subdomain'] || h['X-Kommo-Subdomain'])) {
+      return send(res, 401, {
+        error: true, code: 'NO_KOMMO_CONFIG',
+        message: 'Credencial do Kommo ausente. Conecte a conta na Central Comercial.'
+      });
+    }
     const cfg = getConfig(req);
     // "Tags de vendedor": cliente que separa vendedor por TAG (não por usuário). CSV via ?sellerTags= ou env.
     let sellerTagsRaw = process.env.KOMMO_SELLER_TAGS || '';

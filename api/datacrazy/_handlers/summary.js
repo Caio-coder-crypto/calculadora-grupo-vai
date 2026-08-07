@@ -44,7 +44,7 @@ function isOfficialInstance(inst) {
 const CACHE_TTL_MS = 60_000;
 if (!globalThis.__dcSummaryCache) globalThis.__dcSummaryCache = new Map();
 const cache = globalThis.__dcSummaryCache;
-const cacheKey = (apiKey) => apiKey ? apiKey.slice(-16) : 'anon';
+const cacheKey = (apiKey) => apiKey ? require('crypto').createHash('sha256').update(apiKey).digest('hex') : 'anon';   // hash da chave inteira (sufixo permitia colisao/bypass entre tenants)
 
 module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return handleOptions(res);

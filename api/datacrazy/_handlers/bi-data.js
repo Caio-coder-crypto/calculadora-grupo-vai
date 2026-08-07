@@ -29,7 +29,8 @@ const DEAL_PAGE = 1000;   // take por página (a API aceita até 1000; 2000 volt
 const MAX_CHUNK = 3000;   // teto de deals por resposta (~1,8 MB, sob o limite do Vercel)
 
 function cacheKey(apiKey) {
-  return apiKey ? apiKey.slice(-16) : 'anon';
+  // hash da chave inteira: indexar por sufixo permitia colisao entre tenants
+  return apiKey ? require('crypto').createHash('sha256').update(apiKey).digest('hex') : 'anon';
 }
 
 // Normaliza um negócio bruto da API para o formato enxuto que o front usa.

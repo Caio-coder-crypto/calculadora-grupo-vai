@@ -81,7 +81,6 @@ module.exports = async function handler(req, res) {
 
     // ---- Monta a URL da Graph API (sintaxe oficial) ----
     const url = new URL(`${GRAPH_BASE}/${account}/insights`);
-    url.searchParams.set('access_token', token);
     url.searchParams.set('level', level);
     url.searchParams.set('time_range', JSON.stringify({ since, until }));
     url.searchParams.set('time_increment', '1'); // quebra dia-a-dia (consumo diário)
@@ -101,7 +100,14 @@ module.exports = async function handler(req, res) {
     while (next && guard < 50) {
       guard++;
       if (Date.now() > deadline) break;  // aborta antes do timeout serverless
-      const r = await fetch(next, { headers: { Accept: 'application/json' } });
+      // Token no header Authorization (não na query): em query string ele fica
+      // no access log da Meta e de qualquer intermediário — e a paginação seguia
+      // json.paging.next, que carregava o access_token embutido na URL.
+      const nextUrl = new URL(next);
+      nextUrl.searchParams.delete('access_token');
+      const r = await fetch(nextUrl.toString(), {
+        headers: { Accept: 'application/json', Authorization: 'Bearer ' + token }
+      });
       const json = await r.json().catch(() => ({}));
       if (!r.ok) {
         const fbErr = json?.error || {};

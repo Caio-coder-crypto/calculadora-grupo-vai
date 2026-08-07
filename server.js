@@ -35,7 +35,8 @@ const MIME = {
   '.html': 'text/html; charset=utf-8',
   '.js':   'application/javascript; charset=utf-8',
   '.css':  'text/css; charset=utf-8',
-  '.json': 'application/json; charset=utf-8',
+  // '.json' fora da allowlist de propósito: o dev server serve a raiz do projeto
+  // (nenhum asset .json é usado pelo front; dados vêm de /api/*).
   '.png':  'image/png',
   '.jpg':  'image/jpeg',
   '.jpeg': 'image/jpeg',
@@ -130,6 +131,11 @@ const server = http.createServer(async (req, res) => {
   }
 
   // ---- STATIC FILES ----
+  // SEGURANÇA: a raiz deste dev server é o diretório do projeto — que aqui é o
+  // próprio home do usuário. Sem as duas travas abaixo, um GET /.env.local
+  // devolveria DATACRAZY_API_KEY/SUPABASE_SERVICE_KEY/ADMIN_PASSWORD em texto puro
+  // (e /.ssh, /.aws/credentials, /.claude.json). Servimos SÓ tipos conhecidos e
+  // NUNCA dotfiles/dotdirs.
   if (pathname === '/') pathname = '/index.html';
   const filePath = path.join(ROOT, pathname);
 
@@ -140,6 +146,23 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // Bloqueia qualquer segmento que comece com ponto (.env.local, .ssh, .git, ...)
+  if (pathname.split('/').some(seg => seg.startsWith('.'))) {
+    res.statusCode = 404;
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.end('404 Not Found');
+    return;
+  }
+
+  // Allowlist de extensão: sem fallback octet-stream (que servia QUALQUER arquivo)
+  const extReq = path.extname(filePath).toLowerCase();
+  if (!MIME[extReq]) {
+    res.statusCode = 404;
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.end('404 Not Found');
+    return;
+  }
+
   fs.stat(filePath, (err, stats) => {
     if (err || !stats.isFile()) {
       res.statusCode = 404;
@@ -147,14 +170,14 @@ const server = http.createServer(async (req, res) => {
       res.end('404 Not Found: ' + pathname);
       return;
     }
-    const ext = path.extname(filePath).toLowerCase();
-    res.setHeader('Content-Type', MIME[ext] || 'application/octet-stream');
+    res.setHeader('Content-Type', MIME[extReq]);
     res.setHeader('Cache-Control', 'no-cache');
     fs.createReadStream(filePath).pipe(res);
   });
 });
 
-server.listen(PORT, () => {
+// Bind SOMENTE em loopback: dev server nunca fica exposto na rede local.
+server.listen(PORT, '127.0.0.1', () => {
   console.log('');
   console.log('  ╔══════════════════════════════════════════════════════╗');
   console.log('  ║  Grupo VAI · Calculadora WhatsApp API                ║');

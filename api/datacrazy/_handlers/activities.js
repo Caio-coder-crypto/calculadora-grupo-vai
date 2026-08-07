@@ -37,7 +37,9 @@ module.exports = async function handler(req, res) {
   try {
     const apiKey = await getValidatedKey(req);
     // Limite generoso pra atividades — usuário pode passar ?take=N
-    const maxPages = parseInt(req.query.maxPages, 10) || 15;
+    // Clamp: sem teto, ?maxPages=100000 encadeava chamadas ao upstream até o
+    // timeout da função (amplificação barata, já que não há rate limit).
+    const maxPages = Math.min(50, Math.max(1, parseInt(req.query.maxPages, 10) || 15));
     const { count, data } = await dcGetAll(apiKey, '/activities', {}, 200, maxPages);
 
     // Normaliza e categoriza

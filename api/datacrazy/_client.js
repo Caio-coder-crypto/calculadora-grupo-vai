@@ -51,9 +51,8 @@ function getApiKey(req) {
   if (headerKey && typeof headerKey === 'string' && headerKey.trim()) {
     return { key: headerKey.trim(), source: 'header' };
   }
-  if (req.query?.key && typeof req.query.key === 'string') {
-    return { key: req.query.key.trim(), source: 'query' };
-  }
+  // ?key= REMOVIDO: credencial em query string vaza em access log da Vercel,
+  // em qualquer proxy/CDN do caminho e no header Referer.
   return { key: FALLBACK_KEY || null, source: 'env' };
 }
 
@@ -63,8 +62,19 @@ function getApiKey(req) {
  * Bypass: se Supabase não está configurado, OU se a chave vem do env, libera.
  */
 async function validateApiKey(key, source) {
-  // Bypass: env fallback (admin/dev) ou Supabase não configurado
-  if (source === 'env' || !SUPABASE_ENABLED || !supabase) return true;
+  // FALHA FECHADO: a chave de env (DATACRAZY_API_KEY) é conveniência de DEV.
+  // Em produção ela transformava qualquer request ANÔNIMO (sem header) em acesso
+  // autorizado ao tenant do dono — inclusive escrita — e contornava o kill switch.
+  // Agora só vale se ALLOW_ENV_FALLBACK=1 estiver explicitamente ligado.
+  if (source === 'env') {
+    if (process.env.ALLOW_ENV_FALLBACK === '1') return true;
+    const err = new Error('Credencial ausente. Envie o header X-DataCrazy-Key.');
+    err.status = 401;
+    err.code = 'NO_KEY';
+    throw err;
+  }
+  // Supabase não configurado (dev local): não há o que validar.
+  if (!SUPABASE_ENABLED || !supabase) return true;
 
   // Cache hit
   const cached = authCache.get(key);

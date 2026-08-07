@@ -12,7 +12,32 @@
 //   4. Backend compara contra env. Match = libera. Mismatch = 401.
 // ============================================================
 
+const crypto = require('crypto');
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
+
+// Rate limit em memória por IP: a senha admin destranca a gestão de todos os
+// tenants e era testável infinitas vezes (inclusive de outra origem, via ACAO:*).
+if (!globalThis.__adminRl) globalThis.__adminRl = new Map();
+const rl = globalThis.__adminRl;
+const RL_WINDOW_MS = 15 * 60_000;
+const RL_MAX_FAILS = 5;
+
+function clientIp(req) {
+  const xf = req.headers['x-forwarded-for'];
+  if (typeof xf === 'string' && xf) return xf.split(',')[0].trim();
+  return (req.socket && req.socket.remoteAddress) || 'unknown';
+}
+
+// Comparação em tempo constante (o !== vazava o tamanho do prefixo correto).
+function safeEqual(a, b) {
+  const ba = Buffer.from(String(a));
+  const bb = Buffer.from(String(b));
+  if (ba.length !== bb.length) {
+    crypto.timingSafeEqual(ba, ba);   // gasta o mesmo tempo, não vaza o tamanho
+    return false;
+  }
+  return crypto.timingSafeEqual(ba, bb);
+}
 
 function checkAdminAuth(req) {
   if (!ADMIN_PASSWORD) {
@@ -20,13 +45,26 @@ function checkAdminAuth(req) {
     err.status = 503;
     throw err;
   }
+  const ip = clientIp(req);
+  const now = Date.now();
+  const entry = rl.get(ip);
+  if (entry && entry.until > now && entry.fails >= RL_MAX_FAILS) {
+    const err = new Error('Muitas tentativas. Tente novamente em alguns minutos.');
+    err.status = 429;
+    err.code = 'RATE_LIMITED';
+    throw err;
+  }
   const provided = req.headers['x-admin-password'] || req.headers['X-Admin-Password'] || '';
-  if (!provided || String(provided) !== ADMIN_PASSWORD) {
+  if (!provided || !safeEqual(provided, ADMIN_PASSWORD)) {
+    const cur = (entry && entry.until > now) ? entry : { fails: 0, until: now + RL_WINDOW_MS };
+    cur.fails++;
+    rl.set(ip, cur);
     const err = new Error('Senha admin incorreta.');
     err.status = 401;
     err.code = 'ADMIN_AUTH_FAILED';
     throw err;
   }
+  rl.delete(ip);
   return true;
 }
 
@@ -62,7 +100,9 @@ function getSupabase() {
 // ============================================================
 function send(res, status, payload) {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  // Sem wildcard: o painel admin é same-origin. ACAO:* permitia que qualquer
+  // site tentasse a senha (e lesse a resposta) a partir do navegador da vítima.
+  res.setHeader('Vary', 'Origin');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Admin-Password');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
   res.status(status).send(JSON.stringify(payload));
@@ -79,7 +119,9 @@ function sendError(res, err) {
 }
 
 function handleOptions(res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  // Sem wildcard: o painel admin é same-origin. ACAO:* permitia que qualquer
+  // site tentasse a senha (e lesse a resposta) a partir do navegador da vítima.
+  res.setHeader('Vary', 'Origin');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Admin-Password');
   res.statusCode = 204;

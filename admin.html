@@ -291,7 +291,7 @@
         if (filter === 'active' && !c.is_active) return false;
         if (filter === 'inactive' && c.is_active) return false;
         if (query) {
-          const haystack = (c.empresa + ' ' + (c.api_key_full || '') + ' ' + c.api_key_preview).toLowerCase();
+          const haystack = (c.empresa + ' ' + c.api_key_preview).toLowerCase();
           if (!haystack.includes(query)) return false;
         }
         return true;
@@ -313,7 +313,7 @@
         return `
           <tr class="border-t border-slate-100 hover:bg-slate-50">
             <td class="px-4 py-3 font-semibold text-[#041227]">${escapeHTML(c.empresa)}</td>
-            <td class="px-4 py-3 font-mono text-xs text-slate-500" title="${escapeAttr(c.api_key_full)}">${escapeHTML(c.api_key_preview)}</td>
+            <td class="px-4 py-3 font-mono text-xs text-slate-500" title="chave mascarada por seguranca">${escapeHTML(c.api_key_preview)}</td>
             <td class="px-4 py-3 text-right text-xs text-slate-500">${date}</td>
             <td class="px-4 py-3 text-center">${statusBadge}</td>
             <td class="px-4 py-3 text-right space-x-2">
@@ -386,7 +386,7 @@
         ? 'A chave da API não pode ser alterada (apenas empresa e status).'
         : 'Cadastre uma chave DataCrazy autorizada.';
       document.getElementById('formEmpresa').value = client?.empresa || '';
-      document.getElementById('formApiKey').value = client?.api_key_full || '';
+      document.getElementById('formApiKey').value = mode === 'edit' ? (client?.api_key_preview || '') : '';
       document.getElementById('formApiKey').disabled = mode === 'edit';
       document.getElementById('formApiKeyHint').textContent = mode === 'edit'
         ? 'Chave bloqueada na edição. Pra trocar a chave, delete e cadastre de novo.'
