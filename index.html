@@ -6826,8 +6826,21 @@
         } else {
           // CUMULATIVO: chegou nesta etapa (stageIndex >= idx) OU é ganho (won chegou em TODAS as etapas
           // até o ganho) → garante monotonicidade (conversão nunca > 100%).
+          // Etapa criada DEPOIS do ganho nao pode ter sido percorrida por ele.
+          // Sem isso, inserir uma etapa nova no meio do pipeline faz ela herdar
+          // todo o historico de ganhos e a conversao anterior vai pra ~100%.
+          const nasceuEm = stage.createdAt ? Date.parse(stage.createdAt) : NaN;
           for (const d of dealsToCount) {
-            const reached = (d.stageIndex ?? -1) >= stage._idx || (d.status === 'won' && firstWonIdx !== null && stage._idx <= firstWonIdx);
+            let reached = (d.stageIndex ?? -1) >= stage._idx
+              || (d.status === 'won' && firstWonIdx !== null && stage._idx <= firstWonIdx);
+            // Regra de sanidade: ninguem passou por uma etapa criada DEPOIS da
+            // ultima vez que o negocio se mexeu. Sem isso, inserir uma etapa no
+            // meio do pipeline faz ela herdar todo o historico e a conversao da
+            // etapa anterior vai pra ~100%.
+            if (reached && !isNaN(nasceuEm) && d.stageId !== stage.id) {
+              const paradoDesde = Date.parse(d.statusChangedAt || d.lastMovedAt || '');
+              if (!isNaN(paradoDesde) && paradoDesde < nasceuEm) reached = false;
+            }
             if (reached) { count++; value += d.total || 0; dealsHere.push(d); }
           }
         }
@@ -8181,8 +8194,16 @@
           let conv = '';
           if (i > 0 && getFunnelMode() === 'cumulative') {
             const prev = stages[i - 1].count;
-            const cp = prev > 0 ? Math.min(100, s.count / prev * 100) : 0;
-            conv = `<p class="text-[10px] text-slate-400 text-center py-1">${escapeHTML(stages[i - 1].name)} → ${escapeHTML(s.name)}: ${cp.toFixed(1)}%</p>`;
+            // Sem Math.min(100): clampar transformava 71/5 em "100%", que e mentira.
+            // Se a etapa anterior e contada por TAG e esta veio maior, o que houve
+            // foi PULO de etapa (ou tag ainda nao aplicada no historico) — mostramos isso.
+            if (stages[i - 1].byTag && s.count > prev) {
+              const semTag = (s.deals || []).filter(d => !dealTemTag(d, stages[i - 1].tagName)).length;
+              conv = `<p class="text-[10px] text-amber-600 text-center py-1" title="Chegaram aqui sem a tag &quot;${escapeAttr(stages[i - 1].tagName || '')}&quot;. Ou pularam a etapa, ou a tag ainda nao foi aplicada no historico.">${escapeHTML(stages[i - 1].name)} → ${escapeHTML(s.name)}: ${fmtInt(semTag)} sem passar por ${escapeHTML(stages[i - 1].name)}</p>`;
+            } else {
+              const cp = prev > 0 ? (s.count / prev * 100) : 0;
+              conv = `<p class="text-[10px] text-slate-400 text-center py-1">${escapeHTML(stages[i - 1].name)} → ${escapeHTML(s.name)}: ${cp.toFixed(1)}%</p>`;
+            }
           }
           return conv + `<div class="funnel-stage mx-auto rounded-lg shadow-md text-white text-center py-3 px-3 cursor-pointer hover:brightness-110 transition" data-stage-idx="${i}" style="width:${widthPct}%; min-width:160px; background:${bg}">
               <div class="text-[10px] sm:text-[11px] font-semibold tracking-tight leading-snug break-words opacity-95">${escapeHTML(s.name)}${s.isWonTerminal ? ' 🏆' : ''}</div>
