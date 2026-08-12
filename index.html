@@ -777,7 +777,14 @@
                 <div class="flex items-center gap-1 bg-slate-100 rounded-lg p-0.5">
                   <button data-funnel-mode="snapshot" class="funnel-mode-btn px-3 py-1 rounded-md text-[11px] font-bold transition bg-white text-[#041227] shadow-sm" title="Quantos deals estão parados em cada etapa agora — igual ao kanban do CRM">📍 Como está no CRM</button>
                   <button data-funnel-mode="cumulative" class="funnel-mode-btn px-3 py-1 rounded-md text-[11px] font-bold transition text-slate-600 hover:bg-white/50" title="Quantos deals passaram por cada etapa no período (taxa de conversão)">📈 Conversão</button>
+                  <button id="funnelTagCfgBtn" class="px-2.5 py-1 rounded-md text-[11px] font-bold text-slate-600 hover:bg-white/50 transition" title="Contar uma etapa pela tag, quando o time pula etapas no CRM">⚙️ Etapas por tag</button>
                 </div>
+              </div>
+              <div id="funnelTagCfg" class="hidden mb-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p class="text-[11px] font-bold text-[#041227]">Contar etapa pela tag</p>
+                <p class="text-[11px] text-slate-500 mt-1 leading-relaxed">Use quando o time <b>pula etapas</b> no CRM. Sem isso, quem está numa etapa adiante é contado como se tivesse passado por todas as anteriores, e a etapa pulada fica inflada. Marcando a tag, a etapa passa a contar só quem realmente passou por ela.</p>
+                <div id="funnelTagCfgRows" class="mt-3 space-y-2"></div>
+                <p class="text-[10px] text-slate-400 mt-3">Vale só no modo <b>Conversão</b>. A configuração fica salva neste navegador.</p>
               </div>
               <div id="funnelPyramid" class="max-w-2xl mx-auto space-y-0.5"></div>
               <div id="funnelLostBlock" class="mt-4 max-w-2xl mx-auto"></div>
@@ -4221,6 +4228,24 @@
 
     // ----- Storage de overrides manuais -----
     const TAG_OVERRIDES_STORAGE = 'dc_tag_overrides_v1';
+
+    // ---- Funil: etapas contadas por TAG -------------------------------
+    // A API do CRM não expõe histórico de etapa. Quando o time pula etapas,
+    // o cumulativo (stageIndex >= idx) superestima a etapa pulada. Marcando
+    // a etapa com uma tag, ela passa a contar quem de fato passou por lá.
+    const FUNNEL_STAGE_TAGS_STORAGE = 'dc_funnel_stage_tags_v1';
+    function getFunnelStageTags() {
+      try { return JSON.parse(localStorage.getItem(FUNNEL_STAGE_TAGS_STORAGE) || '{}'); }
+      catch { return {}; }
+    }
+    function setFunnelStageTags(map) {
+      try { localStorage.setItem(FUNNEL_STAGE_TAGS_STORAGE, JSON.stringify(map)); } catch {}
+    }
+    function dealTemTag(deal, tagName) {
+      if (!tagName) return false;
+      const alvo = String(tagName).trim().toLowerCase();
+      return (deal.leadTags || []).some(t => String(t).trim().toLowerCase() === alvo);
+    }
     function getTagOverrides() {
       try { return JSON.parse(localStorage.getItem(TAG_OVERRIDES_STORAGE) || '{}'); }
       catch { return {}; }
@@ -6774,6 +6799,7 @@
 
       // 3) Conta cada etapa do fluxo ativo. SÓ a etapa em firstWonIdx é a terminal de ganho (sem duplicar).
       const overrides = getTagOverrides();
+      const stageTags = getFunnelStageTags();
       const activeStages = activeFlow.map(stage => {
         const isWonStage = firstWonIdx !== null && stage._idx === firstWonIdx;
         let count = 0, value = 0;
@@ -6788,6 +6814,15 @@
           for (const d of dealsToCount) {
             if (d.status === 'won') { count++; value += d.total || 0; dealsHere.push(d); }
           }
+        } else if (stageTags[stage.id]) {
+          // POR TAG: só quem comprovadamente passou por aqui (tem a tag) ou está
+          // parado aqui agora. Deal ganho NÃO entra de graça — se ele pulou a
+          // etapa, ele pulou mesmo, e é isso que a gente quer enxergar.
+          for (const d of dealsToCount) {
+            if (dealTemTag(d, stageTags[stage.id]) || d.stageId === stage.id) {
+              count++; value += d.total || 0; dealsHere.push(d);
+            }
+          }
         } else {
           // CUMULATIVO: chegou nesta etapa (stageIndex >= idx) OU é ganho (won chegou em TODAS as etapas
           // até o ganho) → garante monotonicidade (conversão nunca > 100%).
@@ -6799,7 +6834,8 @@
         return {
           id: stage.id, name: stage.name, color: stage.color || '#94a3b8', index: stage._idx,
           count, value, deals: dealsHere, byChannel: breakdownByChannel(dealsHere, overrides),
-          isWonTerminal: isWonStage
+          isWonTerminal: isWonStage, byTag: mode !== 'snapshot' && !isWonStage && !!stageTags[stage.id],
+          tagName: stageTags[stage.id] || null
         };
       });
 
@@ -6814,6 +6850,47 @@
 
       return { activeStages, lostStages: lostStagesData, postSale, wonTerminalIds, lostTerminalIds };
     }
+
+
+    // Config "etapa contada por tag": um seletor por etapa, alimentado pelas
+    // tags que existem de verdade na base (nada de digitar nome de tag).
+    function renderFunnelTagConfig(pipelineStages, deals) {
+      const box = document.getElementById('funnelTagCfgRows');
+      if (!box) return;
+      const freq = {};
+      for (const d of (deals || [])) for (const t of (d.leadTags || [])) {
+        const k = String(t).trim(); if (k) freq[k] = (freq[k] || 0) + 1;
+      }
+      const tags = Object.keys(freq).sort((a, b) => freq[b] - freq[a]);
+      const atual = getFunnelStageTags();
+      const etapas = (pipelineStages || []).slice().sort((a, b) => (a.index ?? 999) - (b.index ?? 999));
+      box.innerHTML = etapas.map(st => {
+        const sel = atual[st.id] || '';
+        const opts = ['<option value="">— contar pela posição no funil —</option>']
+          .concat(tags.map(t => `<option value="${escapeAttr(t)}"${t === sel ? ' selected' : ''}>${escapeAttr(t)} (${freq[t]})</option>`))
+          .join('');
+        return `<label class="flex items-center gap-2 flex-wrap">
+          <span class="text-[11px] font-semibold text-[#041227] min-w-[150px] truncate" title="${escapeAttr(st.name)}">${escapeAttr(st.name)}</span>
+          <select data-funnel-stage-tag="${escapeAttr(st.id)}" class="text-[11px] rounded-lg border border-slate-200 bg-white px-2 py-1.5 flex-1 min-w-[190px]">${opts}</select>
+        </label>`;
+      }).join('');
+      box.querySelectorAll('select[data-funnel-stage-tag]').forEach(s => {
+        s.addEventListener('change', e => {
+          const map = getFunnelStageTags();
+          const id = e.target.getAttribute('data-funnel-stage-tag');
+          if (e.target.value) map[id] = e.target.value; else delete map[id];
+          setFunnelStageTags(map);
+          renderFunnel();
+        });
+      });
+    }
+
+    document.addEventListener('click', function (e) {
+      const b = e.target.closest && e.target.closest('#funnelTagCfgBtn');
+      if (!b) return;
+      const p = document.getElementById('funnelTagCfg');
+      if (p) p.classList.toggle('hidden');
+    });
 
     // ---------- FUNIL GLOBAL (formato funil de verdade, acima das abas) ----------
     function renderGlobalFunnel() {
@@ -6905,7 +6982,17 @@
           const prevCount = stages[i - 1].count;
           const conv = prevCount > 0 ? (s.count / prevCount * 100) : 0;
           const drop = (100 - conv).toFixed(0);
-          if (hasBottleneck && i === bottleneckIdx) {
+          // Etapa anterior contada por tag e esta veio maior = gente pulou a etapa.
+          // Isso é informação real, não erro de cálculo: mostramos o pulo em vez
+          // de esconder atrás de uma conversão de 100%+.
+          if (stages[i - 1].byTag && s.count > prevCount) {
+            // Pulo real = quem chegou aqui SEM a tag da etapa anterior.
+            // Subtrair as contagens daria menos, porque a etapa anterior ainda
+            // guarda quem está parado nela e nunca avançou.
+            const tagAnterior = stages[i - 1].tagName;
+            const pularam = (s.deals || []).filter(d => !dealTemTag(d, tagAnterior)).length;
+            convLabel = `<span class="text-[10px] font-bold text-[#FFB81C] mt-0.5 block" title="Chegaram aqui sem receber a tag &quot;${escapeAttr(stages[i - 1].tagName || '')}&quot; na etapa anterior">&#8631; ${fmtInt(pularam)} pularam ${escapeAttr(stages[i - 1].name)}</span>`;
+          } else if (hasBottleneck && i === bottleneckIdx) {
             convLabel = `<span class="inline-block mt-1 text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-red-100 text-red-700 ring-1 ring-red-300 animate-pulse">⚠️ Maior Gargalo (-${drop}%)</span>`;
           } else {
             const convClass = conv < 50 ? 'text-red-500' : conv < 80 ? 'text-[#FFB81C]' : 'text-[#00A859]';
@@ -7974,6 +8061,7 @@
       const buildMode = mode;
       const countDeals = (mode === 'snapshot') ? snapDeals : periodScoped;
       const funnelData = buildCumulativeFunnel(pipelineStages, countDeals, buildMode, scopedAll);
+      renderFunnelTagConfig(pipelineStages, countDeals);
       const stages = funnelData.activeStages;
 
       // ===== Cards de topo =====
