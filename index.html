@@ -4177,6 +4177,11 @@
         { pattern: /^\s*linkedin(\s*ads?)?\s*$/i,                          name: 'LinkedIn ADS' },
         { pattern: /^\s*youtube(\s*ads?)?\s*$/i,                           name: 'YouTube ADS' },
         { pattern: /^\s*(org[âa]nico|organic)\s*$/i,                       name: 'Orgânico' },
+        // "Orgânico Digisac", "Orgânico WhatsApp": o cliente cria uma variante por
+        // canal de entrada e o padrão ancorado em $ deixava todas caírem em "other",
+        // ou seja, em Não rastreado. Normalizam todas para o MESMO nome de propósito:
+        // duas tags de orgânico não podem virar duas linhas no relatório de canal.
+        { pattern: /^\s*(org[âa]nico|organic)\b.+$/i,                      name: 'Orgânico' },
         { pattern: /^\s*(indica[çc][ãa]o|indication|referral)\s*$/i,       name: 'Indicação' },
         { pattern: /^\s*site\s*$/i,                                        name: 'Site' },
         { pattern: /^\s*prospec[çc][ãa]o.*$/i,                             name: 'Prospecção' },
@@ -4186,6 +4191,9 @@
       sub_origin: [
         { pattern: /^\s*lp\s*$/i,                                          name: 'LP' },
         { pattern: /^\s*landing\s*page\s*$/i,                              name: 'Landing Page' },
+        // Formulário nativo do Meta. É aquisição paga de verdade e estava caindo em
+        // "other" por falta de padrão — some do rastreio justamente onde a verba está.
+        { pattern: /^\s*form\.?\s*(ul[áa]rio)?\s*nativo\s*$/i,             name: 'Formulário Nativo' },
         { pattern: /^\s*link[\s-]?bio\s*$/i,                               name: 'Link Bio' },
         { pattern: /^\s*(instagram|insta|ig)\s*$/i,                        name: 'Instagram' },
         { pattern: /^\s*(facebook|fb)\s*$/i,                               name: 'Facebook' },
@@ -4210,7 +4218,15 @@
       import_list: [
         { pattern: /^\s*importa[çc][ãa]o.*$/i,                             name: 'Importação' },
         { pattern: /^\s*lista\s+.*$/i,                                     name: 'Lista importada' },
-        { pattern: /^\s*(base\s*fria|cold\s*list|mailing)\s*$/i,           name: 'Base fria' }
+        { pattern: /^\s*(base\s*fria|cold\s*list|mailing)\s*$/i,           name: 'Base fria' },
+        // Nome de CRM como tag é PROCEDÊNCIA, nunca canal: marca a base que veio
+        // migrada da ferramenta antiga. Sem isto a migração inteira cai em "other"
+        // e reaparece como "Não rastreado" — na Belo Norte eram ~5.000 leads, 40%
+        // da base, com a tag "Kommo". O override manual não resolvia: vive em
+        // localStorage, então valia só no navegador de quem configurou.
+        { pattern: /^\s*(kommo|rd\s*station|pipedrive|hubspot|bitrix\s*24?|ploomes|agendor|moskit)\s*$/i,
+                                                                           name: 'Base migrada' },
+        { pattern: /^\s*(migra[çc][ãa]o|planilha|csv|excel)\b.*$/i,        name: 'Base migrada' }
       ],
       status: [
         { pattern: /^\s*(closer|sdr|atendente|key\s*account)\s*$/i,        name: '__ROLE__' },
